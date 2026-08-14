@@ -26,6 +26,13 @@ type Subscription = {
   subscribed: boolean
 }
 
+type InboxState = {
+  latest_delivery_id: number
+  total_count: number
+  unread_count: number
+  acknowledged_count: number
+}
+
 const timestamp = '2026-08-14T16:00:00Z'
 
 function delivery(id: number, overrides: Partial<Delivery> = {}): Delivery {
@@ -77,7 +84,7 @@ async function mockAuthenticatedApi(page: Page) {
   const liveDelivery = delivery(501, {
     source: 'healthchecks',
     title: 'Live delivery arrived',
-    body: 'Synthetic SSE delivery used for browser reconnect validation.',
+    body: 'Synthetic SSE delivery used for browser synchronization validation.',
     severity: 'warning',
   })
   const criticalDelivery = delivery(500, {
@@ -91,6 +98,18 @@ async function mockAuthenticatedApi(page: Page) {
     title: 'Older notification',
     source: 'healthchecks',
   })
+  const initialState: InboxState = {
+    latest_delivery_id: 150,
+    total_count: 120,
+    unread_count: 37,
+    acknowledged_count: 22,
+  }
+  const liveState: InboxState = {
+    latest_delivery_id: liveDelivery.id,
+    total_count: 121,
+    unread_count: 38,
+    acknowledged_count: 22,
+  }
 
   let subscriptions: Subscription[] = [
     {
@@ -112,7 +131,7 @@ async function mockAuthenticatedApi(page: Page) {
 
   const inboxQueries: string[] = []
   const subscriptionMethods: string[] = []
-  const streamRequests: string[] = []
+  const streamQueries: string[] = []
 
   await mockHealthAndMeta(page)
   await page.route('**/api/v1/**', async (route) => {
@@ -127,9 +146,9 @@ async function mockAuthenticatedApi(page: Page) {
         milestone: 1,
         development_milestone: 4,
         production: false,
-        implemented_engine: ['authenticated SSE inbox stream'],
+        implemented_engine: ['authenticated SSE inbox stream', 'authoritative inbox state snapshot'],
         next_milestone: 'Real-Time Delivery',
-        next_slice: 'Milestone 4 reconnect and unread counter refinement',
+        next_slice: 'Milestone 4 synchronization and stale-state refinement',
       })
     }
 
@@ -147,11 +166,12 @@ async function mockAuthenticatedApi(page: Page) {
       return json(route, { csrf_token: 'synthetic-csrf-token' })
     }
 
+    if (path === '/api/v1/inbox/state') {
+      return json(route, streamDelivered ? liveState : initialState)
+    }
+
     if (path === '/api/v1/inbox/stream') {
-      const requestHeaders = await request.allHeaders()
-      const lastEventId = requestHeaders['last-event-id'] ?? ''
-      streamRequests.push(lastEventId)
-      const replay = lastEventId === String(liveDelivery.id)
+      streamQueries.push(url.search)
       streamDelivered = true
       return route.fulfill({
         status: 200,
@@ -159,25 +179,20 @@ async function mockAuthenticatedApi(page: Page) {
           'content-type': 'text/event-stream',
           'cache-control': 'no-store',
         },
-        body: replay
-          ? [
-              'retry: 3000',
-              'event: ready',
-              `data: {"cursor":${liveDelivery.id}}`,
-              '',
-              '',
-            ].join('\n')
-          : [
-              'retry: 3000',
-              'event: ready',
-              'data: {"cursor":150}',
-              '',
-              `id: ${liveDelivery.id}`,
-              'event: inbox',
-              `data: ${JSON.stringify(liveDelivery)}`,
-              '',
-              '',
-            ].join('\n'),
+        body: [
+          'retry: 3000',
+          'event: ready',
+          `data: ${JSON.stringify({ cursor: initialState.latest_delivery_id, ...initialState })}`,
+          '',
+          `id: ${liveDelivery.id}`,
+          'event: inbox',
+          `data: ${JSON.stringify(liveDelivery)}`,
+          '',
+          'event: state',
+          `data: ${JSON.stringify(liveState)}`,
+          '',
+          '',
+        ].join('\n'),
       })
     }
 
@@ -244,7 +259,7 @@ async function mockAuthenticatedApi(page: Page) {
     return json(route, { detail: `Unhandled browser test route: ${request.method()} ${path}` }, 500)
   })
 
-  return { inboxQueries, subscriptionMethods, streamRequests }
+  return { inboxQueries, subscriptionMethods, streamQueries }
 }
 
 async function assertNoAutomatedWcagViolations(page: Page) {
@@ -254,7 +269,7 @@ async function assertNoAutomatedWcagViolations(page: Page) {
   expect(result.violations, JSON.stringify(result.violations, null, 2)).toEqual([])
 }
 
-test('authenticated Glaze inbox supports realtime browser interactions and automated accessibility checks', async ({ page }) => {
+test('authenticated Glaze inbox synchronizes authoritative counts and realtime delivery', async ({ page }) => {
   const evidence = await mockAuthenticatedApi(page)
   await page.goto('/')
 
@@ -264,7 +279,11 @@ test('authenticated Glaze inbox supports realtime browser interactions and autom
   await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Live delivery arrived/ })).toBeVisible()
   await expect(page.getByText(/Live updates (connected|reconnecting)/)).toBeVisible()
-  await expect.poll(() => evidence.streamRequests.length).toBeGreaterThan(0)
+  await expect.poll(() => evidence.streamQueries.some((query) => query.includes('after_id=150'))).toBe(true)
+  await expect(inboxNavigation.getByRole('button', { name: /^Inbox 121$/ })).toBeVisible()
+  await expect(inboxNavigation.getByRole('button', { name: /^Unread 38$/ })).toBeVisible()
+  await expect(inboxNavigation.getByRole('button', { name: /^Read 83$/ })).toBeVisible()
+  await expect(page.getByText('authoritative server count')).toHaveCount(2)
 
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to notifications' })).toBeFocused()
@@ -309,9 +328,9 @@ test('sign-in screen has labeled controls and no automated WCAG A/AA violations'
     milestone: 1,
     development_milestone: 4,
     production: false,
-    implemented_engine: ['authenticated SSE inbox stream'],
+    implemented_engine: ['authenticated SSE inbox stream', 'authoritative inbox state snapshot'],
     next_milestone: 'Real-Time Delivery',
-    next_slice: 'Milestone 4 reconnect and unread counter refinement',
+    next_slice: 'Milestone 4 synchronization and stale-state refinement',
   }))
   await page.route('**/api/v1/me', (route) => json(route, { detail: 'authentication required' }, 401))
 
