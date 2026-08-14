@@ -1,15 +1,28 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
 from .database import engine, verify_schema
 from .routers import admin, compatibility, inbox, notifications, retention, session, subscriptions
+
+STATIC_ROOT = Path(__file__).resolve().parent / "static"
+
+
+class ImmutableStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope) -> Response:
+        response = await super().get_response(path, scope)
+        if response.status_code == status.HTTP_200_OK:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
 
 
 @asynccontextmanager
@@ -34,6 +47,23 @@ app.add_middleware(
     expose_headers=["X-CSRF-Token"],
 )
 
+app.mount(
+    "/assets",
+    ImmutableStaticFiles(directory=STATIC_ROOT / "assets", check_dir=False),
+    name="frontend-assets",
+)
+
+
+@app.get("/", include_in_schema=False)
+def frontend_index() -> FileResponse:
+    index = STATIC_ROOT / "index.html"
+    if not index.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="frontend artifact is not installed in this runtime",
+        )
+    return FileResponse(index, headers={"Cache-Control": "no-store"})
+
 
 @app.get("/healthz", tags=["system"])
 def health() -> dict[str, str]:
@@ -49,7 +79,7 @@ def api_meta() -> dict[str, object]:
         "version": settings.version,
         "milestone": 1,
         "development_milestone": 2,
-        "production": False,
+        "production": settings.environment == "production",
         "notification_writes_enabled": True,
         "entities": [
             "User", "Device", "ServiceIdentity", "Source", "Channel",
