@@ -2,7 +2,7 @@
 
 GoreeCloud Notify is the planned GoreeCloud-native centralized notification-delivery service and long-term successor to ntfy.
 
-> **Development status:** Milestone 2 development is stacked on the unmerged Milestone 1 foundation. GoreeCloud Notify is not deployed and does not replace the current ntfy service at `https://notify.goreecloud.com`.
+> **Development status:** Milestone 2 development is stacked on the unmerged Milestone 1 foundation. GoreeCloud Notify is not deployed and does not replace the current ntfy service at `https://notify.goreecloud.com`. PRs #1–#12 have green exact-head CI evidence. PR #13 is currently blocked before runner start by the GitHub Actions account billing/spending-limit state and is not recorded as green.
 
 ## Current development scope
 
@@ -20,8 +20,10 @@ Milestone 2 is currently split into focused stacked changes:
 - PR #9: server-side synchronizer CSRF tokens plus owned Delivery read, unread, acknowledgement, and CSRF-protected logout mutations.
 - PR #10: authenticated user-owned subscription listing plus CSRF-protected idempotent subscribe/unsubscribe behavior for approved channels.
 - PR #11: administrator-only, non-destructive retention preview using an explicit UTC cutoff; it reports candidate state but cannot delete or update retained data.
+- PR #12: inactive-user session revocation hardening so a session created while a user is active is persistently revoked if that user is later deactivated.
+- PR #13: metadata-driven Glaze UI development status; the landing page reads Milestone/roadmap state from `/api/v1/meta` instead of hard-coding Milestone 1 text and keeps metadata failure separate from backend-health status.
 
-Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. Human login/session runtime is implemented on the pre-production PR #7 stack. PR #8 adds subscription-based user-level Delivery fanout and a read-only authenticated inbox. PR #9 adds session-bound synchronizer CSRF protection and owned Delivery read/unread/acknowledgement mutations. PR #10 adds user-owned subscription administration; disabling a subscription affects future fanout only and never deletes existing Delivery history. PR #11 adds retention analysis only: the operator must supply an explicit UTC cutoff, and that cutoff is analysis input rather than an approved retention duration. Automatic purge, destructive retention APIs, real-time delivery, and production migration remain unimplemented.
+Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. Human login/session runtime is implemented on the pre-production PR #7 stack. PR #8 adds subscription-based user-level Delivery fanout and a read-only authenticated inbox. PR #9 adds session-bound synchronizer CSRF protection and owned Delivery read/unread/acknowledgement mutations. PR #10 adds user-owned subscription administration; disabling a subscription affects future fanout only and never deletes existing Delivery history. PR #11 adds retention analysis only: the operator must supply an explicit UTC cutoff, and that cutoff is analysis input rather than an approved retention duration. PR #12 closes an inactive-account session-revocation persistence defect without changing the session API contract. PR #13 removes stale frontend development-status duplication, but its remote validation remains pending because GitHub Actions cannot currently start runners. Automatic purge, destructive retention APIs, real-time delivery, and production migration remain unimplemented.
 
 ## Repository structure
 
@@ -72,7 +74,7 @@ Development ports remain loopback-only: frontend `127.0.0.1:5173`, backend `127.
 ## API status
 
 - `GET /healthz` — application/database health
-- `GET /api/v1/meta` — development milestone/status metadata
+- `GET /api/v1/meta` — development milestone/status metadata used by the current landing page
 - Milestone 2 administration endpoints are under `/api/v1`
 - `POST /api/v1/notifications` — native scoped producer ingestion
 - `GET /api/v1/notifications` — producer-scoped history with optional source/channel/severity filters and `before_id` pagination
@@ -95,6 +97,10 @@ Development ports remain loopback-only: frontend `127.0.0.1:5173`, backend `127.
 - tags, actions, attachments, Markdown, delays, email, calls, and other advanced ntfy options are explicitly unsupported in the initial adapter rather than silently discarded
 
 See `docs/notification-engine.md` for the current Milestone 2 boundary and `docs/retention.md` for the preview-only retention safety contract.
+
+## Validation boundary
+
+GitHub Actions remains the required exact-head validation gate for stacked development. A workflow that cannot start because of account billing/spending limits is not treated as a passing or failing code result. Local syntax or partial checks may help diagnose changes, but they do not replace the repository CI gate.
 
 ## License
 
