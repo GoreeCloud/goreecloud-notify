@@ -57,7 +57,9 @@ export default function App() {
 
   const developmentState = meta
     ? `Milestone ${meta.development_milestone} · ${meta.next_milestone}`
-    : 'Loading development metadata'
+    : metaError
+      ? 'Development metadata unavailable'
+      : 'Loading development metadata'
 
   return (
     <main className="shell">
