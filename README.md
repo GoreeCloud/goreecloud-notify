@@ -10,7 +10,7 @@ The repository now contains three major development layers:
 
 1. **Milestone 1 foundation** — FastAPI, React/TypeScript/Vite, SQLite/SQLAlchemy, Docker development topology, documentation, tests, and GitHub Actions.
 2. **Milestone 2 notification engine** — producer identities and scoped tokens, sources/channels, native and initial ntfy-compatible ingestion, persistence, producer history, administrator-provisioned human users, opaque web sessions, subscription fanout, user-owned inbox state, CSRF protection, subscription administration, and non-destructive retention analysis.
-3. **Milestone 3 Glaze UI Inbox** — authenticated web sign-in, session restoration, notification-center layout, server-backed search/filters, cursor pagination, user-owned channel subscription management, source/severity presentation, notification detail, read/unread and acknowledgement actions, fail-visible logout behavior, responsive accessibility controls, and system/light/dark appearance selection.
+3. **Milestone 3 Glaze UI Inbox** — authenticated web sign-in, session restoration, notification-center layout, server-backed search/filters, cursor pagination, user-owned channel subscription management, source/severity presentation, notification detail, read/unread and acknowledgement actions, fail-visible logout behavior, responsive accessibility controls, system/light/dark appearance selection, Chromium interaction validation, and automated WCAG A/AA checks.
 
 The stacked hardening/readiness line also includes fail-closed session configuration, SQLite foreign-key enforcement, UTC datetime canonicalization, production administrator authorization, login abuse controls, administrator password reset, required-text normalization, backup/restore tooling and recovery validation, production runtime/private-publication readiness, and monitoring/outage-alert readiness.
 
@@ -36,17 +36,35 @@ The Milestone 3 inbox uses the existing security contracts rather than creating 
 
 The UI does not display producer tokens, session-cookie values, CSRF values, database configuration, or other reusable credentials.
 
+## Browser and accessibility validation
+
+The frontend has a separate read-only GitHub Actions browser gate using locked Playwright and Axe dependencies.
+
+The gate builds the immutable Vite artifact, installs Chromium for the CI runner, and validates two isolated browser scenarios against mocked API contracts:
+
+- authenticated inbox rendering and semantic navigation;
+- keyboard discovery of the skip-to-notifications link;
+- server-backed unread filtering and debounced search requests;
+- cursor-based `Load more` behavior;
+- notification-channel subscription interaction with CSRF header validation in the mock contract;
+- dark-mode state;
+- narrow mobile rendering without horizontal document overflow;
+- sign-in form labels and controls;
+- automated Axe analysis for selected WCAG A/AA rule tags on both authenticated and unauthenticated surfaces.
+
+Automated browser and Axe checks are evidence for detectable interaction/accessibility problems, not proof of complete accessibility conformance. Manual keyboard, screen-reader, zoom/reflow, visual contrast/usability, and inclusive-user acceptance remain separate Milestone 3 work.
+
 ## Repository structure
 
 ```text
 .
 ├── backend/                    FastAPI API, SQLite model, migrations, recovery tooling
-├── frontend/                   React + TypeScript + Vite web client
+├── frontend/                   React + TypeScript + Vite web client and browser tests
 ├── deploy/                     Proposed production/private-publication and monitoring contracts
 ├── docs/                       Architecture, security, recovery, monitoring, migration
 ├── docker-compose.yml          Isolated development topology
 ├── Dockerfile.production       Production multi-stage frontend/backend image
-└── .github/workflows/          CI and source-controlled readiness gates
+└── .github/workflows/          CI and source-controlled readiness/browser gates
 ```
 
 ## Local backend
@@ -71,6 +89,13 @@ npm run lint
 npm run check
 npm run build
 npm run dev -- --host 127.0.0.1
+```
+
+For browser validation after installing the Playwright Chromium runtime for the current environment:
+
+```bash
+cd frontend
+npm run test:browser
 ```
 
 `frontend/package-lock.json` is committed and release/CI installs use the reproducible lock with `npm ci`.
@@ -123,7 +148,7 @@ Before controlled cutover, GoreeCloud Notify still requires the applicable targe
 
 ## Next roadmap
 
-- **Milestone 3:** browser/visual and accessibility validation of the authenticated Glaze inbox and channel controls, followed by any evidence-backed interaction refinements.
+- **Milestone 3:** complete manual browser/visual and accessibility acceptance of the authenticated Glaze inbox and channel controls, then apply only evidence-backed interaction refinements.
 - **Milestone 4:** real-time WebSocket and/or SSE delivery, reconnect behavior, unread counters, and browser notification support where approved.
 - **Milestone 5:** Android client evaluation/implementation after web/API stability.
 - **Milestone 6:** controlled ntfy migration with producer-by-producer validation and rollback.
