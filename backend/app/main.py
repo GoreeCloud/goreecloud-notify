@@ -111,6 +111,8 @@ def api_meta() -> dict[str, object]:
             "database-backed SSE delivery cursor",
             "Last-Event-ID replay contract",
             "long-lived user-session revalidation",
+            "authoritative inbox state snapshot",
+            "SSE aggregate inbox state events",
         ],
         "implemented_experience": [
             "authenticated Glaze UI inbox",
@@ -126,9 +128,14 @@ def api_meta() -> dict[str, object]:
             "real-time Glaze inbox delivery",
             "live connection and reconnect status",
             "stream-handshake inbox reconciliation",
+            "authoritative inbox navigation counters",
+            "cursor-bootstrap inbox synchronization",
+            "reconnecting session validation",
+            "fail-closed realtime resynchronization",
+            "immediate filtered mutation reconciliation",
         ],
         "next_milestone": "Real-Time Delivery",
-        "next_slice": "Milestone 4 cursor synchronization and authoritative unread counts",
+        "next_slice": "Milestone 4 explicit offline recovery and browser notification permission design",
     }
 
 
