@@ -56,9 +56,11 @@ GoreeCloud Notify remains pre-production. The current stacked development line i
 - forwarded client addresses are ignored unless the direct peer belongs to an explicitly configured trusted proxy CIDR
 - malformed forwarded chains fail back to the trusted direct peer rather than trusting attacker-supplied text
 
-## Response privacy and browser caching
+## Response privacy, browser isolation, and caching
 
-GoreeCloud Notify treats application responses as private by default.
+GoreeCloud Notify treats application responses as private by default and constrains the production browser document to the resources the current same-origin application actually requires.
+
+### Cache and metadata exposure controls
 
 - every non-asset HTTP response is emitted with `Cache-Control: no-store`
 - non-asset responses also emit `Pragma: no-cache` for legacy cache behavior
@@ -69,7 +71,32 @@ GoreeCloud Notify treats application responses as private by default.
 - the built HTML shell remains no-store
 - fingerprinted frontend assets under `/assets/` retain `public, max-age=31536000, immutable` caching so the privacy rule does not destroy immutable-asset performance
 
-The cache policy is an application-layer control. It does not authorize deployment behind a caching proxy or CDN that overrides application response headers.
+### Content Security Policy
+
+The current production application uses a same-origin CSP:
+
+`default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; frame-src 'none'; form-action 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; media-src 'none'; worker-src 'none'; manifest-src 'self'`
+
+The policy intentionally:
+
+- permits the built JavaScript, CSS, fonts, images, fetch requests, and EventSource connection only from the GoreeCloud Notify origin, except that image data URLs remain permitted
+- prevents plugin/object content
+- prevents the application from being embedded in another page
+- prevents framed child content
+- prevents document base-URL rewriting
+- restricts form submission to the application origin
+- disables workers/service workers in the current web-only source line; adding a service worker or Web Push architecture requires an explicit later policy change and validation
+- blocks media loading because the current Notify interface has no media-delivery requirement
+
+The current frontend has no inline-script requirement. Production frontend resources are emitted as built same-origin assets. Development through the separate Vite development server is not governed by the production document response header.
+
+### Framing and browser capability restrictions
+
+- `X-Frame-Options: DENY` is retained as legacy defense in depth alongside CSP `frame-ancestors 'none'`
+- `Permissions-Policy` disables camera, microphone, geolocation, payment, and USB capabilities because GoreeCloud Notify does not require them
+- browser notification permission remains governed separately by the explicit opt-in notification design; the capability policy does not grant or simulate notification permission
+
+The cache and browser-security policies are application-layer controls. They do not authorize deployment behind a caching proxy, CDN, or reverse proxy that overrides or weakens application response headers.
 
 ## Browser system-notification privacy
 
@@ -91,7 +118,7 @@ The cache policy is an application-layer control. It does not authorize deployme
 - production readiness uses an explicit migration step rather than relying on silent schema mutation during ordinary application startup
 - credentialed CORS is restricted to configured origins
 - no Docker socket is exposed to the application
-- source-controlled production readiness proves a private HTTPS/Caddy path, authorized/unauthorized source behavior, Secure-cookie behavior, persistence across application replacement, and secret-minimization checks in disposable infrastructure
+- source-controlled production readiness proves a private HTTPS/Caddy path, authorized/unauthorized source behavior, Secure-cookie behavior, response cache/browser-security headers, persistence across application replacement, and secret-minimization checks in disposable infrastructure
 - source-controlled monitoring readiness proves database-aware health monitoring, least-privilege alert identities, and controlled DOWN/RECOVERED transitions in disposable infrastructure
 
 These source-level controls do not replace target-environment validation. Final Caddy, private DNS, NetBird authorization, filesystem permissions, backup/restore, monitoring, out-of-band outage alerting, and rollback evidence remain separate release gates.
