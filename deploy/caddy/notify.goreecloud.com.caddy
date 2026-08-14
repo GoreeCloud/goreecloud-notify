@@ -1,5 +1,7 @@
 # Proposed production site block for the future controlled ntfy -> GoreeCloud Notify cutover.
 # Do not install this fragment while notify.goreecloud.com still routes to ntfy.
+# Before activating the future Uptime Kuma monitor, set GOREECLOUD_NOTIFY_MONITOR_SOURCE
+# to the exact source IP/CIDR observed and approved on the real Caddy proxy network.
 notify.goreecloud.com {
     tls {
         dns porkbun {
@@ -11,8 +13,8 @@ notify.goreecloud.com {
         resolvers 1.1.1.1 8.8.8.8
     }
 
-    @netbird_client remote_ip 100.64.0.0/10
-    handle @netbird_client {
+    @approved_client remote_ip 100.64.0.0/10 {$GOREECLOUD_NOTIFY_MONITOR_SOURCE}
+    handle @approved_client {
         reverse_proxy goreecloud-notify:8000
     }
 
