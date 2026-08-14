@@ -1,0 +1,298 @@
+name: Monitoring alert readiness
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  monitoring-alert-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate source-controlled monitoring contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          contract = json.loads(
+              Path("deploy/monitoring/notify_uptime_kuma_monitor.json").read_text()
+          )
+          assert contract["state"] == "proposed-not-provisioned"
+          monitor = contract["monitor"]
+          expected = {
+              "name": "GoreeCloud Notify",
+              "type": "http",
+              "url": "https://notify.goreecloud.com/healthz",
+              "method": "GET",
+              "interval_seconds": 60,
+              "accepted_status_codes": [200],
+              "tls_verification_required": True,
+              "private_caddy_path_required": True,
+              "database_aware_health_required": True,
+          }
+          for key, value in expected.items():
+              assert monitor[key] == value, (key, monitor[key], value)
+
+          source = contract["source_identity"]
+          assert source["service"] == "uptime-kuma"
+          assert source["docker_network"] == "proxy"
+          assert source["documented_ipv4_baseline"] == "172.19.0.50"
+          assert source["live_source_confirmation_required"] is True
+          assert source["caddy_allowlist_required"] is True
+
+          notification = contract["migration_notification_path"]
+          assert notification["service_identity"] == "uptime-kuma"
+          assert notification["permission"] == "write-only"
+          assert notification["internal_server_url"] == "http://ntfy:80"
+          assert notification["topic"] == "goreecloud-uptime"
+          assert notification["down_title"] == "GoreeCloud Notify DOWN"
+          assert notification["recovered_title"] == "GoreeCloud Notify RECOVERED"
+          assert notification["temporary_parallel_migration_path"] is True
+          assert notification["independent_failure_domain_proven"] is False
+
+          baseline = contract["documented_ntfy_monitor_baseline_to_reverify_before_cutover"]
+          assert baseline["name"] == "ntfy"
+          assert baseline["url"] == "http://ntfy:80/v1/health"
+          assert baseline["interval_seconds"] == 60
+          assert baseline["max_retries"] == 3
+          assert baseline["retry_interval_seconds"] == 60
+          assert baseline["request_timeout_seconds"] == 48
+
+          limitations = contract["limitations"]
+          assert limitations
+          assert all(value is False for value in limitations.values())
+          PY
+
+          grep -Fq 'notify.goreecloud.com {' deploy/monitoring/Caddyfile
+          grep -Fq '@approved_monitor remote_ip 100.64.0.0/10 172.19.0.50' deploy/monitoring/Caddyfile
+          grep -Fq 'reverse_proxy app:8000' deploy/monitoring/Caddyfile
+          grep -Fq 'respond "Forbidden" 403' deploy/monitoring/Caddyfile
+          grep -Fq 'tls internal' deploy/monitoring/Caddyfile
+
+      - name: Build production Notify image
+        run: docker build -f Dockerfile.production -t goreecloud-notify:monitoring-readiness .
+
+      - name: Create disposable monitoring state
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/goreecloud-notify-monitoring"
+          data_dir="$root/data"
+          app_env="$root/app.env"
+          ntfy_config="$root/ntfy-server.yml"
+          publisher_file="$root/ntfy-publisher-token"
+          subscriber_file="$root/ntfy-subscriber-token"
+          ca_file="$root/root.crt"
+
+          mkdir -p "$data_dir"
+          sudo chmod 0750 "$data_dir"
+          sudo chown 10001:10001 "$data_dir"
+
+          publisher_token="$(python -c 'import secrets,string; a=string.ascii_lowercase+string.digits; print("tk_"+"".join(secrets.choice(a) for _ in range(29)))')"
+          subscriber_token="$(python -c 'import secrets,string; a=string.ascii_lowercase+string.digits; print("tk_"+"".join(secrets.choice(a) for _ in range(29)))')"
+          echo "::add-mask::$publisher_token"
+          echo "::add-mask::$subscriber_token"
+
+          cat > "$app_env" <<'EOF'
+          GOREECLOUD_NOTIFY_ENVIRONMENT=production
+          GOREECLOUD_NOTIFY_DATABASE_URL=sqlite:////data/goreecloud_notify.db
+          GOREECLOUD_NOTIFY_CORS_ORIGINS=https://notify.goreecloud.com
+          GOREECLOUD_NOTIFY_SESSION_COOKIE_SECURE=true
+          GOREECLOUD_NOTIFY_SESSION_LIFETIME_MINUTES=720
+          GOREECLOUD_NOTIFY_SESSION_IDLE_MINUTES=60
+          GOREECLOUD_NOTIFY_SESSION_TOUCH_MINUTES=5
+          GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS=172.19.0.0/24
+          GOREECLOUD_NOTIFY_LOGIN_RATE_WINDOW_MINUTES=5
+          GOREECLOUD_NOTIFY_LOGIN_RATE_ACCOUNT_ATTEMPTS=5
+          GOREECLOUD_NOTIFY_LOGIN_RATE_SOURCE_ATTEMPTS=20
+          GOREECLOUD_NOTIFY_LOGIN_RATE_COOLDOWN_MINUTES=5
+          GOREECLOUD_NOTIFY_LOGIN_RATE_STATE_TTL_HOURS=24
+          GOREECLOUD_NOTIFY_LOGIN_SECURITY_EVENT_RETENTION_DAYS=30
+          EOF
+
+          printf '%s\n' "$publisher_token" > "$publisher_file"
+          printf '%s\n' "$subscriber_token" > "$subscriber_file"
+          chmod 0600 "$app_env" "$publisher_file" "$subscriber_file"
+          : > "$ca_file"
+          chmod 0644 "$ca_file"
+
+          test_password_hash='$2a$10$YLiO8U21sX1uhZamTLJXHuxgVC0Z/GKISibrKCLohPgtG7yIxSk4C'
+          cat > "$ntfy_config" <<EOF
+          listen-http: ":80"
+          cache-file: "/var/lib/ntfy/cache.db"
+          cache-duration: "1h"
+          auth-file: "/var/lib/ntfy/auth.db"
+          auth-default-access: "deny-all"
+          enable-login: true
+          require-login: true
+          enable-signup: false
+          auth-users:
+            - "uptime-kuma-ci:${test_password_hash}:user"
+            - "uptime-subscriber-ci:${test_password_hash}:user"
+          auth-access:
+            - "uptime-kuma-ci:goreecloud-uptime:write-only"
+            - "uptime-subscriber-ci:goreecloud-uptime:read-only"
+          auth-tokens:
+            - "uptime-kuma-ci:${publisher_token}:Disposable Uptime Kuma publisher"
+            - "uptime-subscriber-ci:${subscriber_token}:Disposable Uptime subscriber"
+          EOF
+          chmod 0444 "$ntfy_config"
+
+          {
+            echo "GOREECLOUD_NOTIFY_MONITORING_IMAGE=goreecloud-notify:monitoring-readiness"
+            echo "GOREECLOUD_NOTIFY_MONITORING_ENV_FILE=$app_env"
+            echo "GOREECLOUD_NOTIFY_MONITORING_DATA_DIR=$data_dir"
+            echo "GOREECLOUD_NOTIFY_MONITORING_NTFY_CONFIG=$ntfy_config"
+            echo "GOREECLOUD_NOTIFY_MONITORING_PUBLISHER_TOKEN_FILE=$publisher_file"
+            echo "GOREECLOUD_NOTIFY_MONITORING_SUBSCRIBER_TOKEN_FILE=$subscriber_file"
+            echo "GOREECLOUD_NOTIFY_MONITORING_CA_FILE=$ca_file"
+            echo "GOREECLOUD_NOTIFY_MONITORING_ROOT=$root"
+          } >> "$GITHUB_ENV"
+
+      - name: Validate disposable monitoring topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f deploy/monitoring/docker-compose.yml --profile maintenance config --format json > "$GOREECLOUD_NOTIFY_MONITORING_ROOT/compose.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          config = json.loads((Path(os.environ["GOREECLOUD_NOTIFY_MONITORING_ROOT"]) / "compose.json").read_text())
+          services = config["services"]
+          for name, service in services.items():
+              assert not service.get("ports"), f"{name} unexpectedly publishes host ports"
+
+          for name in ("app", "caddy", "ntfy", "monitor", "subscriber"):
+              networks = services[name].get("networks", {})
+              actual = set(networks if isinstance(networks, list) else networks.keys())
+              assert actual == {"proxy"}, (name, actual)
+
+          assert services["monitor"]["networks"]["proxy"]["ipv4_address"] == "172.19.0.50"
+          assert services["migrate"]["network_mode"] == "none"
+          app = services["app"]
+          assert app["user"] == "10001:10001"
+          assert app["read_only"] is True
+          assert app["pids_limit"] == 256
+          assert "ALL" in app["cap_drop"]
+          assert any(item.startswith("no-new-privileges") for item in app["security_opt"])
+          assert services["ntfy"]["read_only"] is True
+          assert "ALL" in services["ntfy"]["cap_drop"]
+          PY
+
+      - name: Initialize disposable Notify database
+        run: docker compose -f deploy/monitoring/docker-compose.yml --profile maintenance run --rm migrate
+
+      - name: Start private monitoring topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f deploy/monitoring/docker-compose.yml up -d --wait --wait-timeout 90 app caddy
+          docker compose -f deploy/monitoring/docker-compose.yml up -d ntfy
+
+          for attempt in $(seq 1 30); do
+            if docker compose -f deploy/monitoring/docker-compose.yml exec -T ntfy /usr/bin/ntfy access >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker compose -f deploy/monitoring/docker-compose.yml logs --no-color ntfy || true
+              echo "Disposable ntfy did not become ready" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          caddy_id="$(docker compose -f deploy/monitoring/docker-compose.yml ps -q caddy)"
+          docker cp "$caddy_id:/data/caddy/pki/authorities/local/root.crt" "$GOREECLOUD_NOTIFY_MONITORING_CA_FILE"
+          chmod 0644 "$GOREECLOUD_NOTIFY_MONITORING_CA_FILE"
+
+          docker compose -f deploy/monitoring/docker-compose.yml up -d monitor subscriber
+
+      - name: Verify healthy state and least-privilege alert identities
+        run: |
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T monitor python /readiness/monitor_client.py probe-up
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py assert-empty
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T monitor python /readiness/monitor_client.py publisher-cannot-read
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py subscriber-cannot-publish
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py anonymous-cannot-read
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py anonymous-cannot-publish
+
+      - name: Simulate Notify DOWN and RECOVERED transitions
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f deploy/monitoring/docker-compose.yml stop app
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T monitor python /readiness/monitor_client.py evaluate down
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py assert-sequence down
+
+          docker compose -f deploy/monitoring/docker-compose.yml up -d --wait --wait-timeout 90 app
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T monitor python /readiness/monitor_client.py evaluate recovered
+          docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py assert-sequence down recovered
+
+      - name: Inspect runtime source, exposure, and secret minimization
+        shell: bash
+        run: |
+          set -euo pipefail
+          for service in app caddy ntfy monitor subscriber; do
+            cid="$(docker compose -f deploy/monitoring/docker-compose.yml ps -q "$service")"
+            test -n "$cid"
+            docker inspect "$cid" > "$GOREECLOUD_NOTIFY_MONITORING_ROOT/$service-inspect.json"
+          done
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["GOREECLOUD_NOTIFY_MONITORING_ROOT"])
+          inspections = {
+              name: json.loads((root / f"{name}-inspect.json").read_text())[0]
+              for name in ("app", "caddy", "ntfy", "monitor", "subscriber")
+          }
+          for name, inspect in inspections.items():
+              assert not inspect["HostConfig"].get("PortBindings"), f"{name} has host port bindings"
+              networks = inspect["NetworkSettings"]["Networks"]
+              assert len(networks) == 1, (name, networks.keys())
+
+          monitor_network = next(iter(inspections["monitor"]["NetworkSettings"]["Networks"].values()))
+          assert monitor_network["IPAddress"] == "172.19.0.50"
+
+          app = inspections["app"]
+          host = app["HostConfig"]
+          assert app["Config"]["User"] == "10001:10001"
+          assert host["ReadonlyRootfs"] is True
+          assert host["PidsLimit"] == 256
+          assert "ALL" in (host.get("CapDrop") or [])
+          assert any(item.startswith("no-new-privileges") for item in (host.get("SecurityOpt") or []))
+          assert not host.get("Privileged")
+          assert not any(mount.get("Destination") == "/var/run/docker.sock" for mount in app["Mounts"])
+          PY
+
+          docker compose -f deploy/monitoring/docker-compose.yml logs --no-color > "$GOREECLOUD_NOTIFY_MONITORING_ROOT/stack.log"
+          publisher_token="$(cat "$GOREECLOUD_NOTIFY_MONITORING_PUBLISHER_TOKEN_FILE")"
+          subscriber_token="$(cat "$GOREECLOUD_NOTIFY_MONITORING_SUBSCRIBER_TOKEN_FILE")"
+          for artifact in "$GOREECLOUD_NOTIFY_MONITORING_ROOT/stack.log" "$GOREECLOUD_NOTIFY_MONITORING_ROOT/compose.json" "$GOREECLOUD_NOTIFY_MONITORING_ROOT"/*-inspect.json; do
+            for secret in "$publisher_token" "$subscriber_token"; do
+              if grep -Fq "$secret" "$artifact"; then
+                echo "Disposable monitoring credential leaked into $(basename "$artifact")" >&2
+                exit 1
+              fi
+            done
+          done
+
+      - name: Tear down disposable monitoring state
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${GOREECLOUD_NOTIFY_MONITORING_ROOT:-}" ]; then
+            docker compose -f deploy/monitoring/docker-compose.yml --profile maintenance down -v --remove-orphans || true
+            sudo rm -rf "$GOREECLOUD_NOTIFY_MONITORING_ROOT"
+          fi
