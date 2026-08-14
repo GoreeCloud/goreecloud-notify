@@ -74,6 +74,12 @@ async function mockAuthenticatedApi(page: Page) {
       read_at: index % 4 === 0 ? timestamp : null,
     })
   })
+  const liveDelivery = delivery(501, {
+    source: 'healthchecks',
+    title: 'Live delivery arrived',
+    body: 'Synthetic SSE delivery used for browser reconnect validation.',
+    severity: 'warning',
+  })
   const criticalDelivery = delivery(500, {
     source: 'netbird',
     channel: 'netbird-alerts',
@@ -102,9 +108,11 @@ async function mockAuthenticatedApi(page: Page) {
       subscribed: false,
     },
   ]
+  let streamDelivered = false
 
   const inboxQueries: string[] = []
   const subscriptionMethods: string[] = []
+  const streamRequests: string[] = []
 
   await mockHealthAndMeta(page)
   await page.route('**/api/v1/**', async (route) => {
@@ -117,11 +125,11 @@ async function mockAuthenticatedApi(page: Page) {
         service: 'GoreeCloud Notify',
         version: '0.1.0-dev',
         milestone: 1,
-        development_milestone: 3,
+        development_milestone: 4,
         production: false,
-        implemented_engine: [],
-        next_milestone: 'Glaze UI Inbox',
-        next_slice: 'Milestone 3 browser and accessibility validation',
+        implemented_engine: ['authenticated SSE inbox stream'],
+        next_milestone: 'Real-Time Delivery',
+        next_slice: 'Milestone 4 reconnect and unread counter refinement',
       })
     }
 
@@ -139,13 +147,36 @@ async function mockAuthenticatedApi(page: Page) {
       return json(route, { csrf_token: 'synthetic-csrf-token' })
     }
 
+    if (path === '/api/v1/inbox/stream') {
+      streamRequests.push(request.headers()['last-event-id'] ?? '')
+      streamDelivered = true
+      return route.fulfill({
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-store',
+        },
+        body: [
+          'retry: 3000',
+          'event: ready',
+          'data: {"cursor":150}',
+          '',
+          'id: 501',
+          'event: inbox',
+          `data: ${JSON.stringify(liveDelivery)}`,
+          '',
+          '',
+        ].join('\n'),
+      })
+    }
+
     if (path === '/api/v1/inbox' && request.method() === 'GET') {
       inboxQueries.push(url.search)
       const query = url.searchParams.get('q')?.toLowerCase()
       if (query === 'critical') return json(route, [criticalDelivery])
       if (url.searchParams.has('before_id')) return json(route, [olderDelivery])
 
-      let result = [...defaultDeliveries]
+      let result = streamDelivered ? [liveDelivery, ...defaultDeliveries].slice(0, 50) : [...defaultDeliveries]
       const read = url.searchParams.get('read')
       if (read === 'false') result = result.filter((item) => item.read_at === null)
       if (read === 'true') result = result.filter((item) => item.read_at !== null)
@@ -159,7 +190,7 @@ async function mockAuthenticatedApi(page: Page) {
     const readMatch = path.match(/^\/api\/v1\/inbox\/(\d+)\/read$/)
     if (readMatch) {
       const id = Number(readMatch[1])
-      const existing = defaultDeliveries.find((item) => item.id === id) ?? criticalDelivery
+      const existing = defaultDeliveries.find((item) => item.id === id) ?? (id === liveDelivery.id ? liveDelivery : criticalDelivery)
       return json(route, {
         ...existing,
         read_at: request.method() === 'DELETE' ? null : timestamp,
@@ -169,7 +200,7 @@ async function mockAuthenticatedApi(page: Page) {
     const acknowledgeMatch = path.match(/^\/api\/v1\/inbox\/(\d+)\/acknowledge$/)
     if (acknowledgeMatch) {
       const id = Number(acknowledgeMatch[1])
-      const existing = defaultDeliveries.find((item) => item.id === id) ?? criticalDelivery
+      const existing = defaultDeliveries.find((item) => item.id === id) ?? (id === liveDelivery.id ? liveDelivery : criticalDelivery)
       return json(route, {
         ...existing,
         read_at: timestamp,
@@ -202,7 +233,7 @@ async function mockAuthenticatedApi(page: Page) {
     return json(route, { detail: `Unhandled browser test route: ${request.method()} ${path}` }, 500)
   })
 
-  return { inboxQueries, subscriptionMethods }
+  return { inboxQueries, subscriptionMethods, streamRequests }
 }
 
 async function assertNoAutomatedWcagViolations(page: Page) {
@@ -212,7 +243,7 @@ async function assertNoAutomatedWcagViolations(page: Page) {
   expect(result.violations, JSON.stringify(result.violations, null, 2)).toEqual([])
 }
 
-test('authenticated Glaze inbox supports browser interactions and automated accessibility checks', async ({ page }) => {
+test('authenticated Glaze inbox supports realtime browser interactions and automated accessibility checks', async ({ page }) => {
   const evidence = await mockAuthenticatedApi(page)
   await page.goto('/')
 
@@ -220,6 +251,9 @@ test('authenticated Glaze inbox supports browser interactions and automated acce
   const inboxNavigation = page.getByRole('navigation', { name: 'Inbox views' })
   await expect(inboxNavigation).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Live delivery arrived/ })).toBeVisible()
+  await expect(page.getByText('Live updates connected')).toBeVisible()
+  await expect.poll(() => evidence.streamRequests.length).toBeGreaterThan(0)
 
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to notifications' })).toBeFocused()
@@ -232,7 +266,7 @@ test('authenticated Glaze inbox supports browser interactions and automated acce
   await expect.poll(() => evidence.inboxQueries.some((query) => query.includes('q=critical'))).toBe(true)
 
   await page.getByRole('button', { name: 'Clear filters' }).click()
-  await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Live delivery arrived/ })).toBeVisible()
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(page.getByText('Older notification')).toBeVisible()
   await expect.poll(() => evidence.inboxQueries.some((query) => query.includes('before_id='))).toBe(true)
@@ -262,11 +296,11 @@ test('sign-in screen has labeled controls and no automated WCAG A/AA violations'
     service: 'GoreeCloud Notify',
     version: '0.1.0-dev',
     milestone: 1,
-    development_milestone: 3,
+    development_milestone: 4,
     production: false,
-    implemented_engine: [],
-    next_milestone: 'Glaze UI Inbox',
-    next_slice: 'Milestone 3 browser and accessibility validation',
+    implemented_engine: ['authenticated SSE inbox stream'],
+    next_milestone: 'Real-Time Delivery',
+    next_slice: 'Milestone 4 reconnect and unread counter refinement',
   }))
   await page.route('**/api/v1/me', (route) => json(route, { detail: 'authentication required' }, 401))
 
