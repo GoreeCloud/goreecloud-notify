@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import BrowserNotificationSettings from './BrowserNotificationSettings'
+import { useBrowserNotificationsContext } from './BrowserNotificationsContext'
 import './subscriptions.css'
 
 type SubscriptionRead = {
@@ -57,6 +59,7 @@ export default function SubscriptionsPanel({ onUnauthorized }: SubscriptionsPane
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busyChannel, setBusyChannel] = useState<string | null>(null)
+  const browserNotifications = useBrowserNotificationsContext()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -112,51 +115,61 @@ export default function SubscriptionsPanel({ onUnauthorized }: SubscriptionsPane
   const subscribedCount = subscriptions.filter((subscription) => subscription.subscribed).length
 
   return (
-    <details className="subscriptions-panel">
-      <summary>
-        <span>
-          <strong>Notification channels</strong>
-          <small>{loading ? 'Loading channel state…' : `${subscribedCount} of ${subscriptions.length} subscribed`}</small>
-        </span>
-        <span className="subscriptions-summary-action">Manage</span>
-      </summary>
+    <div className="notification-preferences-stack">
+      <details className="subscriptions-panel">
+        <summary>
+          <span>
+            <strong>Notification channels</strong>
+            <small>{loading ? 'Loading channel state…' : `${subscribedCount} of ${subscriptions.length} subscribed`}</small>
+          </span>
+          <span className="subscriptions-summary-action">Manage</span>
+        </summary>
 
-      <div className="subscriptions-content">
-        <p className="subscriptions-guidance">
-          Choose which channels create future inbox deliveries for this account. Unsubscribing does not delete existing notification history.
-        </p>
+        <div className="subscriptions-content">
+          <p className="subscriptions-guidance">
+            Choose which channels create future inbox deliveries for this account. Unsubscribing does not delete existing notification history.
+          </p>
 
-        {error ? <div className="error-banner" role="alert">{error}</div> : null}
+          {error ? <div className="error-banner" role="alert">{error}</div> : null}
 
-        <div className="subscriptions-list" aria-busy={loading}>
-          {loading ? (
-            <div className="subscription-placeholder" role="status">Loading notification channels…</div>
-          ) : subscriptions.length ? subscriptions.map((subscription) => (
-            <div className="subscription-row" key={subscription.channel_id}>
-              <div className="subscription-copy">
-                <strong>{subscription.name}</strong>
-                <span>#{subscription.channel}</span>
-                {subscription.description ? <p>{subscription.description}</p> : null}
+          <div className="subscriptions-list" aria-busy={loading}>
+            {loading ? (
+              <div className="subscription-placeholder" role="status">Loading notification channels…</div>
+            ) : subscriptions.length ? subscriptions.map((subscription) => (
+              <div className="subscription-row" key={subscription.channel_id}>
+                <div className="subscription-copy">
+                  <strong>{subscription.name}</strong>
+                  <span>#{subscription.channel}</span>
+                  {subscription.description ? <p>{subscription.description}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  className={`subscription-toggle ${subscription.subscribed ? 'active' : ''}`}
+                  aria-pressed={subscription.subscribed}
+                  aria-label={`${subscription.subscribed ? 'Unsubscribe from' : 'Subscribe to'} ${subscription.name}`}
+                  disabled={busyChannel === subscription.channel}
+                  onClick={() => void toggleSubscription(subscription)}
+                >
+                  <span aria-hidden="true" />
+                  {busyChannel === subscription.channel
+                    ? 'Updating…'
+                    : subscription.subscribed ? 'Subscribed' : 'Off'}
+                </button>
               </div>
-              <button
-                type="button"
-                className={`subscription-toggle ${subscription.subscribed ? 'active' : ''}`}
-                aria-pressed={subscription.subscribed}
-                aria-label={`${subscription.subscribed ? 'Unsubscribe from' : 'Subscribe to'} ${subscription.name}`}
-                disabled={busyChannel === subscription.channel}
-                onClick={() => void toggleSubscription(subscription)}
-              >
-                <span aria-hidden="true" />
-                {busyChannel === subscription.channel
-                  ? 'Updating…'
-                  : subscription.subscribed ? 'Subscribed' : 'Off'}
-              </button>
-            </div>
-          )) : (
-            <div className="subscription-placeholder" role="status">No notification channels are currently available.</div>
-          )}
+            )) : (
+              <div className="subscription-placeholder" role="status">No notification channels are currently available.</div>
+            )}
+          </div>
         </div>
-      </div>
-    </details>
+      </details>
+
+      <BrowserNotificationSettings
+        permission={browserNotifications.permission}
+        enabled={browserNotifications.enabled}
+        busy={browserNotifications.busy}
+        onEnable={browserNotifications.enable}
+        onDisable={browserNotifications.disable}
+      />
+    </div>
   )
 }
