@@ -148,7 +148,8 @@ async function mockAuthenticatedApi(page: Page) {
     }
 
     if (path === '/api/v1/inbox/stream') {
-      const lastEventId = request.headers()['last-event-id'] ?? ''
+      const requestHeaders = await request.allHeaders()
+      const lastEventId = requestHeaders['last-event-id'] ?? ''
       streamRequests.push(lastEventId)
       const replay = lastEventId === String(liveDelivery.id)
       streamDelivered = true
