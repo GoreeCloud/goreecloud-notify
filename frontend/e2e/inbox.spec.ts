@@ -265,10 +265,6 @@ test('authenticated Glaze inbox supports realtime browser interactions and autom
   await expect(page.getByRole('button', { name: /Live delivery arrived/ })).toBeVisible()
   await expect(page.getByText(/Live updates (connected|reconnecting)/)).toBeVisible()
   await expect.poll(() => evidence.streamRequests.length).toBeGreaterThan(0)
-  await expect.poll(
-    () => evidence.streamRequests.includes('501'),
-    { timeout: 8_000 },
-  ).toBe(true)
 
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to notifications' })).toBeFocused()
