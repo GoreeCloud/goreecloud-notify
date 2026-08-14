@@ -5,10 +5,11 @@ import json
 import time
 from typing import Annotated, AsyncIterator, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..database import SessionLocal
 from ..delivery_service import (
     acknowledge_delivery,
@@ -139,11 +140,19 @@ def inbox(
 @router.get("/inbox/stream")
 async def inbox_stream(
     request: Request,
-    principal: Annotated[UserPrincipal, Depends(require_user_session)],
+    raw_token: Annotated[
+        str | None,
+        Cookie(alias=settings.session_cookie_name),
+    ] = None,
     after_id: int | None = Query(default=None, ge=0),
     last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
 ) -> StreamingResponse:
     cursor = _stream_cursor(after_id, last_event_id)
+    # Authenticate in a short-lived session so a request-scoped yield dependency
+    # cannot pin a SQLAlchemy Session for the lifetime of the SSE connection.
+    with SessionLocal() as auth_session:
+        principal = require_user_session(auth_session, raw_token)
+
     return StreamingResponse(
         _inbox_event_stream(request, principal, cursor),
         media_type="text/event-stream",
