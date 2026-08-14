@@ -23,7 +23,7 @@ def test_meta_tracks_glaze_ui_inbox_development() -> None:
     assert payload["notification_writes_enabled"] is True
     assert payload["development_milestone"] == 3
     assert payload["next_milestone"] == "Glaze UI Inbox"
-    assert payload["next_slice"] == "Milestone 3 subscription experience and browser validation"
+    assert payload["next_slice"] == "Milestone 3 browser and accessibility validation"
     assert len(payload["entities"]) == 10
     assert "opaque server-side user sessions" in payload["implemented_engine"]
     assert "user-owned subscription administration" in payload["implemented_engine"]
@@ -31,5 +31,6 @@ def test_meta_tracks_glaze_ui_inbox_development() -> None:
     assert "authenticated Glaze UI inbox" in payload["implemented_experience"]
     assert "server-backed notification search and filtering" in payload["implemented_experience"]
     assert "cursor-based inbox pagination" in payload["implemented_experience"]
+    assert "Glaze UI channel subscription management" in payload["implemented_experience"]
     assert "fail-visible logout behavior" in payload["implemented_experience"]
     assert "responsive layout and appearance controls" in payload["implemented_experience"]
