@@ -1,13 +1,20 @@
 from fastapi.testclient import TestClient
 
-from app.main import STATIC_ROOT, app
+from app.main import CONTENT_SECURITY_POLICY, PERMISSIONS_POLICY, STATIC_ROOT, app
+
+
+def assert_browser_security_headers(response) -> None:
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert response.headers["content-security-policy"] == CONTENT_SECURITY_POLICY
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["permissions-policy"] == PERMISSIONS_POLICY
 
 
 def assert_private_response_headers(response) -> None:
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["pragma"] == "no-cache"
-    assert response.headers["x-content-type-options"] == "nosniff"
-    assert response.headers["referrer-policy"] == "no-referrer"
+    assert_browser_security_headers(response)
 
 
 def test_healthz() -> None:
@@ -91,5 +98,4 @@ def test_static_assets_keep_immutable_cache_policy() -> None:
     assert response.status_code == 200
     assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
     assert "pragma" not in response.headers
-    assert response.headers["x-content-type-options"] == "nosniff"
-    assert response.headers["referrer-policy"] == "no-referrer"
+    assert_browser_security_headers(response)
