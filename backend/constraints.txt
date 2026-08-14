@@ -1,4 +1,6 @@
 # GoreeCloud Notify Python dependency constraints.
+# Validated baseline: CPython 3.14.6 on Ubuntu 24.04; production image uses
+# python:3.14.6-slim-bookworm at the source-controlled digest in Dockerfile.production.
 #
 # This file pins the complete Python dependency closure validated for the current
 # stable-candidate source line. requirements.txt and requirements-dev.txt remain
