@@ -5,7 +5,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import DateTime, bindparam, create_engine, inspect, text
 
 
 def run_alembic(database_url: str, revision: str) -> None:
@@ -53,13 +53,24 @@ def test_csrf_migration_revokes_existing_human_sessions(tmp_path) -> None:
     run_alembic(database_url, "0002_human_authentication")
 
     engine = create_engine(database_url)
+    datetime_type = DateTime(timezone=True)
+    insert_user = text(
+        "INSERT INTO users (username, display_name, password_hash, is_active, created_at) "
+        "VALUES (:username, :display_name, :password_hash, :is_active, :created_at)"
+    ).bindparams(bindparam("created_at", type_=datetime_type))
+    insert_session = text(
+        "INSERT INTO web_sessions "
+        "(user_id, session_digest, created_at, last_seen_at, expires_at, revoked_at) "
+        "VALUES (:user_id, :session_digest, :created_at, :last_seen_at, :expires_at, NULL)"
+    ).bindparams(
+        bindparam("created_at", type_=datetime_type),
+        bindparam("last_seen_at", type_=datetime_type),
+        bindparam("expires_at", type_=datetime_type),
+    )
     now = datetime.now(timezone.utc)
     with engine.begin() as connection:
         connection.execute(
-            text(
-                "INSERT INTO users (username, display_name, password_hash, is_active, created_at) "
-                "VALUES (:username, :display_name, :password_hash, :is_active, :created_at)"
-            ),
+            insert_user,
             {
                 "username": "existing",
                 "display_name": "Existing User",
@@ -70,11 +81,7 @@ def test_csrf_migration_revokes_existing_human_sessions(tmp_path) -> None:
         )
         user_id = connection.execute(text("SELECT id FROM users WHERE username='existing'")).scalar_one()
         connection.execute(
-            text(
-                "INSERT INTO web_sessions "
-                "(user_id, session_digest, created_at, last_seen_at, expires_at, revoked_at) "
-                "VALUES (:user_id, :session_digest, :created_at, :last_seen_at, :expires_at, NULL)"
-            ),
+            insert_session,
             {
                 "user_id": user_id,
                 "session_digest": "a" * 64,

@@ -24,14 +24,17 @@ def upgrade() -> None:
 
     connection = op.get_bind()
     session_ids = connection.execute(sa.text("SELECT id FROM web_sessions")).scalars().all()
+    revoke_session = sa.text(
+        "UPDATE web_sessions "
+        "SET csrf_token = :csrf_token, revoked_at = COALESCE(revoked_at, :revoked_at) "
+        "WHERE id = :session_id"
+    ).bindparams(
+        sa.bindparam("revoked_at", type_=sa.DateTime(timezone=True)),
+    )
     now = datetime.now(timezone.utc)
     for session_id in session_ids:
         connection.execute(
-            sa.text(
-                "UPDATE web_sessions "
-                "SET csrf_token = :csrf_token, revoked_at = COALESCE(revoked_at, :revoked_at) "
-                "WHERE id = :session_id"
-            ),
+            revoke_session,
             {
                 "csrf_token": secrets.token_urlsafe(32),
                 "revoked_at": now,
