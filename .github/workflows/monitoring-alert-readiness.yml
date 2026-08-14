@@ -10,6 +10,8 @@ jobs:
   monitoring-alert-readiness:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -78,7 +80,21 @@ jobs:
           grep -Fq 'tls internal' deploy/monitoring/Caddyfile
 
       - name: Build production Notify image
-        run: docker build -f Dockerfile.production -t goreecloud-notify:monitoring-readiness .
+        run: |
+          docker build \
+            --build-arg GOREECLOUD_NOTIFY_BUILD_REVISION="$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION" \
+            -f Dockerfile.production \
+            -t goreecloud-notify:monitoring-readiness \
+            .
+
+      - name: Verify production Notify source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          label_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' goreecloud-notify:monitoring-readiness)"
+          file_revision="$(docker run --rm --entrypoint cat goreecloud-notify:monitoring-readiness /app/BUILD_REVISION)"
+          test "$label_revision" = "$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"
+          test "$file_revision" = "$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"
 
       - name: Create disposable monitoring state
         shell: bash
