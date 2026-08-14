@@ -19,8 +19,9 @@ Milestone 2 is currently split into focused stacked changes:
 - PR #8: subscription-based per-user `Delivery` fanout plus authenticated read-only `GET /api/v1/inbox` and delivery-detail access with strict user isolation and bounded filtering/pagination.
 - PR #9: server-side synchronizer CSRF tokens plus owned Delivery read, unread, acknowledgement, and CSRF-protected logout mutations.
 - PR #10: authenticated user-owned subscription listing plus CSRF-protected idempotent subscribe/unsubscribe behavior for approved channels.
+- PR #11: administrator-only, non-destructive retention preview using an explicit UTC cutoff; it reports candidate state but cannot delete or update retained data.
 
-Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. Human login/session runtime is implemented on the pre-production PR #7 stack. PR #8 adds subscription-based user-level Delivery fanout and a read-only authenticated inbox. PR #9 adds session-bound synchronizer CSRF protection and owned Delivery read/unread/acknowledgement mutations. PR #10 adds user-owned subscription administration; disabling a subscription affects future fanout only and never deletes existing Delivery history. Real-time delivery and production migration remain unimplemented.
+Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. Human login/session runtime is implemented on the pre-production PR #7 stack. PR #8 adds subscription-based user-level Delivery fanout and a read-only authenticated inbox. PR #9 adds session-bound synchronizer CSRF protection and owned Delivery read/unread/acknowledgement mutations. PR #10 adds user-owned subscription administration; disabling a subscription affects future fanout only and never deletes existing Delivery history. PR #11 adds retention analysis only: the operator must supply an explicit UTC cutoff, and that cutoff is analysis input rather than an approved retention duration. Automatic purge, destructive retention APIs, real-time delivery, and production migration remain unimplemented.
 
 ## Repository structure
 
@@ -90,9 +91,10 @@ Development ports remain loopback-only: frontend `127.0.0.1:5173`, backend `127.
 - `GET /api/v1/subscriptions` — authenticated view of the current user's state across approved channels
 - `PUT /api/v1/subscriptions/{channel_slug}` — CSRF-protected idempotent subscribe/enable for the current user
 - `DELETE /api/v1/subscriptions/{channel_slug}` — CSRF-protected idempotent unsubscribe/disable for the current user; existing Delivery history is preserved
+- `GET /api/v1/admin/retention/preview?cutoff=<UTC timestamp>` — bootstrap-admin-only, non-destructive candidate analysis using strict `notification.created_at < cutoff`; the endpoint never deletes or updates records
 - tags, actions, attachments, Markdown, delays, email, calls, and other advanced ntfy options are explicitly unsupported in the initial adapter rather than silently discarded
 
-See `docs/notification-engine.md` for the current Milestone 2 boundary.
+See `docs/notification-engine.md` for the current Milestone 2 boundary and `docs/retention.md` for the preview-only retention safety contract.
 
 ## License
 
