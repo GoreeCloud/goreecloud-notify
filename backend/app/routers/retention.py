@@ -28,7 +28,7 @@ def retention_preview(
 ) -> RetentionPreviewRead:
     if cutoff.tzinfo is None or cutoff.utcoffset() != timedelta(0):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="cutoff must include an explicit UTC offset (Z or +00:00)",
         )
 
