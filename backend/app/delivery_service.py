@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import HTTPException, status
-from sqlalchemy import Select, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
 from .datetime_utils import as_utc
@@ -151,6 +151,29 @@ def list_inbox(
         statement = statement.where(Delivery.id < before_id)
 
     rows = session.execute(statement.order_by(Delivery.id.desc()).limit(limit)).all()
+    return [_to_inbox_read(*row) for row in rows]
+
+
+def latest_inbox_delivery_id(session: Session, principal: UserPrincipal) -> int:
+    latest = session.scalar(
+        select(func.max(Delivery.id)).where(Delivery.user_id == principal.user_id)
+    )
+    return int(latest or 0)
+
+
+def list_inbox_after(
+    session: Session,
+    principal: UserPrincipal,
+    *,
+    after_id: int,
+    limit: int = 100,
+) -> list[InboxDeliveryRead]:
+    rows = session.execute(
+        _inbox_query(principal.user_id)
+        .where(Delivery.id > after_id)
+        .order_by(Delivery.id.asc())
+        .limit(limit)
+    ).all()
     return [_to_inbox_read(*row) for row in rows]
 
 
