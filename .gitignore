@@ -14,6 +14,9 @@ frontend/dist/
 .env.*
 !.env.example
 
+# Target acceptance evidence (internal, review before permanent storage)
+goreecloud-notify-target-preflight*.json
+
 # Editors / OS
 .vscode/
 .idea/
