@@ -218,7 +218,7 @@ test('authenticated Glaze inbox supports browser interactions and automated acce
 
   await expect(page.getByRole('heading', { name: 'Good day, Browser' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Inbox views' })).toBeVisible()
-  await expect(page.getByText('Backup completed')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
 
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to notifications' })).toBeFocused()
@@ -227,11 +227,11 @@ test('authenticated Glaze inbox supports browser interactions and automated acce
   await expect.poll(() => evidence.inboxQueries.some((query) => query.includes('read=false'))).toBe(true)
 
   await page.getByRole('searchbox', { name: 'Search notifications' }).fill('critical')
-  await expect(page.getByText('Critical network alert')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Critical network alert' })).toBeVisible()
   await expect.poll(() => evidence.inboxQueries.some((query) => query.includes('q=critical'))).toBe(true)
 
   await page.getByRole('button', { name: 'Clear filters' }).click()
-  await expect(page.getByText('Backup completed')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(page.getByText('Older notification')).toBeVisible()
   await expect.poll(() => evidence.inboxQueries.some((query) => query.includes('before_id='))).toBe(true)
