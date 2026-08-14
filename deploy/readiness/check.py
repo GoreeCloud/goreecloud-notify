@@ -62,10 +62,14 @@ def assert_public_surface(opener: urllib.request.OpenerDirector) -> None:
     health_body, _ = request(opener, "/healthz")
     health = json.loads(health_body)
     assert health["status"] == "ok"
+    assert "build_revision" not in health
 
     meta_body, _ = request(opener, "/api/v1/meta")
     meta = json.loads(meta_body)
     assert meta["production"] is True
+    assert meta["build_revision"] == os.environ[
+        "GOREECLOUD_NOTIFY_READINESS_EXPECTED_BUILD_REVISION"
+    ]
 
     request(opener, "/api/v1/me", expected=401)
 
