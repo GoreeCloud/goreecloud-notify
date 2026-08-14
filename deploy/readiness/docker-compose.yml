@@ -68,7 +68,7 @@ services:
       - ${GOREECLOUD_NOTIFY_READINESS_CLIENT_ENV_FILE:?Set GOREECLOUD_NOTIFY_READINESS_CLIENT_ENV_FILE}
     volumes:
       - ./check.py:/readiness/check.py:ro
-      - caddy-data:/caddy-data:ro
+      - ${GOREECLOUD_NOTIFY_READINESS_CA_FILE:?Set GOREECLOUD_NOTIFY_READINESS_CA_FILE}:/readiness/root.crt:ro
     extra_hosts:
       - "notify.goreecloud.com=100.64.250.5"
     networks:
@@ -80,7 +80,7 @@ services:
     profiles: [checks]
     volumes:
       - ./check_unauthorized.py:/readiness/check_unauthorized.py:ro
-      - caddy-data:/caddy-data:ro
+      - ${GOREECLOUD_NOTIFY_READINESS_CA_FILE:?Set GOREECLOUD_NOTIFY_READINESS_CA_FILE}:/readiness/root.crt:ro
     extra_hosts:
       - "notify.goreecloud.com=172.31.251.5"
     networks:
