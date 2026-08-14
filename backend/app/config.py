@@ -4,15 +4,27 @@ import os
 from dataclasses import dataclass
 
 
+_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+_FALSE_VALUES = frozenset({"0", "false", "no", "off"})
+
+
 def _split_csv(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
-    value = os.getenv(name)
-    if value is None:
+    raw = os.getenv(name)
+    if raw is None:
         return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+    value = raw.strip().lower()
+    if value in _TRUE_VALUES:
+        return True
+    if value in _FALSE_VALUES:
+        return False
+
+    accepted = ", ".join(sorted(_TRUE_VALUES | _FALSE_VALUES))
+    raise ValueError(f"{name} must be one of: {accepted}")
 
 
 def _env_int(name: str, default: int, *, minimum: int) -> int:
@@ -59,6 +71,11 @@ class Settings:
         if "*" in self.cors_origins:
             raise ValueError(
                 "GOREECLOUD_NOTIFY_CORS_ORIGINS cannot contain '*' when credentialed web sessions are enabled"
+            )
+        if self.session_touch_minutes >= self.session_idle_minutes:
+            raise ValueError(
+                "GOREECLOUD_NOTIFY_SESSION_TOUCH_MINUTES must be less than "
+                "GOREECLOUD_NOTIFY_SESSION_IDLE_MINUTES"
             )
 
 
