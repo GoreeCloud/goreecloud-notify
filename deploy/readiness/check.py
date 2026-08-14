@@ -13,6 +13,25 @@ from pathlib import Path
 BASE_URL = "https://notify.goreecloud.com"
 CA_CERT = Path("/readiness/root.crt")
 USERNAME = "readiness-admin"
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        "base-uri 'none'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "frame-src 'none'",
+        "form-action 'self'",
+        "script-src 'self'",
+        "style-src 'self'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "media-src 'none'",
+        "worker-src 'none'",
+        "manifest-src 'self'",
+    )
+)
+PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
 
 
 def build_opener() -> urllib.request.OpenerDirector:
@@ -58,29 +77,48 @@ def request(
         return response.read(), response.headers
 
 
+def assert_browser_security_headers(headers: object) -> None:
+    assert headers.get("X-Content-Type-Options") == "nosniff"
+    assert headers.get("Referrer-Policy") == "no-referrer"
+    assert headers.get("Content-Security-Policy") == CONTENT_SECURITY_POLICY
+    assert headers.get("X-Frame-Options") == "DENY"
+    assert headers.get("Permissions-Policy") == PERMISSIONS_POLICY
+
+
+def assert_private_response_headers(headers: object) -> None:
+    assert headers.get("Cache-Control") == "no-store"
+    assert headers.get("Pragma") == "no-cache"
+    assert_browser_security_headers(headers)
+
+
 def assert_public_surface(opener: urllib.request.OpenerDirector) -> None:
-    health_body, _ = request(opener, "/healthz")
+    health_body, health_headers = request(opener, "/healthz")
+    assert_private_response_headers(health_headers)
     health = json.loads(health_body)
     assert health["status"] == "ok"
     assert "build_revision" not in health
 
-    meta_body, _ = request(opener, "/api/v1/meta")
+    meta_body, meta_headers = request(opener, "/api/v1/meta")
+    assert_private_response_headers(meta_headers)
     meta = json.loads(meta_body)
     assert meta["production"] is True
     assert meta["build_revision"] == os.environ[
         "GOREECLOUD_NOTIFY_READINESS_EXPECTED_BUILD_REVISION"
     ]
 
-    request(opener, "/api/v1/me", expected=401)
+    _, unauthorized_headers = request(opener, "/api/v1/me", expected=401)
+    assert_private_response_headers(unauthorized_headers)
 
     index_body, index_headers = request(opener, "/")
-    assert index_headers.get("Cache-Control") == "no-store"
+    assert_private_response_headers(index_headers)
     index = index_body.decode("utf-8")
     asset_match = re.search(r'(?:src|href)="(/assets/[^"]+)"', index)
     assert asset_match is not None, "production index did not reference a built asset"
     _, asset_headers = request(opener, asset_match.group(1))
     cache_control = asset_headers.get("Cache-Control", "")
     assert "immutable" in cache_control and "max-age=31536000" in cache_control
+    assert asset_headers.get("Pragma") is None
+    assert_browser_security_headers(asset_headers)
 
     _, cors_headers = request(
         opener,
@@ -93,6 +131,7 @@ def assert_public_surface(opener: urllib.request.OpenerDirector) -> None:
     )
     assert cors_headers.get("Access-Control-Allow-Origin") == BASE_URL
     assert cors_headers.get("Access-Control-Allow-Credentials") == "true"
+    assert_private_response_headers(cors_headers)
 
 
 def login_and_assert_admin(opener: urllib.request.OpenerDirector, password: str) -> None:
@@ -102,6 +141,7 @@ def login_and_assert_admin(opener: urllib.request.OpenerDirector, password: str)
         method="POST",
         payload={"username": USERNAME, "password": password},
     )
+    assert_private_response_headers(login_headers)
     cookie_headers = login_headers.get_all("Set-Cookie") or []
     session_cookie = next(value for value in cookie_headers if "goreecloud_notify_session=" in value)
     assert "Secure" in session_cookie
@@ -109,18 +149,20 @@ def login_and_assert_admin(opener: urllib.request.OpenerDirector, password: str)
     assert "SameSite=strict" in session_cookie
     assert login_headers.get("X-CSRF-Token")
 
-    me_body, _ = request(opener, "/api/v1/me")
+    me_body, me_headers = request(opener, "/api/v1/me")
+    assert_private_response_headers(me_headers)
     me = json.loads(me_body)
     assert me["username"] == USERNAME
     assert me["is_admin"] is True
 
-    channels_body, _ = request(opener, "/api/v1/channels")
+    channels_body, channel_headers = request(opener, "/api/v1/channels")
+    assert_private_response_headers(channel_headers)
     assert isinstance(json.loads(channels_body), list)
 
 
 def bootstrap(opener: urllib.request.OpenerDirector, password: str) -> None:
     bootstrap_token = os.environ["GOREECLOUD_NOTIFY_READINESS_BOOTSTRAP_TOKEN"]
-    request(
+    _, headers = request(
         opener,
         "/api/v1/bootstrap/administrator",
         method="POST",
@@ -133,6 +175,7 @@ def bootstrap(opener: urllib.request.OpenerDirector, password: str) -> None:
         },
         expected=201,
     )
+    assert_private_response_headers(headers)
 
 
 def main() -> None:
