@@ -148,7 +148,9 @@ async function mockAuthenticatedApi(page: Page) {
     }
 
     if (path === '/api/v1/inbox/stream') {
-      streamRequests.push(request.headers()['last-event-id'] ?? '')
+      const lastEventId = request.headers()['last-event-id'] ?? ''
+      streamRequests.push(lastEventId)
+      const replay = lastEventId === String(liveDelivery.id)
       streamDelivered = true
       return route.fulfill({
         status: 200,
@@ -156,17 +158,25 @@ async function mockAuthenticatedApi(page: Page) {
           'content-type': 'text/event-stream',
           'cache-control': 'no-store',
         },
-        body: [
-          'retry: 3000',
-          'event: ready',
-          'data: {"cursor":150}',
-          '',
-          'id: 501',
-          'event: inbox',
-          `data: ${JSON.stringify(liveDelivery)}`,
-          '',
-          '',
-        ].join('\n'),
+        body: replay
+          ? [
+              'retry: 3000',
+              'event: ready',
+              `data: {"cursor":${liveDelivery.id}}`,
+              '',
+              '',
+            ].join('\n')
+          : [
+              'retry: 3000',
+              'event: ready',
+              'data: {"cursor":150}',
+              '',
+              `id: ${liveDelivery.id}`,
+              'event: inbox',
+              `data: ${JSON.stringify(liveDelivery)}`,
+              '',
+              '',
+            ].join('\n'),
       })
     }
 
@@ -252,8 +262,12 @@ test('authenticated Glaze inbox supports realtime browser interactions and autom
   await expect(inboxNavigation).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Live delivery arrived/ })).toBeVisible()
-  await expect(page.getByText('Live updates connected')).toBeVisible()
+  await expect(page.getByText(/Live updates (connected|reconnecting)/)).toBeVisible()
   await expect.poll(() => evidence.streamRequests.length).toBeGreaterThan(0)
+  await expect.poll(
+    () => evidence.streamRequests.includes('501'),
+    { timeout: 8_000 },
+  ).toBe(true)
 
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to notifications' })).toBeFocused()
