@@ -1,6 +1,13 @@
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import STATIC_ROOT, app
+
+
+def assert_private_response_headers(response) -> None:
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["pragma"] == "no-cache"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "no-referrer"
 
 
 def test_healthz() -> None:
@@ -11,6 +18,7 @@ def test_healthz() -> None:
     assert response.json()["status"] == "ok"
     assert response.json()["service"] == "GoreeCloud Notify"
     assert "build_revision" not in response.json()
+    assert_private_response_headers(response)
 
 
 def test_meta_tracks_realtime_delivery_development() -> None:
@@ -18,6 +26,7 @@ def test_meta_tracks_realtime_delivery_development() -> None:
         response = client.get("/api/v1/meta")
 
     assert response.status_code == 200
+    assert_private_response_headers(response)
     payload = response.json()
     assert payload["build_revision"] == "development"
     assert payload["milestone"] == 1
@@ -62,3 +71,25 @@ def test_meta_tracks_realtime_delivery_development() -> None:
     assert "replay and backlog system-alert suppression" in payload["implemented_experience"]
     assert "browser-local system-alert preference" in payload["implemented_experience"]
     assert "realtime REST reconciliation race protection" in payload["implemented_experience"]
+
+
+def test_static_assets_keep_immutable_cache_policy() -> None:
+    asset_path = STATIC_ROOT / "assets" / "cache-policy-test.txt"
+    asset_path.parent.mkdir(parents=True, exist_ok=True)
+    asset_path.write_text("immutable test asset", encoding="utf-8")
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/assets/cache-policy-test.txt")
+    finally:
+        asset_path.unlink(missing_ok=True)
+        try:
+            asset_path.parent.rmdir()
+        except OSError:
+            pass
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert "pragma" not in response.headers
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "no-referrer"
