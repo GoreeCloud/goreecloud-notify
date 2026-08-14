@@ -23,7 +23,7 @@ def test_meta_tracks_realtime_delivery_development() -> None:
     assert payload["notification_writes_enabled"] is True
     assert payload["development_milestone"] == 4
     assert payload["next_milestone"] == "Real-Time Delivery"
-    assert payload["next_slice"] == "Milestone 4 cursor synchronization and authoritative unread counts"
+    assert payload["next_slice"] == "Milestone 4 explicit offline recovery and browser notification permission design"
     assert len(payload["entities"]) == 10
     assert "opaque server-side user sessions" in payload["implemented_engine"]
     assert "user-owned subscription administration" in payload["implemented_engine"]
@@ -32,6 +32,8 @@ def test_meta_tracks_realtime_delivery_development() -> None:
     assert "database-backed SSE delivery cursor" in payload["implemented_engine"]
     assert "Last-Event-ID replay contract" in payload["implemented_engine"]
     assert "long-lived user-session revalidation" in payload["implemented_engine"]
+    assert "authoritative inbox state snapshot" in payload["implemented_engine"]
+    assert "SSE aggregate inbox state events" in payload["implemented_engine"]
     assert "authenticated Glaze UI inbox" in payload["implemented_experience"]
     assert "server-backed notification search and filtering" in payload["implemented_experience"]
     assert "cursor-based inbox pagination" in payload["implemented_experience"]
@@ -43,3 +45,8 @@ def test_meta_tracks_realtime_delivery_development() -> None:
     assert "real-time Glaze inbox delivery" in payload["implemented_experience"]
     assert "live connection and reconnect status" in payload["implemented_experience"]
     assert "stream-handshake inbox reconciliation" in payload["implemented_experience"]
+    assert "authoritative inbox navigation counters" in payload["implemented_experience"]
+    assert "cursor-bootstrap inbox synchronization" in payload["implemented_experience"]
+    assert "reconnecting session validation" in payload["implemented_experience"]
+    assert "fail-closed realtime resynchronization" in payload["implemented_experience"]
+    assert "immediate filtered mutation reconciliation" in payload["implemented_experience"]
