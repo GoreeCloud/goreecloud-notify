@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from fastapi import HTTPException, status
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from .datetime_utils import as_utc
 from .models import Channel, Delivery, Notification, Source, Subscription, User, utc_now
-from .schemas import InboxDeliveryRead
+from .schemas import InboxDeliveryRead, InboxStateRead
 from .user_security import UserPrincipal
 
 
@@ -152,6 +152,29 @@ def list_inbox(
 
     rows = session.execute(statement.order_by(Delivery.id.desc()).limit(limit)).all()
     return [_to_inbox_read(*row) for row in rows]
+
+
+def get_inbox_state(session: Session, principal: UserPrincipal) -> InboxStateRead:
+    latest_delivery_id, total_count, unread_count, acknowledged_count = session.execute(
+        select(
+            func.coalesce(func.max(Delivery.id), 0),
+            func.count(Delivery.id),
+            func.coalesce(
+                func.sum(case((Delivery.read_at.is_(None), 1), else_=0)),
+                0,
+            ),
+            func.coalesce(
+                func.sum(case((Delivery.acknowledged_at.is_not(None), 1), else_=0)),
+                0,
+            ),
+        ).where(Delivery.user_id == principal.user_id)
+    ).one()
+    return InboxStateRead(
+        latest_delivery_id=int(latest_delivery_id),
+        total_count=int(total_count),
+        unread_count=int(unread_count),
+        acknowledged_count=int(acknowledged_count),
+    )
 
 
 def latest_inbox_delivery_id(session: Session, principal: UserPrincipal) -> int:
