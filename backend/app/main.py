@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from starlette.datastructures import MutableHeaders
 
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
@@ -15,6 +16,31 @@ from .database import engine, verify_schema
 from .routers import admin, compatibility, inbox, notifications, retention, session, subscriptions
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
+
+
+class ResponsePrivacyHeadersMiddleware:
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        is_immutable_asset = path.startswith("/assets/")
+
+        async def send_with_privacy_headers(message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                if not is_immutable_asset:
+                    headers["Cache-Control"] = "no-store"
+                    headers["Pragma"] = "no-cache"
+                headers["X-Content-Type-Options"] = "nosniff"
+                headers["Referrer-Policy"] = "no-referrer"
+            await send(message)
+
+        await self.app(scope, receive, send_with_privacy_headers)
 
 
 class ImmutableStaticFiles(StaticFiles):
@@ -46,6 +72,7 @@ app.add_middleware(
     allow_headers=["Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-GoreeCloud-Admin-Token"],
     expose_headers=["X-CSRF-Token"],
 )
+app.add_middleware(ResponsePrivacyHeadersMiddleware)
 
 app.mount(
     "/assets",
