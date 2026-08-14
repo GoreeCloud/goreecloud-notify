@@ -1,4 +1,5 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import SubscriptionsPanel from './SubscriptionsPanel'
 import './refinement.css'
 
 type Health = {
@@ -150,6 +151,16 @@ export default function App() {
   const [mutationId, setMutationId] = useState<number | null>(null)
   const [theme, setTheme] = useState<ThemeMode>(initialTheme)
 
+  const handleUnauthorized = useCallback(() => {
+    setUser(null)
+    setCsrfToken(null)
+    setDeliveries([])
+    setKnownSources([])
+    setSelectedId(null)
+    setHasMore(false)
+    setInboxError(null)
+  }, [])
+
   async function loadCsrf() {
     const { data } = await apiRequest<CsrfToken>('/api/v1/csrf')
     setCsrfToken(data.csrf_token)
@@ -209,12 +220,12 @@ export default function App() {
     if (!user || csrfToken) return
     void loadCsrf().catch((reason: unknown) => {
       if (reason instanceof ApiError && reason.status === 401) {
-        setUser(null)
+        handleUnauthorized()
         return
       }
       setInboxError(reason instanceof Error ? reason.message : 'Unable to prepare protected actions')
     })
-  }, [user, csrfToken])
+  }, [user, csrfToken, handleUnauthorized])
 
   useEffect(() => {
     if (!user) return
@@ -228,9 +239,7 @@ export default function App() {
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
         if (reason instanceof ApiError && reason.status === 401) {
-          setUser(null)
-          setCsrfToken(null)
-          setDeliveries([])
+          handleUnauthorized()
           return
         }
         setInboxError(reason instanceof Error ? reason.message : 'Unable to load inbox')
@@ -240,7 +249,7 @@ export default function App() {
       })
 
     return () => controller.abort()
-  }, [user, readFilter, severityFilter, sourceFilter, debouncedSearch])
+  }, [user, readFilter, severityFilter, sourceFilter, debouncedSearch, handleUnauthorized])
 
   const selectedDelivery = useMemo(
     () => deliveries.find((delivery) => delivery.id === selectedId) ?? deliveries[0] ?? null,
@@ -281,12 +290,7 @@ export default function App() {
         method: 'DELETE',
         headers: { [csrfHeader]: token },
       })
-      setUser(null)
-      setCsrfToken(null)
-      setDeliveries([])
-      setKnownSources([])
-      setSelectedId(null)
-      setHasMore(false)
+      handleUnauthorized()
     } catch (reason) {
       setInboxError(`Sign out could not be confirmed. Your session remains active in this browser. ${reason instanceof Error ? reason.message : ''}`.trim())
     } finally {
@@ -311,9 +315,7 @@ export default function App() {
       applyPage(data, true)
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
-        setUser(null)
-        setCsrfToken(null)
-        setDeliveries([])
+        handleUnauthorized()
       } else {
         setInboxError(reason instanceof Error ? reason.message : 'Unable to load more notifications')
       }
@@ -336,9 +338,7 @@ export default function App() {
       setDeliveries((current) => current.map((item) => (item.id === data.id ? data : item)))
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
-        setUser(null)
-        setCsrfToken(null)
-        setDeliveries([])
+        handleUnauthorized()
       } else {
         setInboxError(reason instanceof Error ? reason.message : 'Unable to update notification')
       }
@@ -495,6 +495,8 @@ export default function App() {
           <article><span>Unread loaded</span><strong>{unreadCount}</strong><small>waiting to be reviewed</small></article>
           <article><span>Acknowledged loaded</span><strong>{acknowledgedCount}</strong><small>explicitly handled</small></article>
         </section>
+
+        <SubscriptionsPanel onUnauthorized={handleUnauthorized} />
 
         <section className="toolbar" aria-label="Notification filters">
           <label className="search-field">
