@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from ipaddress import ip_network
+from pathlib import Path
 from urllib.parse import urlsplit
 
 
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 _FALSE_VALUES = frozenset({"0", "false", "no", "off"})
 _ENVIRONMENTS = frozenset({"development", "test", "production"})
+_BUILD_REVISION_PATTERN = re.compile(r"[0-9a-f]{40}")
+_BUILD_REVISION_PATH = Path(__file__).resolve().parent.parent / "BUILD_REVISION"
 
 
 def _split_csv(value: str) -> tuple[str, ...]:
@@ -40,6 +44,19 @@ def _env_int(name: str, default: int, *, minimum: int) -> int:
     return value
 
 
+def _load_build_revision() -> str:
+    try:
+        revision = _BUILD_REVISION_PATH.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return "development"
+
+    if revision == "development" or _BUILD_REVISION_PATTERN.fullmatch(revision):
+        return revision
+    raise ValueError(
+        "BUILD_REVISION must contain 'development' or a full lowercase 40-character Git commit SHA"
+    )
+
+
 def _validate_production_origin(origin: str) -> None:
     parsed = urlsplit(origin)
     if parsed.scheme != "https" or not parsed.hostname:
@@ -60,6 +77,7 @@ def _validate_production_origin(origin: str) -> None:
 class Settings:
     app_name: str = "GoreeCloud Notify"
     version: str = "0.2.0-dev"
+    build_revision: str = _load_build_revision()
     environment: str = os.getenv("GOREECLOUD_NOTIFY_ENVIRONMENT", "development").strip().lower()
     database_url: str = os.getenv(
         "GOREECLOUD_NOTIFY_DATABASE_URL",
@@ -112,6 +130,12 @@ class Settings:
         if self.environment not in _ENVIRONMENTS:
             accepted = ", ".join(sorted(_ENVIRONMENTS))
             raise ValueError(f"GOREECLOUD_NOTIFY_ENVIRONMENT must be one of: {accepted}")
+        if self.build_revision != "development" and not _BUILD_REVISION_PATTERN.fullmatch(
+            self.build_revision
+        ):
+            raise ValueError(
+                "build_revision must be 'development' or a full lowercase 40-character Git commit SHA"
+            )
         if "*" in self.cors_origins:
             raise ValueError(
                 "GOREECLOUD_NOTIFY_CORS_ORIGINS cannot contain '*' when credentialed web sessions are enabled"
@@ -148,6 +172,10 @@ class Settings:
             if any(network.prefixlen == 0 for network in proxy_networks):
                 raise ValueError(
                     "GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS cannot trust an entire address family in production"
+                )
+            if self.build_revision == "development":
+                raise ValueError(
+                    "production requires an immutable Git build revision instead of the development fallback"
                 )
 
 
