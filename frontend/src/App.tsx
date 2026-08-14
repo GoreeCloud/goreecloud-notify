@@ -91,7 +91,9 @@ export default function App() {
             <p>
               {meta
                 ? `${meta.implemented_engine.length} implemented engine capabilities are reported by the current API metadata.`
-                : 'Loading the implemented engine capability count from the backend.'}
+                : metaError
+                  ? 'Development metadata unavailable; engine capability count could not be loaded.'
+                  : 'Loading the implemented engine capability count from the backend.'}
             </p>
           </article>
           <article className="glass-card">
