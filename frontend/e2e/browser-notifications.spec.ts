@@ -226,6 +226,7 @@ test('system alerts require explicit opt-in and redact Delivery details', async 
   await context.setOffline(true)
   await expect(page.getByText(/Live updates offline/)).toBeVisible()
   await context.setOffline(false)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(
     () => evidence.streamQueries.some((query) => query.includes('after_id=152')),
     { timeout: 8_000 },
