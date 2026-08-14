@@ -1,0 +1,14 @@
+{
+    auto_https disable_redirects
+}
+
+notify.goreecloud.com {
+    tls internal
+
+    @netbird_client remote_ip 100.64.0.0/10
+    handle @netbird_client {
+        reverse_proxy app:8000
+    }
+
+    respond "Forbidden" 403
+}
