@@ -23,7 +23,7 @@ def test_meta_tracks_realtime_delivery_development() -> None:
     assert payload["notification_writes_enabled"] is True
     assert payload["development_milestone"] == 4
     assert payload["next_milestone"] == "Real-Time Delivery"
-    assert payload["next_slice"] == "Milestone 4 explicit offline recovery and browser notification permission design"
+    assert payload["next_slice"] == "Milestone 4 browser notification permission and privacy design"
     assert len(payload["entities"]) == 10
     assert "opaque server-side user sessions" in payload["implemented_engine"]
     assert "user-owned subscription administration" in payload["implemented_engine"]
@@ -50,3 +50,6 @@ def test_meta_tracks_realtime_delivery_development() -> None:
     assert "reconnecting session validation" in payload["implemented_experience"]
     assert "fail-closed realtime resynchronization" in payload["implemented_experience"]
     assert "immediate filtered mutation reconciliation" in payload["implemented_experience"]
+    assert "explicit offline realtime state" in payload["implemented_experience"]
+    assert "last-received Delivery cursor offline recovery" in payload["implemented_experience"]
+    assert "online recovery stream reconciliation" in payload["implemented_experience"]
