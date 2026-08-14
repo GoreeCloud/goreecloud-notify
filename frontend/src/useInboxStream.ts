@@ -15,11 +15,20 @@ export type RealtimeDelivery = {
   acknowledged_at: string | null
 }
 
+export type RealtimeInboxState = {
+  latest_delivery_id: number
+  total_count: number
+  unread_count: number
+  acknowledged_count: number
+}
+
 export type InboxStreamState = 'idle' | 'connecting' | 'live' | 'reconnecting'
 
 type InboxStreamOptions = {
   enabled: boolean
-  onReady: () => void
+  initialCursor: number | null
+  onReady: (state: RealtimeInboxState) => void
+  onState: (state: RealtimeInboxState) => void
   onDelivery: (delivery: RealtimeDelivery) => void
 }
 
@@ -47,9 +56,44 @@ function parseDelivery(event: MessageEvent<string>): RealtimeDelivery | null {
   }
 }
 
-export default function useInboxStream({ enabled, onReady, onDelivery }: InboxStreamOptions): InboxStreamState {
+function parseInboxState(event: Event): RealtimeInboxState | null {
+  if (!(event instanceof MessageEvent)) return null
+  try {
+    const value = JSON.parse(event.data) as Partial<RealtimeInboxState>
+    if (
+      typeof value.latest_delivery_id !== 'number'
+      || typeof value.total_count !== 'number'
+      || typeof value.unread_count !== 'number'
+      || typeof value.acknowledged_count !== 'number'
+    ) {
+      return null
+    }
+    if (
+      value.latest_delivery_id < 0
+      || value.total_count < 0
+      || value.unread_count < 0
+      || value.acknowledged_count < 0
+      || value.unread_count > value.total_count
+      || value.acknowledged_count > value.total_count
+    ) {
+      return null
+    }
+    return value as RealtimeInboxState
+  } catch {
+    return null
+  }
+}
+
+export default function useInboxStream({
+  enabled,
+  initialCursor,
+  onReady,
+  onState,
+  onDelivery,
+}: InboxStreamOptions): InboxStreamState {
   const [state, setState] = useState<InboxStreamState>('idle')
   const onReadyRef = useRef(onReady)
+  const onStateRef = useRef(onState)
   const onDeliveryRef = useRef(onDelivery)
 
   useEffect(() => {
@@ -57,23 +101,43 @@ export default function useInboxStream({ enabled, onReady, onDelivery }: InboxSt
   }, [onReady])
 
   useEffect(() => {
+    onStateRef.current = onState
+  }, [onState])
+
+  useEffect(() => {
     onDeliveryRef.current = onDelivery
   }, [onDelivery])
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || initialCursor === null) {
       setState('idle')
       return
     }
 
     let closed = false
     setState('connecting')
-    const source = new EventSource(`${apiBaseUrl}/api/v1/inbox/stream`, { withCredentials: true })
+    const streamUrl = new URL(`${apiBaseUrl}/api/v1/inbox/stream`, window.location.origin)
+    streamUrl.searchParams.set('after_id', String(initialCursor))
+    const source = new EventSource(streamUrl.toString(), { withCredentials: true })
 
-    const handleReady = () => {
+    const handleReady = (event: Event) => {
       if (closed) return
+      const inboxState = parseInboxState(event)
+      if (!inboxState) {
+        setState('reconnecting')
+        source.close()
+        return
+      }
       setState('live')
-      onReadyRef.current()
+      onReadyRef.current(inboxState)
+    }
+
+    const handleState = (event: Event) => {
+      if (closed) return
+      const inboxState = parseInboxState(event)
+      if (!inboxState) return
+      setState('live')
+      onStateRef.current(inboxState)
     }
 
     const handleDelivery = (event: Event) => {
@@ -85,6 +149,7 @@ export default function useInboxStream({ enabled, onReady, onDelivery }: InboxSt
     }
 
     source.addEventListener('ready', handleReady)
+    source.addEventListener('state', handleState)
     source.addEventListener('inbox', handleDelivery)
     source.onerror = () => {
       if (!closed) setState('reconnecting')
@@ -94,7 +159,7 @@ export default function useInboxStream({ enabled, onReady, onDelivery }: InboxSt
       closed = true
       source.close()
     }
-  }, [enabled])
+  }, [enabled, initialCursor])
 
   return state
 }
