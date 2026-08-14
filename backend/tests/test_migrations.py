@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 
 
 def run_alembic(database_url: str, revision: str) -> None:
@@ -27,6 +28,7 @@ def test_fresh_database_reaches_authentication_head(tmp_path) -> None:
     inspector = inspect(create_engine(database_url))
     assert "web_sessions" in inspector.get_table_names()
     assert "password_hash" in {column["name"] for column in inspector.get_columns("users")}
+    assert "csrf_token" in {column["name"] for column in inspector.get_columns("web_sessions")}
 
 
 def test_existing_baseline_database_upgrades_without_recreation(tmp_path) -> None:
@@ -43,3 +45,52 @@ def test_existing_baseline_database_upgrades_without_recreation(tmp_path) -> Non
     after = inspect(create_engine(database_url))
     assert "web_sessions" in after.get_table_names()
     assert "password_hash" in {column["name"] for column in after.get_columns("users")}
+    assert "csrf_token" in {column["name"] for column in after.get_columns("web_sessions")}
+
+
+def test_csrf_migration_revokes_existing_human_sessions(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'csrf-upgrade.db'}"
+    run_alembic(database_url, "0002_human_authentication")
+
+    engine = create_engine(database_url)
+    now = datetime.now(timezone.utc)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users (username, display_name, password_hash, is_active, created_at) "
+                "VALUES (:username, :display_name, :password_hash, :is_active, :created_at)"
+            ),
+            {
+                "username": "existing",
+                "display_name": "Existing User",
+                "password_hash": "$argon2id$placeholder",
+                "is_active": True,
+                "created_at": now,
+            },
+        )
+        user_id = connection.execute(text("SELECT id FROM users WHERE username='existing'")).scalar_one()
+        connection.execute(
+            text(
+                "INSERT INTO web_sessions "
+                "(user_id, session_digest, created_at, last_seen_at, expires_at, revoked_at) "
+                "VALUES (:user_id, :session_digest, :created_at, :last_seen_at, :expires_at, NULL)"
+            ),
+            {
+                "user_id": user_id,
+                "session_digest": "a" * 64,
+                "created_at": now,
+                "last_seen_at": now,
+                "expires_at": now + timedelta(hours=1),
+            },
+        )
+    engine.dispose()
+
+    run_alembic(database_url, "head")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT csrf_token, revoked_at FROM web_sessions WHERE session_digest=:digest"),
+            {"digest": "a" * 64},
+        ).one()
+        assert row.csrf_token
+        assert row.revoked_at is not None

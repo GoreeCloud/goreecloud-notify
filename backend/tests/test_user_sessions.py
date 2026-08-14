@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import SessionLocal
 from app.main import app
 from app.models import User, WebSession
-from app.user_security import hash_password, session_digest, utc_now
+from app.user_security import CSRF_HEADER, hash_password, session_digest, utc_now
 
 
 def create_user(*, username: str = "ladamian", password: str = "correct horse battery staple") -> int:
@@ -37,6 +37,12 @@ def test_login_sets_http_only_session_cookie_and_me_resolves_user() -> None:
         assert "HttpOnly" in cookie
         assert "SameSite=strict" in cookie
         assert settings.session_cookie_name in client.cookies
+        csrf_token = login.headers[CSRF_HEADER]
+        assert csrf_token
+
+        csrf = client.get("/api/v1/csrf")
+        assert csrf.status_code == 200
+        assert csrf.json()["csrf_token"] == csrf_token
 
         me = client.get("/api/v1/me")
         assert me.status_code == 200
@@ -49,6 +55,7 @@ def test_login_sets_http_only_session_cookie_and_me_resolves_user() -> None:
         assert raw_cookie is not None
         assert record.session_digest == session_digest(raw_cookie)
         assert raw_cookie not in record.session_digest
+        assert record.csrf_token == login.headers[CSRF_HEADER]
 
 
 def test_invalid_credentials_are_generic_and_do_not_create_session() -> None:
@@ -77,7 +84,10 @@ def test_logout_revokes_server_session_and_clears_cookie() -> None:
             "/api/v1/session",
             json={"username": "ladamian", "password": "correct horse battery staple"},
         ).status_code == 200
-        logout = client.delete("/api/v1/session")
+        csrf_token = client.get("/api/v1/csrf").json()["csrf_token"]
+        assert client.delete("/api/v1/session").status_code == 403
+        assert client.get("/api/v1/me").status_code == 200
+        logout = client.delete("/api/v1/session", headers={CSRF_HEADER: csrf_token})
         assert logout.status_code == 204
         assert settings.session_cookie_name not in client.cookies
         assert client.get("/api/v1/me").status_code == 401
@@ -97,6 +107,7 @@ def test_idle_session_is_rejected_and_revoked() -> None:
             WebSession(
                 user_id=user_id,
                 session_digest=session_digest(raw_token),
+                csrf_token="idle-session-csrf",
                 created_at=now - timedelta(hours=2),
                 last_seen_at=now - timedelta(minutes=settings.session_idle_minutes + 1),
                 expires_at=now + timedelta(hours=1),
@@ -142,6 +153,7 @@ def test_absolute_expiration_is_enforced() -> None:
             WebSession(
                 user_id=user_id,
                 session_digest=session_digest(raw_token),
+                csrf_token="absolute-session-csrf",
                 created_at=now - timedelta(days=1),
                 last_seen_at=now,
                 expires_at=now - timedelta(seconds=1),

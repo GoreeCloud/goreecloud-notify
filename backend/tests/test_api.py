@@ -22,6 +22,6 @@ def test_meta_tracks_native_ingestion_development() -> None:
     assert payload["production"] is False
     assert payload["notification_writes_enabled"] is True
     assert payload["development_milestone"] == 2
-    assert payload["next_slice"] == "CSRF-protected Delivery read and acknowledgement mutations"
+    assert payload["next_slice"] == "subscription administration and Milestone 2 hardening"
     assert len(payload["entities"]) == 10
     assert "opaque server-side user sessions" in payload["implemented_engine"]
