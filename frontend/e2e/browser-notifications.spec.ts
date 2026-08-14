@@ -231,5 +231,5 @@ test('system alerts require explicit opt-in and redact Delivery details', async 
     { timeout: 8_000 },
   ).toBe(true)
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __notifySystemAlerts: unknown[] }).__notifySystemAlerts.length)).toBe(1)
-  await expect(page.getByRole('heading', { name: evidence.visibleNew.title })).toBeVisible()
+  await expect(page.locator('#notification-list').getByText(evidence.visibleNew.title, { exact: true })).toBeVisible()
 })
