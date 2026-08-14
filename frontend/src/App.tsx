@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import SubscriptionsPanel from './SubscriptionsPanel'
+import useInboxStream, { type RealtimeDelivery } from './useInboxStream'
 import './refinement.css'
 
 type Health = {
@@ -30,21 +31,7 @@ type User = {
 type Severity = 'info' | 'normal' | 'warning' | 'error' | 'critical'
 type ReadFilter = 'all' | 'unread' | 'read'
 type ThemeMode = 'system' | 'light' | 'dark'
-
-type InboxDelivery = {
-  id: number
-  notification_id: number
-  source: string
-  channel: string
-  title: string
-  body: string
-  severity: Severity
-  notification_created_at: string
-  delivered_at: string
-  expires_at: string | null
-  read_at: string | null
-  acknowledged_at: string | null
-}
+type InboxDelivery = RealtimeDelivery
 
 type CsrfToken = {
   csrf_token: string
@@ -150,6 +137,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [mutationId, setMutationId] = useState<number | null>(null)
   const [theme, setTheme] = useState<ThemeMode>(initialTheme)
+  const [realtimeRefresh, setRealtimeRefresh] = useState(0)
 
   const handleUnauthorized = useCallback(() => {
     setUser(null)
@@ -181,6 +169,31 @@ export default function App() {
       return available[0]?.id ?? null
     })
   }
+
+  const refreshAfterStreamHandshake = useCallback(() => {
+    setRealtimeRefresh((current) => current + 1)
+  }, [])
+
+  const handleRealtimeDelivery = useCallback((delivery: InboxDelivery) => {
+    setKnownSources((current) => Array.from(new Set([...current, delivery.source])).sort())
+
+    if (debouncedSearch.trim()) {
+      setRealtimeRefresh((current) => current + 1)
+      return
+    }
+    if (readFilter === 'read') return
+    if (severityFilter !== 'all' && delivery.severity !== severityFilter) return
+    if (sourceFilter !== 'all' && delivery.source !== sourceFilter) return
+
+    setDeliveries((current) => [delivery, ...current.filter((item) => item.id !== delivery.id)])
+    setSelectedId((current) => current ?? delivery.id)
+  }, [debouncedSearch, readFilter, severityFilter, sourceFilter])
+
+  const streamState = useInboxStream({
+    enabled: Boolean(user),
+    onReady: refreshAfterStreamHandshake,
+    onDelivery: handleRealtimeDelivery,
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -249,7 +262,7 @@ export default function App() {
       })
 
     return () => controller.abort()
-  }, [user, readFilter, severityFilter, sourceFilter, debouncedSearch, handleUnauthorized])
+  }, [user, readFilter, severityFilter, sourceFilter, debouncedSearch, realtimeRefresh, handleUnauthorized])
 
   const selectedDelivery = useMemo(
     () => deliveries.find((delivery) => delivery.id === selectedId) ?? deliveries[0] ?? null,
@@ -259,6 +272,13 @@ export default function App() {
   const unreadCount = deliveries.filter((delivery) => !delivery.read_at).length
   const acknowledgedCount = deliveries.filter((delivery) => delivery.acknowledged_at).length
   const filtersActive = readFilter !== 'all' || severityFilter !== 'all' || sourceFilter !== 'all' || Boolean(debouncedSearch.trim())
+  const streamLabel = streamState === 'live'
+    ? 'Live updates connected'
+    : streamState === 'reconnecting'
+      ? 'Live updates reconnecting'
+      : streamState === 'connecting'
+        ? 'Connecting live updates'
+        : 'Live updates idle'
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -481,7 +501,7 @@ export default function App() {
       <section className="inbox-column" aria-labelledby="inbox-title">
         <header className="inbox-header">
           <div>
-            <span className="eyebrow">Milestone 3 · Glaze UI Inbox</span>
+            <span className="eyebrow">Milestone 4 · Real-Time Delivery</span>
             <h1 id="inbox-title">Good day, {user.display_name.split(' ')[0]}</h1>
             <p>{unreadCount ? `${unreadCount} unread loaded notification${unreadCount === 1 ? '' : 's'} need your attention.` : 'No unread notifications are present in the loaded results.'}</p>
           </div>
@@ -529,7 +549,7 @@ export default function App() {
         </section>
 
         <div className="result-status" role="status" aria-live="polite">
-          {inboxLoading ? 'Loading notifications…' : `${deliveries.length} notification${deliveries.length === 1 ? '' : 's'} loaded${filtersActive ? ' for the current filters' : ''}.`}
+          {inboxLoading ? `Loading notifications… · ${streamLabel}` : `${deliveries.length} notification${deliveries.length === 1 ? '' : 's'} loaded${filtersActive ? ' for the current filters' : ''}. · ${streamLabel}`}
         </div>
         {inboxError ? <div className="error-banner" role="alert">{inboxError}</div> : null}
 
