@@ -7,9 +7,20 @@ from pydantic import BaseModel, Field, field_validator
 from .datetime_utils import require_explicit_timezone_utc
 
 
+def _strip_required_text(value: object) -> object:
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
 class ServiceIdentityCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     description: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: object) -> object:
+        return _strip_required_text(value)
 
 
 class ServiceIdentityRead(BaseModel):
@@ -24,6 +35,11 @@ class TokenCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     scopes: list[str] = Field(min_length=1, max_length=20)
     expires_at: datetime | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: object) -> object:
+        return _strip_required_text(value)
 
     @field_validator("scopes")
     @classmethod
@@ -52,6 +68,11 @@ class SourceCreate(BaseModel):
     slug: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,119}$")
     name: str = Field(min_length=1, max_length=200)
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: object) -> object:
+        return _strip_required_text(value)
+
 
 class SourceRead(BaseModel):
     id: int
@@ -64,6 +85,11 @@ class ChannelCreate(BaseModel):
     slug: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,119}$")
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: object) -> object:
+        return _strip_required_text(value)
 
 
 class ChannelRead(BaseModel):
@@ -88,6 +114,11 @@ class NotificationCreate(BaseModel):
     body: str = Field(min_length=1, max_length=20000)
     severity: str = Field(default="normal", pattern=r"^(info|normal|warning|error|critical)$")
     expires_at: datetime | None = None
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def normalize_title(cls, value: object) -> object:
+        return _strip_required_text(value)
 
     @field_validator("expires_at")
     @classmethod
@@ -126,6 +157,11 @@ class UserCreate(BaseModel):
     display_name: str = Field(min_length=1, max_length=200)
     password: str = Field(min_length=12, max_length=256)
     is_admin: bool = False
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def normalize_display_name(cls, value: object) -> object:
+        return _strip_required_text(value)
 
 
 class PasswordResetCreate(BaseModel):
