@@ -1,6 +1,9 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import SubscriptionsPanel from './SubscriptionsPanel'
-import useInboxStream, { type RealtimeDelivery } from './useInboxStream'
+import useInboxStream, {
+  type RealtimeDelivery,
+  type RealtimeInboxState,
+} from './useInboxStream'
 import './refinement.css'
 
 type Health = {
@@ -32,6 +35,7 @@ type Severity = 'info' | 'normal' | 'warning' | 'error' | 'critical'
 type ReadFilter = 'all' | 'unread' | 'read'
 type ThemeMode = 'system' | 'light' | 'dark'
 type InboxDelivery = RealtimeDelivery
+type InboxState = RealtimeInboxState
 
 type CsrfToken = {
   csrf_token: string
@@ -119,6 +123,8 @@ export default function App() {
   const [sessionLoading, setSessionLoading] = useState(true)
   const [csrfToken, setCsrfToken] = useState<string | null>(null)
   const [deliveries, setDeliveries] = useState<InboxDelivery[]>([])
+  const [inboxState, setInboxState] = useState<InboxState | null>(null)
+  const [streamCursor, setStreamCursor] = useState<number | null>(null)
   const [knownSources, setKnownSources] = useState<string[]>([])
   const [inboxLoading, setInboxLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -143,6 +149,8 @@ export default function App() {
     setUser(null)
     setCsrfToken(null)
     setDeliveries([])
+    setInboxState(null)
+    setStreamCursor(null)
     setKnownSources([])
     setSelectedId(null)
     setHasMore(false)
@@ -170,7 +178,13 @@ export default function App() {
     })
   }
 
-  const refreshAfterStreamHandshake = useCallback(() => {
+  const refreshAfterStreamHandshake = useCallback((state: InboxState) => {
+    setInboxState(state)
+    setRealtimeRefresh((current) => current + 1)
+  }, [])
+
+  const handleRealtimeState = useCallback((state: InboxState) => {
+    setInboxState(state)
     setRealtimeRefresh((current) => current + 1)
   }, [])
 
@@ -190,8 +204,10 @@ export default function App() {
   }, [debouncedSearch, readFilter, severityFilter, sourceFilter])
 
   const streamState = useInboxStream({
-    enabled: Boolean(user),
+    enabled: Boolean(user && streamCursor !== null),
+    initialCursor: streamCursor,
     onReady: refreshAfterStreamHandshake,
+    onState: handleRealtimeState,
     onDelivery: handleRealtimeDelivery,
   })
 
@@ -243,6 +259,27 @@ export default function App() {
   useEffect(() => {
     if (!user) return
     const controller = new AbortController()
+
+    void apiRequest<InboxState>('/api/v1/inbox/state', { signal: controller.signal })
+      .then(({ data }) => {
+        setInboxState(data)
+        setStreamCursor((current) => current ?? data.latest_delivery_id)
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (reason instanceof ApiError && reason.status === 401) {
+          handleUnauthorized()
+          return
+        }
+        setInboxError(reason instanceof Error ? reason.message : 'Unable to synchronize inbox state')
+      })
+
+    return () => controller.abort()
+  }, [user, handleUnauthorized])
+
+  useEffect(() => {
+    if (!user) return
+    const controller = new AbortController()
     setInboxLoading(true)
     setInboxError(null)
     const path = buildInboxPath({ readFilter, severityFilter, sourceFilter, search: debouncedSearch })
@@ -264,21 +301,44 @@ export default function App() {
     return () => controller.abort()
   }, [user, readFilter, severityFilter, sourceFilter, debouncedSearch, realtimeRefresh, handleUnauthorized])
 
+  useEffect(() => {
+    if (!user || streamState !== 'reconnecting') return
+
+    const validateSession = () => {
+      void apiRequest<User>('/api/v1/me')
+        .catch((reason: unknown) => {
+          if (reason instanceof ApiError && reason.status === 401) handleUnauthorized()
+        })
+    }
+    const initialTimer = window.setTimeout(validateSession, 3_000)
+    const interval = window.setInterval(validateSession, 10_000)
+    return () => {
+      window.clearTimeout(initialTimer)
+      window.clearInterval(interval)
+    }
+  }, [user, streamState, handleUnauthorized])
+
   const selectedDelivery = useMemo(
     () => deliveries.find((delivery) => delivery.id === selectedId) ?? deliveries[0] ?? null,
     [deliveries, selectedId],
   )
 
-  const unreadCount = deliveries.filter((delivery) => !delivery.read_at).length
-  const acknowledgedCount = deliveries.filter((delivery) => delivery.acknowledged_at).length
+  const loadedUnreadCount = deliveries.filter((delivery) => !delivery.read_at).length
+  const loadedAcknowledgedCount = deliveries.filter((delivery) => delivery.acknowledged_at).length
+  const totalCount = inboxState?.total_count ?? deliveries.length
+  const unreadCount = inboxState?.unread_count ?? loadedUnreadCount
+  const acknowledgedCount = inboxState?.acknowledged_count ?? loadedAcknowledgedCount
+  const readCount = Math.max(totalCount - unreadCount, 0)
   const filtersActive = readFilter !== 'all' || severityFilter !== 'all' || sourceFilter !== 'all' || Boolean(debouncedSearch.trim())
   const streamLabel = streamState === 'live'
     ? 'Live updates connected'
     : streamState === 'reconnecting'
-      ? 'Live updates reconnecting'
+      ? 'Live updates reconnecting; loaded results may be stale until recovery'
       : streamState === 'connecting'
         ? 'Connecting live updates'
-        : 'Live updates idle'
+        : streamCursor === null
+          ? 'Preparing synchronized live updates'
+          : 'Live updates idle'
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -356,6 +416,8 @@ export default function App() {
         headers: { [csrfHeader]: token },
       })
       setDeliveries((current) => current.map((item) => (item.id === data.id ? data : item)))
+      const { data: state } = await apiRequest<InboxState>('/api/v1/inbox/state')
+      setInboxState(state)
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
         handleUnauthorized()
@@ -463,13 +525,13 @@ export default function App() {
 
         <nav className="sidebar-nav" aria-label="Inbox views">
           <button className={readFilter === 'all' ? 'active' : ''} onClick={() => setReadFilter('all')} aria-pressed={readFilter === 'all'}>
-            <span>Inbox</span><strong>{deliveries.length}</strong>
+            <span>Inbox</span><strong>{totalCount}</strong>
           </button>
           <button className={readFilter === 'unread' ? 'active' : ''} onClick={() => setReadFilter('unread')} aria-pressed={readFilter === 'unread'}>
             <span>Unread</span><strong>{unreadCount}</strong>
           </button>
           <button className={readFilter === 'read' ? 'active' : ''} onClick={() => setReadFilter('read')} aria-pressed={readFilter === 'read'}>
-            <span>Read</span><strong>{deliveries.length - unreadCount}</strong>
+            <span>Read</span><strong>{readCount}</strong>
           </button>
         </nav>
 
@@ -503,7 +565,7 @@ export default function App() {
           <div>
             <span className="eyebrow">Milestone 4 · Real-Time Delivery</span>
             <h1 id="inbox-title">Good day, {user.display_name.split(' ')[0]}</h1>
-            <p>{unreadCount ? `${unreadCount} unread loaded notification${unreadCount === 1 ? '' : 's'} need your attention.` : 'No unread notifications are present in the loaded results.'}</p>
+            <p>{unreadCount ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'} need your attention.` : 'No unread notifications need your attention.'}</p>
           </div>
           <button className="refresh-button" onClick={clearFilters} disabled={!filtersActive || inboxLoading}>
             Clear filters
@@ -511,9 +573,9 @@ export default function App() {
         </header>
 
         <section className="summary-grid" aria-label="Inbox summary">
-          <article><span>Loaded</span><strong>{deliveries.length}</strong><small>{hasMore ? 'more results are available' : 'current result set'}</small></article>
-          <article><span>Unread loaded</span><strong>{unreadCount}</strong><small>waiting to be reviewed</small></article>
-          <article><span>Acknowledged loaded</span><strong>{acknowledgedCount}</strong><small>explicitly handled</small></article>
+          <article><span>Inbox total</span><strong>{totalCount}</strong><small>{deliveries.length} loaded in the current view</small></article>
+          <article><span>Unread</span><strong>{unreadCount}</strong><small>authoritative server count</small></article>
+          <article><span>Acknowledged</span><strong>{acknowledgedCount}</strong><small>authoritative server count</small></article>
         </section>
 
         <SubscriptionsPanel onUnauthorized={handleUnauthorized} />
