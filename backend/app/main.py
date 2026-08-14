@@ -46,10 +46,15 @@ def api_meta() -> dict[str, object]:
     return {
         "service": settings.app_name,
         "version": settings.version,
-        "milestone": 2,
+        "milestone": 1,
+        "development_milestone": 2,
         "production": False,
         "notification_writes_enabled": False,
-        "implemented": [
+        "entities": [
+            "User", "Device", "ServiceIdentity", "Source", "Channel",
+            "Subscription", "Notification", "Delivery", "AccessToken", "Preference",
+        ],
+        "implemented_control_plane": [
             "bootstrap administrative authorization",
             "service identities",
             "scoped producer token issuance",
@@ -57,6 +62,7 @@ def api_meta() -> dict[str, object]:
             "source administration",
             "channel administration",
         ],
+        "next_milestone": "Notification Engine",
         "next_slice": "notification ingestion and persistence",
     }
 
