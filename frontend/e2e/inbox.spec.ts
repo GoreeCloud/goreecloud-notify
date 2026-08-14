@@ -148,7 +148,7 @@ async function mockAuthenticatedApi(page: Page) {
         production: false,
         implemented_engine: ['authenticated SSE inbox stream', 'authoritative inbox state snapshot'],
         next_milestone: 'Real-Time Delivery',
-        next_slice: 'Milestone 4 synchronization and stale-state refinement',
+        next_slice: 'Milestone 4 browser notification permission and privacy design',
       })
     }
 
@@ -173,26 +173,35 @@ async function mockAuthenticatedApi(page: Page) {
     if (path === '/api/v1/inbox/stream') {
       streamQueries.push(url.search)
       streamDelivered = true
+      const isOfflineRecovery = url.searchParams.get('after_id') === String(liveDelivery.id)
       return route.fulfill({
         status: 200,
         headers: {
           'content-type': 'text/event-stream',
           'cache-control': 'no-store',
         },
-        body: [
-          'retry: 3000',
-          'event: ready',
-          `data: ${JSON.stringify({ cursor: initialState.latest_delivery_id, ...initialState })}`,
-          '',
-          `id: ${liveDelivery.id}`,
-          'event: inbox',
-          `data: ${JSON.stringify(liveDelivery)}`,
-          '',
-          'event: state',
-          `data: ${JSON.stringify(liveState)}`,
-          '',
-          '',
-        ].join('\n'),
+        body: isOfflineRecovery
+          ? [
+              'retry: 3000',
+              'event: ready',
+              `data: ${JSON.stringify({ cursor: liveDelivery.id, ...liveState })}`,
+              '',
+              '',
+            ].join('\n')
+          : [
+              'retry: 3000',
+              'event: ready',
+              `data: ${JSON.stringify({ cursor: initialState.latest_delivery_id, ...initialState })}`,
+              '',
+              `id: ${liveDelivery.id}`,
+              'event: inbox',
+              `data: ${JSON.stringify(liveDelivery)}`,
+              '',
+              'event: state',
+              `data: ${JSON.stringify(liveState)}`,
+              '',
+              '',
+            ].join('\n'),
       })
     }
 
@@ -269,7 +278,7 @@ async function assertNoAutomatedWcagViolations(page: Page) {
   expect(result.violations, JSON.stringify(result.violations, null, 2)).toEqual([])
 }
 
-test('authenticated Glaze inbox synchronizes authoritative counts and realtime delivery', async ({ page }) => {
+test('authenticated Glaze inbox synchronizes, survives offline recovery, and preserves accessibility checks', async ({ page, context }) => {
   const evidence = await mockAuthenticatedApi(page)
   await page.goto('/')
 
@@ -284,6 +293,15 @@ test('authenticated Glaze inbox synchronizes authoritative counts and realtime d
   await expect(inboxNavigation.getByRole('button', { name: /^Unread 38$/ })).toBeVisible()
   await expect(inboxNavigation.getByRole('button', { name: /^Read 83$/ })).toBeVisible()
   await expect(page.getByText('authoritative server count')).toHaveCount(2)
+
+  await context.setOffline(true)
+  await expect(page.getByText(/Live updates offline; loaded results are stale until network recovery/)).toBeVisible()
+  await context.setOffline(false)
+  await expect.poll(
+    () => evidence.streamQueries.some((query) => query.includes(`after_id=${liveDelivery.id}`)),
+    { timeout: 8_000 },
+  ).toBe(true)
+  await expect(page.getByText(/Live updates (connected|reconnecting)/)).toBeVisible()
 
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to notifications' })).toBeFocused()
@@ -335,7 +353,7 @@ test('sign-in screen has labeled controls and no automated WCAG A/AA violations'
     production: false,
     implemented_engine: ['authenticated SSE inbox stream', 'authoritative inbox state snapshot'],
     next_milestone: 'Real-Time Delivery',
-    next_slice: 'Milestone 4 synchronization and stale-state refinement',
+    next_slice: 'Milestone 4 browser notification permission and privacy design',
   }))
   await page.route('**/api/v1/me', (route) => json(route, { detail: 'authentication required' }, 401))
 
