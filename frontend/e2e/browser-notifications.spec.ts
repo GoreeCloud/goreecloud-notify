@@ -183,7 +183,7 @@ test('system alerts require explicit opt-in and redact Delivery details', async 
   await expect(page.getByRole('heading', { name: 'Good day, Browser' })).toBeVisible()
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __notifyPermissionRequests: number }).__notifyPermissionRequests)).toBe(0)
 
-  await page.getByText('System alerts').click()
+  await page.getByText('System alerts', { exact: true }).click()
   await expect(page.getByText(/Off by default\. Notify will ask for browser permission only after you choose/)).toBeVisible()
   await expect(page.getByText(/Operating-system alerts do not include the notification title, body, source, channel/)).toBeVisible()
 
