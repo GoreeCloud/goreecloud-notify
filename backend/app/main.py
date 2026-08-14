@@ -34,7 +34,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="Milestone 2 identity and routing foundation for GoreeCloud Notify.",
+    description="Milestone 3 Glaze UI inbox development for GoreeCloud Notify.",
     lifespan=lifespan,
 )
 
@@ -78,7 +78,7 @@ def api_meta() -> dict[str, object]:
         "service": settings.app_name,
         "version": settings.version,
         "milestone": 1,
-        "development_milestone": 2,
+        "development_milestone": 3,
         "production": settings.environment == "production",
         "notification_writes_enabled": True,
         "entities": [
@@ -108,8 +108,15 @@ def api_meta() -> dict[str, object]:
             "user-owned subscription administration",
             "non-destructive administrator retention preview",
         ],
-        "next_milestone": "Notification Engine",
-        "next_slice": "retention policy decision and Milestone 2 hardening",
+        "implemented_experience": [
+            "authenticated Glaze UI inbox",
+            "notification search and filtering",
+            "source and severity presentation",
+            "read and acknowledgement controls",
+            "responsive layout and appearance controls",
+        ],
+        "next_milestone": "Glaze UI Inbox",
+        "next_slice": "Milestone 3 inbox interaction and accessibility refinement",
     }
 
 
