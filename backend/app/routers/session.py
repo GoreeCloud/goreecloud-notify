@@ -2,11 +2,18 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..deps import get_db
+from ..login_security import (
+    build_login_context,
+    check_login_rate_limit,
+    record_login_failure,
+    record_login_success,
+    record_rate_limited,
+)
 from ..schemas import CsrfTokenRead, SessionCreate, UserRead
 from ..user_security import (
     CSRF_HEADER,
@@ -32,16 +39,35 @@ def _user_read(principal: UserPrincipal) -> UserRead:
     )
 
 
+def _rate_limited(retry_after: int) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="login temporarily unavailable",
+        headers={"Retry-After": str(max(1, retry_after))},
+    )
+
+
 @router.post("/session", response_model=UserRead)
 def login(
     payload: SessionCreate,
+    request: Request,
     response: Response,
     session: Annotated[Session, Depends(get_db)],
 ) -> UserRead:
+    context = build_login_context(request, payload.username)
+    retry_after = check_login_rate_limit(session, context)
+    if retry_after:
+        record_rate_limited(session, context)
+        raise _rate_limited(retry_after)
+
     user = authenticate_user(session, payload.username, payload.password)
     if user is None:
+        retry_after = record_login_failure(session, context)
+        if retry_after:
+            raise _rate_limited(retry_after)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid credentials")
 
+    record_login_success(session, context)
     record, raw_token = create_web_session(session, user)
     response.set_cookie(
         key=settings.session_cookie_name,

@@ -49,6 +49,28 @@ class AdminAuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
 
 
+class LoginRateBucket(Base):
+    __tablename__ = "login_rate_buckets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key_digest: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    scope: Mapped[str] = mapped_column(String(40), index=True)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+
+
+class LoginSecurityEvent(Base):
+    __tablename__ = "login_security_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    outcome: Mapped[str] = mapped_column(String(40), index=True)
+    client_digest: Mapped[str] = mapped_column(String(64), index=True)
+    account_digest: Mapped[str] = mapped_column(String(64), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+
+
 class Device(Base):
     __tablename__ = "devices"
 

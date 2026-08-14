@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from ipaddress import ip_network
 
 
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
@@ -66,6 +67,27 @@ class Settings:
     session_touch_minutes: int = _env_int(
         "GOREECLOUD_NOTIFY_SESSION_TOUCH_MINUTES", 5, minimum=1
     )
+    trusted_proxy_cidrs: tuple[str, ...] = _split_csv(
+        os.getenv("GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS", "")
+    )
+    login_rate_window_minutes: int = _env_int(
+        "GOREECLOUD_NOTIFY_LOGIN_RATE_WINDOW_MINUTES", 5, minimum=1
+    )
+    login_rate_account_attempts: int = _env_int(
+        "GOREECLOUD_NOTIFY_LOGIN_RATE_ACCOUNT_ATTEMPTS", 5, minimum=1
+    )
+    login_rate_source_attempts: int = _env_int(
+        "GOREECLOUD_NOTIFY_LOGIN_RATE_SOURCE_ATTEMPTS", 20, minimum=1
+    )
+    login_rate_cooldown_minutes: int = _env_int(
+        "GOREECLOUD_NOTIFY_LOGIN_RATE_COOLDOWN_MINUTES", 5, minimum=1
+    )
+    login_rate_state_ttl_hours: int = _env_int(
+        "GOREECLOUD_NOTIFY_LOGIN_RATE_STATE_TTL_HOURS", 24, minimum=1
+    )
+    login_security_event_retention_days: int = _env_int(
+        "GOREECLOUD_NOTIFY_LOGIN_SECURITY_EVENT_RETENTION_DAYS", 30, minimum=1
+    )
 
     def __post_init__(self) -> None:
         if "*" in self.cors_origins:
@@ -77,6 +99,13 @@ class Settings:
                 "GOREECLOUD_NOTIFY_SESSION_TOUCH_MINUTES must be less than "
                 "GOREECLOUD_NOTIFY_SESSION_IDLE_MINUTES"
             )
+        for cidr in self.trusted_proxy_cidrs:
+            try:
+                ip_network(cidr, strict=False)
+            except ValueError as exc:
+                raise ValueError(
+                    f"GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS contains invalid network: {cidr}"
+                ) from exc
 
 
 settings = Settings()

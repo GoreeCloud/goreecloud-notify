@@ -59,3 +59,19 @@ def test_settings_accept_touch_interval_less_than_idle() -> None:
 
     assert configured.session_touch_minutes == 5
     assert configured.session_idle_minutes == 60
+
+
+def test_settings_reject_invalid_trusted_proxy_network() -> None:
+    with pytest.raises(
+        ValueError,
+        match="GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS contains invalid network",
+    ):
+        Settings(trusted_proxy_cidrs=("not-a-network",))
+
+
+def test_settings_accept_valid_trusted_proxy_networks() -> None:
+    configured = Settings(
+        trusted_proxy_cidrs=("10.0.0.0/8", "fd00::/8"),
+    )
+
+    assert configured.trusted_proxy_cidrs == ("10.0.0.0/8", "fd00::/8")
