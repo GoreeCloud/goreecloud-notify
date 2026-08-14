@@ -8,6 +8,23 @@ def _split_csv(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name: str, default: int, *, minimum: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = int(raw)
+    if value < minimum:
+        raise ValueError(f"{name} must be at least {minimum}")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     app_name: str = "GoreeCloud Notify"
@@ -23,6 +40,26 @@ class Settings:
         )
     )
     admin_token: str | None = os.getenv("GOREECLOUD_NOTIFY_ADMIN_TOKEN")
+    session_cookie_name: str = os.getenv(
+        "GOREECLOUD_NOTIFY_SESSION_COOKIE_NAME",
+        "goreecloud_notify_session",
+    )
+    session_cookie_secure: bool = _env_bool("GOREECLOUD_NOTIFY_SESSION_COOKIE_SECURE", False)
+    session_lifetime_minutes: int = _env_int(
+        "GOREECLOUD_NOTIFY_SESSION_LIFETIME_MINUTES", 720, minimum=15
+    )
+    session_idle_minutes: int = _env_int(
+        "GOREECLOUD_NOTIFY_SESSION_IDLE_MINUTES", 60, minimum=5
+    )
+    session_touch_minutes: int = _env_int(
+        "GOREECLOUD_NOTIFY_SESSION_TOUCH_MINUTES", 5, minimum=1
+    )
+
+    def __post_init__(self) -> None:
+        if "*" in self.cors_origins:
+            raise ValueError(
+                "GOREECLOUD_NOTIFY_CORS_ORIGINS cannot contain '*' when credentialed web sessions are enabled"
+            )
 
 
 settings = Settings()

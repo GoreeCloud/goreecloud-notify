@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -36,3 +36,22 @@ def build_engine(database_url: str) -> Engine:
 
 engine = build_engine(settings.database_url)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+
+def verify_schema() -> None:
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    required_tables = set(Base.metadata.tables)
+    missing_tables = sorted(required_tables - tables)
+    if missing_tables:
+        raise RuntimeError(
+            "database schema is not initialized; run `alembic -c alembic.ini upgrade head` "
+            f"(missing tables: {', '.join(missing_tables)})"
+        )
+
+    user_columns = {column["name"] for column in inspector.get_columns("users")}
+    if "password_hash" not in user_columns:
+        raise RuntimeError(
+            "database schema is behind the authentication migration; "
+            "run `alembic -c alembic.ini upgrade head`"
+        )

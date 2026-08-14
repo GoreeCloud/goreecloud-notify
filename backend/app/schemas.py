@@ -84,3 +84,21 @@ class NotificationRead(BaseModel):
     severity: str
     created_at: datetime
     expires_at: datetime | None
+
+
+class UserCreate(BaseModel):
+    username: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{2,119}$")
+    display_name: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=12, max_length=256)
+
+
+class UserRead(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    is_active: bool
+
+
+class SessionCreate(BaseModel):
+    username: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=1, max_length=256)
