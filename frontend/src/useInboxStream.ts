@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useBrowserNotificationsContext } from './BrowserNotificationsContext'
 
 export type RealtimeDelivery = {
   id: number
@@ -97,6 +98,7 @@ export default function useInboxStream({
   const onStateRef = useRef(onState)
   const onDeliveryRef = useRef(onDelivery)
   const replayCursorRef = useRef<number | null>(initialCursor)
+  const { synchronizeRealtimeBaseline, notifyDelivery } = useBrowserNotificationsContext()
 
   useEffect(() => {
     onReadyRef.current = onReady
@@ -155,6 +157,7 @@ export default function useInboxStream({
         setState('reconnecting')
         return
       }
+      synchronizeRealtimeBaseline(inboxState.latest_delivery_id)
       synchronized = true
       setState('live')
       onReadyRef.current(inboxState)
@@ -173,6 +176,7 @@ export default function useInboxStream({
       const delivery = parseDelivery(event as MessageEvent<string>)
       if (!delivery) return
       replayCursorRef.current = Math.max(replayCursorRef.current ?? 0, delivery.id)
+      notifyDelivery(delivery)
       setState('live')
       onDeliveryRef.current(delivery)
     }
@@ -192,7 +196,7 @@ export default function useInboxStream({
       synchronized = false
       source.close()
     }
-  }, [enabled, initialCursor, networkOnline])
+  }, [enabled, initialCursor, networkOnline, notifyDelivery, synchronizeRealtimeBaseline])
 
   return state
 }
