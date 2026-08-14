@@ -9,7 +9,7 @@ from sqlalchemy import text
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
 from .database import Base, engine
-from .routers import admin, notifications
+from .routers import admin, compatibility, notifications
 
 
 @asynccontextmanager
@@ -29,7 +29,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["Accept", "Authorization", "Content-Type", "X-GoreeCloud-Admin-Token"],
 )
 
@@ -68,11 +68,13 @@ def api_meta() -> dict[str, object]:
             "producer source ownership enforcement",
             "scoped producer notification history",
             "source-isolated notification detail access",
+            "ntfy-compatible simple topic publishing",
         ],
         "next_milestone": "Notification Engine",
-        "next_slice": "ntfy-compatible ingestion",
+        "next_slice": "end-user authentication and delivery-state design",
     }
 
 
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(compatibility.router)

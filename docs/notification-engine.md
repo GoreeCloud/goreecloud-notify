@@ -41,15 +41,35 @@ Implemented in PR #4:
 - stable descending integer-ID pagination through `before_id`
 - endpoint and service tests for scope enforcement, source isolation, filters, and cursor behavior
 
+## Slice 4 — Initial ntfy-compatible publishing adapter
+
+Implemented in PR #5:
+
+- authenticated HTTP `POST` and `PUT` to `/{topic}`
+- required GoreeCloud Notify bearer token with `notifications:write`
+- ntfy-compatible simple message body publishing
+- `X-Message`/`Message`/`m`, `X-Title`/`Title`/`t`, and `X-Priority`/`Priority`/`prio`/`p` header aliases
+- equivalent `message`, `title`, and `priority` query-parameter aliases
+- ntfy topic-name validation up to 64 characters
+- topic-to-approved-channel resolution
+- producer source resolution that prefers exact or `goreecloud-`-stripped matches and otherwise allows only an unambiguous single source
+- current GoreeCloud ntfy 4 KiB message-size limit
+- priority translation into GoreeCloud severity: low/min → info, default → normal, high → warning, urgent/max → critical, while preserving the original ntfy numeric priority in the compatibility response
+- response envelope with ntfy-style `id`, `time`, `event`, `topic`, `message`, `title`, and `priority` fields
+- explicit `422` rejection for unsupported advanced options such as tags, actions, click URLs, attachments, Markdown, delay, email, calls, Firebase, UnifiedPush, and poll IDs
+- correction of missing-Authorization behavior so scoped endpoints return `401` instead of framework-level `422`
+
+The adapter intentionally implements only the compatibility needed for safe incremental migration. It does not claim complete ntfy protocol compatibility.
+
 These slices reuse the Milestone 1 database schema and therefore do not require a schema migration.
 
 ## Current boundary
 
 Native writes and producer history are enabled only in the pre-production development stack. Producer history is operational history for service identities; it is not the eventual end-user notification inbox and does not implement Delivery read/unread or acknowledgement state.
 
-There is no ntfy-compatible topic endpoint yet. There is also no authenticated end-user delivery/read/acknowledgement API, subscription fanout, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
+The initial ntfy-compatible topic endpoint now exists for simple authenticated publishing, but advanced ntfy features remain unsupported and no production producer has been migrated to it. There is also no authenticated end-user delivery/read/acknowledgement API, subscription fanout, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
 
-The next notification-engine slice is a separately reviewed ntfy-compatible ingestion adapter.
+The next notification-engine work requires an explicit end-user authentication and Delivery-state design before implementing inbox read/unread and acknowledgement behavior.
 
 ## Production boundary
 

@@ -13,8 +13,9 @@ Milestone 2 is currently split into focused stacked changes:
 - PR #2: bootstrap admin authorization, service identities, scoped producer tokens, token revocation, sources, and channels.
 - PR #3: native `POST /api/v1/notifications` ingestion, persistence through the existing Notification model, producer source-ownership enforcement, and focused tests.
 - PR #4: producer-scoped notification history and detail access with `notifications:read`, source isolation, filters, and bounded cursor pagination.
+- PR #5: initial ntfy-compatible POST/PUT topic publishing for authenticated producers, including simple message/title/priority translation and explicit rejection of unsupported ntfy features.
 
-Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. End-user delivery/read/acknowledgement state and production migration remain unimplemented.
+Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. End-user delivery/read/acknowledgement state and production migration remain unimplemented.
 
 ## Repository structure
 
@@ -69,7 +70,8 @@ Development ports remain loopback-only: frontend `127.0.0.1:5173`, backend `127.
 - `POST /api/v1/notifications` — native scoped producer ingestion
 - `GET /api/v1/notifications` — producer-scoped history with optional source/channel/severity filters and `before_id` pagination
 - `GET /api/v1/notifications/{id}` — producer-scoped notification detail
-- ntfy-compatible topic ingestion is not implemented yet
+- `POST|PUT /{topic}` — initial ntfy-compatible simple topic publishing for scoped producers
+- tags, actions, attachments, Markdown, delays, email, calls, and other advanced ntfy options are explicitly unsupported in the initial adapter rather than silently discarded
 
 See `docs/notification-engine.md` for the current Milestone 2 boundary.
 

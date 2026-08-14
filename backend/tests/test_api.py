@@ -22,5 +22,5 @@ def test_meta_tracks_native_ingestion_development() -> None:
     assert payload["production"] is False
     assert payload["notification_writes_enabled"] is True
     assert payload["development_milestone"] == 2
-    assert payload["next_slice"] == "ntfy-compatible ingestion"
+    assert payload["next_slice"] == "end-user authentication and delivery-state design"
     assert len(payload["entities"]) == 10
