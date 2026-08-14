@@ -1,17 +1,9 @@
-from app.database import Base
 from app import models  # noqa: F401
+from app.database import Base
 
 
-def test_milestone_1_defines_all_planned_first_class_tables() -> None:
+def test_milestone_2_keeps_planned_tables_plus_web_session_security_state() -> None:
     assert set(Base.metadata.tables) == {
-        "users",
-        "devices",
-        "service_identities",
-        "sources",
-        "channels",
-        "subscriptions",
-        "notifications",
-        "deliveries",
-        "access_tokens",
-        "preferences",
+        "users", "web_sessions", "devices", "service_identities", "sources", "channels",
+        "subscriptions", "notifications", "deliveries", "access_tokens", "preferences",
     }

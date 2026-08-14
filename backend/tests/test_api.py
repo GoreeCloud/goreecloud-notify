@@ -22,5 +22,6 @@ def test_meta_tracks_native_ingestion_development() -> None:
     assert payload["production"] is False
     assert payload["notification_writes_enabled"] is True
     assert payload["development_milestone"] == 2
-    assert payload["next_slice"] == "end-user authentication and delivery-state design"
+    assert payload["next_slice"] == "authenticated user inbox and Delivery state"
     assert len(payload["entities"]) == 10
+    assert "opaque server-side user sessions" in payload["implemented_engine"]
