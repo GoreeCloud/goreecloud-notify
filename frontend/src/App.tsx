@@ -332,13 +332,15 @@ export default function App() {
   const filtersActive = readFilter !== 'all' || severityFilter !== 'all' || sourceFilter !== 'all' || Boolean(debouncedSearch.trim())
   const streamLabel = streamState === 'live'
     ? 'Live updates connected'
-    : streamState === 'reconnecting'
-      ? 'Live updates reconnecting; loaded results may be stale until recovery'
-      : streamState === 'connecting'
-        ? 'Connecting live updates'
-        : streamCursor === null
-          ? 'Preparing synchronized live updates'
-          : 'Live updates idle'
+    : streamState === 'offline'
+      ? 'Live updates offline; loaded results are stale until network recovery'
+      : streamState === 'reconnecting'
+        ? 'Live updates reconnecting; loaded results may be stale until recovery'
+        : streamState === 'connecting'
+          ? 'Connecting live updates'
+          : streamCursor === null
+            ? 'Preparing synchronized live updates'
+            : 'Live updates idle'
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
