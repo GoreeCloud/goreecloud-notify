@@ -10,20 +10,34 @@ jobs:
   runtime-private-publication:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build production image
-        run: docker build -f Dockerfile.production -t goreecloud-notify:readiness .
-
-      - name: Verify final image identity
         run: |
+          docker build \
+            --build-arg GOREECLOUD_NOTIFY_BUILD_REVISION="$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION" \
+            -f Dockerfile.production \
+            -t goreecloud-notify:readiness \
+            .
+
+      - name: Verify final image identity and source revision
+        shell: bash
+        run: |
+          set -euo pipefail
           identity="$(docker run --rm --entrypoint id goreecloud-notify:readiness)"
           case "$identity" in
             *"uid=10001(goreecloud)"*"gid=10001(goreecloud)"*) ;;
             *) echo "Unexpected production image identity" >&2; exit 1 ;;
           esac
+
+          label_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' goreecloud-notify:readiness)"
+          file_revision="$(docker run --rm --entrypoint cat goreecloud-notify:readiness /app/BUILD_REVISION)"
+          test "$label_revision" = "$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"
+          test "$file_revision" = "$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"
 
       - name: Create disposable runtime state
         shell: bash
@@ -66,6 +80,7 @@ jobs:
           cat > "$client_env" <<EOF
           GOREECLOUD_NOTIFY_READINESS_BOOTSTRAP_TOKEN=$bootstrap_token
           GOREECLOUD_NOTIFY_READINESS_ADMIN_PASSWORD=$admin_password
+          GOREECLOUD_NOTIFY_READINESS_EXPECTED_BUILD_REVISION=$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION
           EOF
           chmod 0600 "$app_env" "$client_env"
 
