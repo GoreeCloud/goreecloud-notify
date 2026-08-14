@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import SubscriptionsPanel from './SubscriptionsPanel'
 import useInboxStream, {
   type RealtimeDelivery,
@@ -144,8 +144,10 @@ export default function App() {
   const [mutationId, setMutationId] = useState<number | null>(null)
   const [theme, setTheme] = useState<ThemeMode>(initialTheme)
   const [realtimeRefresh, setRealtimeRefresh] = useState(0)
+  const pendingRealtimeDeliveriesRef = useRef(new Set<number>())
 
   const handleUnauthorized = useCallback(() => {
+    pendingRealtimeDeliveriesRef.current.clear()
     setUser(null)
     setCsrfToken(null)
     setDeliveries([])
@@ -167,15 +169,42 @@ export default function App() {
     setKnownSources((current) => Array.from(new Set([...current, ...items.map((item) => item.source)])).sort())
   }
 
+  function deliveryMatchesCurrentView(delivery: InboxDelivery): boolean {
+    if (debouncedSearch.trim()) return false
+    if (readFilter === 'read' && !delivery.read_at) return false
+    if (readFilter === 'unread' && delivery.read_at) return false
+    if (severityFilter !== 'all' && delivery.severity !== severityFilter) return false
+    if (sourceFilter !== 'all' && delivery.source !== sourceFilter) return false
+    return true
+  }
+
   function applyPage(items: InboxDelivery[], append: boolean) {
     rememberSources(items)
     setHasMore(items.length === inboxPageSize)
-    setDeliveries((current) => append ? [...current, ...items] : items)
-    setSelectedId((current) => {
-      const available = append ? [...deliveries, ...items] : items
-      if (current !== null && available.some((delivery) => delivery.id === current)) return current
-      return available[0]?.id ?? null
+    if (append) {
+      setDeliveries((current) => {
+        const next = new Map(current.map((item) => [item.id, item]))
+        for (const item of items) {
+          if (!next.has(item.id)) next.set(item.id, item)
+        }
+        return Array.from(next.values()).sort((left, right) => right.id - left.id)
+      })
+      return
+    }
+
+    const serverIds = new Set(items.map((item) => item.id))
+    setDeliveries((current) => {
+      const preservedRealtime = current.filter((item) => (
+        pendingRealtimeDeliveriesRef.current.has(item.id)
+        && !serverIds.has(item.id)
+        && deliveryMatchesCurrentView(item)
+      ))
+      const next = new Map(items.map((item) => [item.id, item]))
+      for (const item of preservedRealtime) next.set(item.id, item)
+      return Array.from(next.values()).sort((left, right) => right.id - left.id)
     })
+
+    for (const id of serverIds) pendingRealtimeDeliveriesRef.current.delete(id)
   }
 
   const refreshAfterStreamHandshake = useCallback((state: InboxState) => {
@@ -199,6 +228,7 @@ export default function App() {
     if (severityFilter !== 'all' && delivery.severity !== severityFilter) return
     if (sourceFilter !== 'all' && delivery.source !== sourceFilter) return
 
+    pendingRealtimeDeliveriesRef.current.add(delivery.id)
     setDeliveries((current) => [delivery, ...current.filter((item) => item.id !== delivery.id)])
     setSelectedId((current) => current ?? delivery.id)
   }, [debouncedSearch, readFilter, severityFilter, sourceFilter])
@@ -300,6 +330,13 @@ export default function App() {
 
     return () => controller.abort()
   }, [user, readFilter, severityFilter, sourceFilter, debouncedSearch, realtimeRefresh, handleUnauthorized])
+
+  useEffect(() => {
+    setSelectedId((current) => {
+      if (current !== null && deliveries.some((delivery) => delivery.id === current)) return current
+      return deliveries[0]?.id ?? null
+    })
+  }, [deliveries])
 
   useEffect(() => {
     if (!user || streamState !== 'reconnecting') return
@@ -417,6 +454,7 @@ export default function App() {
         method,
         headers: { [csrfHeader]: token },
       })
+      pendingRealtimeDeliveriesRef.current.delete(data.id)
       setDeliveries((current) => current.map((item) => (item.id === data.id ? data : item)))
       const { data: state } = await apiRequest<InboxState>('/api/v1/inbox/state')
       setInboxState(state)
