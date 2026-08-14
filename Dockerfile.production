@@ -20,7 +20,15 @@ RUN groupadd --system --gid 10001 goreecloud \
     && useradd --system --uid 10001 --gid goreecloud --home-dir /app goreecloud
 
 COPY backend/requirements.txt ./requirements.txt
-RUN python -m pip install --no-cache-dir -r requirements.txt
+COPY backend/constraints.txt ./constraints.txt
+RUN python -m pip install \
+        --disable-pip-version-check \
+        --root-user-action=ignore \
+        --no-cache-dir \
+        --only-binary=:all: \
+        -r requirements.txt \
+        -c constraints.txt \
+    && python -m pip check
 
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic ./alembic
