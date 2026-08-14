@@ -75,3 +75,79 @@ def test_settings_accept_valid_trusted_proxy_networks() -> None:
     )
 
     assert configured.trusted_proxy_cidrs == ("10.0.0.0/8", "fd00::/8")
+
+
+def test_settings_reject_unknown_environment() -> None:
+    with pytest.raises(ValueError, match="GOREECLOUD_NOTIFY_ENVIRONMENT must be one of"):
+        Settings(environment="prod")
+
+
+def test_production_requires_secure_cookie() -> None:
+    with pytest.raises(
+        ValueError,
+        match="GOREECLOUD_NOTIFY_SESSION_COOKIE_SECURE must be true in production",
+    ):
+        Settings(
+            environment="production",
+            session_cookie_secure=False,
+            cors_origins=("https://notify.goreecloud.com",),
+            trusted_proxy_cidrs=("172.30.0.0/24",),
+        )
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://notify.goreecloud.com",
+        "http://localhost:5173",
+        "https://127.0.0.1",
+        "https://notify.goreecloud.com/path",
+        "https://notify.goreecloud.com?debug=1",
+    ],
+)
+def test_production_rejects_non_https_local_or_non_origin_cors_values(origin: str) -> None:
+    with pytest.raises(ValueError, match="GOREECLOUD_NOTIFY_CORS_ORIGINS"):
+        Settings(
+            environment="production",
+            session_cookie_secure=True,
+            cors_origins=(origin,),
+            trusted_proxy_cidrs=("172.30.0.0/24",),
+        )
+
+
+def test_production_requires_explicit_trusted_proxy_network() -> None:
+    with pytest.raises(
+        ValueError,
+        match="GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS must identify",
+    ):
+        Settings(
+            environment="production",
+            session_cookie_secure=True,
+            cors_origins=("https://notify.goreecloud.com",),
+            trusted_proxy_cidrs=(),
+        )
+
+
+def test_production_rejects_trusting_entire_address_family() -> None:
+    with pytest.raises(
+        ValueError,
+        match="GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS cannot trust an entire address family",
+    ):
+        Settings(
+            environment="production",
+            session_cookie_secure=True,
+            cors_origins=("https://notify.goreecloud.com",),
+            trusted_proxy_cidrs=("0.0.0.0/0",),
+        )
+
+
+def test_production_accepts_private_https_origin_and_narrow_proxy_network() -> None:
+    configured = Settings(
+        environment="production",
+        session_cookie_secure=True,
+        cors_origins=("https://notify.goreecloud.com",),
+        trusted_proxy_cidrs=("172.30.5.0/24",),
+    )
+
+    assert configured.environment == "production"
+    assert configured.session_cookie_secure is True
