@@ -42,7 +42,11 @@ function json(route: Route, body: unknown, status = 200) {
   })
 }
 
-async function installFakeNotificationApi(page: Page) {
+async function installFakeNotificationApi(
+  page: Page,
+  initialPermission: NotificationPermission = 'default',
+  requestPermissionResult: NotificationPermission = 'granted',
+) {
   await page.addInitScript({
     content: `
       window.__notifyPermissionRequests = 0;
@@ -53,11 +57,11 @@ async function installFakeNotificationApi(page: Page) {
         get() { return window.__notifyVisibilityState; }
       });
       class FakeNotification {
-        static permission = 'default';
+        static permission = ${JSON.stringify(initialPermission)};
         static async requestPermission() {
           window.__notifyPermissionRequests += 1;
-          FakeNotification.permission = 'granted';
-          return 'granted';
+          FakeNotification.permission = ${JSON.stringify(requestPermissionResult)};
+          return FakeNotification.permission;
         }
         constructor(title, options = {}) {
           this.title = title;
@@ -233,4 +237,45 @@ test('system alerts require explicit opt-in and redact Delivery details', async 
   ).toBe(true)
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __notifySystemAlerts: unknown[] }).__notifySystemAlerts.length)).toBe(1)
   await expect(page.locator('#notification-list').getByText(evidence.visibleNew.title, { exact: true })).toBeVisible()
+})
+
+test('browser denial remains fail-closed and does not persist local opt-in', async ({ page }) => {
+  await installFakeNotificationApi(page, 'default', 'denied')
+  await mockPrivacyScenario(page)
+  await page.goto('/')
+
+  await page.getByText('System alerts', { exact: true }).click()
+  await expect(page.getByText('Permission not requested')).toBeVisible()
+  await page.getByRole('button', { name: 'Enable system alerts' }).click()
+
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __notifyPermissionRequests: number }).__notifyPermissionRequests)).toBe(1)
+  await expect(page.getByText('Blocked by browser')).toBeVisible()
+  await expect(page.getByText(/This browser has blocked system alerts/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enable system alerts' })).toBeDisabled()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('goreecloud-notify-system-alerts'))).toBeNull()
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __notifySystemAlerts: unknown[] }).__notifySystemAlerts.length)).toBe(0)
+})
+
+test('external permission revocation clears the browser-local enabled state', async ({ page }) => {
+  await installFakeNotificationApi(page)
+  await mockPrivacyScenario(page)
+  await page.goto('/')
+
+  await page.getByText('System alerts', { exact: true }).click()
+  await page.getByRole('button', { name: 'Enable system alerts' }).click()
+  await expect(page.getByText('Enabled locally')).toBeVisible()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('goreecloud-notify-system-alerts'))).toBe('enabled')
+
+  await page.evaluate(() => {
+    Object.defineProperty(window.Notification, 'permission', {
+      configurable: true,
+      writable: true,
+      value: 'denied',
+    })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+
+  await expect(page.getByText('Blocked by browser')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enable system alerts' })).toBeDisabled()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('goreecloud-notify-system-alerts'))).toBeNull()
 })
