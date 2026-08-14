@@ -152,6 +152,13 @@ class InboxDeliveryRead(BaseModel):
     acknowledged_at: datetime | None
 
 
+class InboxStateRead(BaseModel):
+    latest_delivery_id: int
+    total_count: int
+    unread_count: int
+    acknowledged_count: int
+
+
 class UserCreate(BaseModel):
     username: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{2,119}$")
     display_name: str = Field(min_length=1, max_length=200)
