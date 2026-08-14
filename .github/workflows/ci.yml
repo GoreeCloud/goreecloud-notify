@@ -44,6 +44,8 @@ jobs:
           python tools/dependency_license_inventory.py --strict > "$RUNNER_TEMP/dependency-license-inventory.md" || status=$?
           cat "$RUNNER_TEMP/dependency-license-inventory.md" >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
+      - name: Self-test target production preflight
+        run: python deploy/target/preflight.py --self-test
       - name: Test backend
         working-directory: backend
         run: pytest
