@@ -77,6 +77,7 @@ def api_meta() -> dict[str, object]:
     return {
         "service": settings.app_name,
         "version": settings.version,
+        "build_revision": settings.build_revision,
         "milestone": 1,
         "development_milestone": 4,
         "production": settings.environment == "production",
