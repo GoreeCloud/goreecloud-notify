@@ -9,7 +9,7 @@ from sqlalchemy import text
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
 from .database import engine, verify_schema
-from .routers import admin, compatibility, notifications, session
+from .routers import admin, compatibility, inbox, notifications, session
 
 
 @asynccontextmanager
@@ -71,13 +71,16 @@ def api_meta() -> dict[str, object]:
             "ntfy-compatible simple topic publishing",
             "administrator-provisioned human users",
             "opaque server-side user sessions",
+            "subscription-based user Delivery fanout",
+            "authenticated read-only user inbox",
         ],
         "next_milestone": "Notification Engine",
-        "next_slice": "authenticated user inbox and Delivery state",
+        "next_slice": "CSRF-protected Delivery read and acknowledgement mutations",
     }
 
 
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(session.router, prefix="/api/v1")
+app.include_router(inbox.router, prefix="/api/v1")
 app.include_router(compatibility.router)

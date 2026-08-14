@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
+from .delivery_service import fanout_notification
 from .models import Channel, Notification, Source
 from .schemas import NotificationCreate, NotificationRead
 from .security import TokenPrincipal
@@ -54,6 +55,8 @@ def persist_notification(
         expires_at=payload.expires_at,
     )
     session.add(notification)
+    session.flush()
+    fanout_notification(session, notification)
     session.commit()
     session.refresh(notification)
     return notification

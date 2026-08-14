@@ -86,6 +86,21 @@ class NotificationRead(BaseModel):
     expires_at: datetime | None
 
 
+class InboxDeliveryRead(BaseModel):
+    id: int
+    notification_id: int
+    source: str
+    channel: str
+    title: str
+    body: str
+    severity: str
+    notification_created_at: datetime
+    delivered_at: datetime
+    expires_at: datetime | None
+    read_at: datetime | None
+    acknowledged_at: datetime | None
+
+
 class UserCreate(BaseModel):
     username: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{2,119}$")
     display_name: str = Field(min_length=1, max_length=200)
