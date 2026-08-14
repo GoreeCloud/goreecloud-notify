@@ -290,6 +290,11 @@ test('authenticated Glaze inbox synchronizes authoritative counts and realtime d
 
   await inboxNavigation.getByRole('button', { name: /^Unread/ }).click()
   await expect.poll(() => evidence.inboxQueries.some((query) => query.includes('read=false'))).toBe(true)
+  const unreadQueriesBeforeMutation = evidence.inboxQueries.filter((query) => query.includes('read=false')).length
+  await page.getByRole('button', { name: 'Mark read' }).click()
+  await expect.poll(
+    () => evidence.inboxQueries.filter((query) => query.includes('read=false')).length,
+  ).toBeGreaterThan(unreadQueriesBeforeMutation)
 
   await page.getByRole('searchbox', { name: 'Search notifications' }).fill('critical')
   await expect(page.getByRole('heading', { name: 'Critical network alert' })).toBeVisible()
