@@ -61,6 +61,17 @@ def test_settings_accept_touch_interval_less_than_idle() -> None:
     assert configured.session_idle_minutes == 60
 
 
+def test_settings_accepts_development_build_revision_outside_production() -> None:
+    configured = Settings(build_revision="development")
+
+    assert configured.build_revision == "development"
+
+
+def test_settings_rejects_malformed_build_revision() -> None:
+    with pytest.raises(ValueError, match="build_revision must be 'development'"):
+        Settings(build_revision="main")
+
+
 def test_settings_reject_invalid_trusted_proxy_network() -> None:
     with pytest.raises(
         ValueError,
@@ -141,13 +152,29 @@ def test_production_rejects_trusting_entire_address_family() -> None:
         )
 
 
-def test_production_accepts_private_https_origin_and_narrow_proxy_network() -> None:
+def test_production_requires_immutable_build_revision() -> None:
+    with pytest.raises(
+        ValueError,
+        match="production requires an immutable Git build revision",
+    ):
+        Settings(
+            environment="production",
+            build_revision="development",
+            session_cookie_secure=True,
+            cors_origins=("https://notify.goreecloud.com",),
+            trusted_proxy_cidrs=("172.30.5.0/24",),
+        )
+
+
+def test_production_accepts_private_https_origin_narrow_proxy_and_build_revision() -> None:
     configured = Settings(
         environment="production",
+        build_revision="a" * 40,
         session_cookie_secure=True,
         cors_origins=("https://notify.goreecloud.com",),
         trusted_proxy_cidrs=("172.30.5.0/24",),
     )
 
     assert configured.environment == "production"
+    assert configured.build_revision == "a" * 40
     assert configured.session_cookie_secure is True
