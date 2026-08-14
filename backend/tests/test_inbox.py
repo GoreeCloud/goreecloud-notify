@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from datetime import datetime, timezone
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.database import SessionLocal
-from app.delivery_service import fanout_notification, list_inbox
+from app.delivery_service import fanout_notification, list_inbox, list_inbox_after
 from app.main import app
 from app.models import (
     Channel,
@@ -16,11 +20,13 @@ from app.models import (
     Source,
     Subscription,
     User,
+    WebSession,
 )
 from app.notification_service import persist_notification, resolve_route
+from app.routers.inbox import _inbox_event_stream, _stream_cursor
 from app.schemas import NotificationCreate
 from app.security import TokenPrincipal
-from app.user_security import UserPrincipal, hash_password
+from app.user_security import UserPrincipal, create_web_session, hash_password, utc_now
 
 
 def producer(identity_id: int) -> TokenPrincipal:
@@ -101,6 +107,25 @@ def login(client: TestClient, username: str, password: str) -> None:
     assert response.status_code == 200
 
 
+def principal_with_session(user_id: int) -> UserPrincipal:
+    with SessionLocal() as session:
+        user = session.get(User, user_id)
+        assert user is not None
+        record, _ = create_web_session(session, user)
+        return UserPrincipal(
+            user_id=user.id,
+            session_id=record.id,
+            username=user.username,
+            display_name=user.display_name,
+            is_admin=user.is_admin,
+        )
+
+
+class ConnectedRequest:
+    async def is_disconnected(self) -> bool:
+        return False
+
+
 def test_notification_persistence_fans_out_only_to_active_enabled_subscribers() -> None:
     identity_id, first_user_id, second_user_id, _ = seed_inbox_fixture()
     notification_id = publish(identity_id)
@@ -135,7 +160,12 @@ def test_inbox_endpoint_requires_human_session_not_producer_auth() -> None:
             "/api/v1/inbox",
             headers={"Authorization": "Bearer gcn_not_a_user_session"},
         )
+        stream_response = client.get(
+            "/api/v1/inbox/stream",
+            headers={"Authorization": "Bearer gcn_not_a_user_session"},
+        )
     assert response.status_code == 401
+    assert stream_response.status_code == 401
 
 
 def test_inbox_lists_only_authenticated_users_deliveries_and_hides_other_detail() -> None:
@@ -252,3 +282,77 @@ def test_list_inbox_service_uses_principal_user_id_not_request_supplied_identity
         assert len(second) == 1
         assert first[0].id != second[0].id
         assert first[0].notification_id == second[0].notification_id
+
+
+def test_realtime_cursor_query_is_user_scoped_and_oldest_first() -> None:
+    identity_id, first_user_id, second_user_id, _ = seed_inbox_fixture()
+    first_notification = publish(identity_id, title="First realtime")
+    second_notification = publish(identity_id, title="Second realtime")
+
+    with SessionLocal() as session:
+        first_principal = UserPrincipal(
+            user_id=first_user_id,
+            session_id=1,
+            username="first",
+            display_name="First User",
+        )
+        second_principal = UserPrincipal(
+            user_id=second_user_id,
+            session_id=2,
+            username="second",
+            display_name="Second User",
+        )
+        first_items = list_inbox_after(session, first_principal, after_id=0)
+        second_items = list_inbox_after(session, second_principal, after_id=0)
+
+    assert [item.notification_id for item in first_items] == [first_notification, second_notification]
+    assert [item.notification_id for item in second_items] == [first_notification, second_notification]
+    assert [item.id for item in first_items] != [item.id for item in second_items]
+    assert [item.id for item in first_items] == sorted(item.id for item in first_items)
+
+
+def test_stream_cursor_prefers_valid_last_event_id_and_rejects_invalid_values() -> None:
+    assert _stream_cursor(7, None) == 7
+    assert _stream_cursor(7, "9") == 9
+    assert _stream_cursor(None, "0") == 0
+
+    for invalid in ("-1", "not-an-integer"):
+        with pytest.raises(HTTPException) as error:
+            _stream_cursor(7, invalid)
+        assert error.value.status_code == 400
+
+
+def test_sse_generator_replays_owned_delivery_after_cursor_and_stops_after_revocation() -> None:
+    identity_id, first_user_id, _, _ = seed_inbox_fixture()
+    notification_id = publish(identity_id, title="Realtime delivery")
+    principal = principal_with_session(first_user_id)
+
+    async def collect_initial_events() -> tuple[str, str]:
+        generator = _inbox_event_stream(ConnectedRequest(), principal, 0)  # type: ignore[arg-type]
+        ready = await anext(generator)
+        inbox_event = await anext(generator)
+        await generator.aclose()
+        return ready, inbox_event
+
+    ready, inbox_event = asyncio.run(collect_initial_events())
+    assert "event: ready" in ready
+    assert '"cursor":0' in ready
+    assert "event: inbox" in inbox_event
+    data_line = next(line for line in inbox_event.splitlines() if line.startswith("data: "))
+    payload = json.loads(data_line.removeprefix("data: "))
+    assert payload["notification_id"] == notification_id
+    assert payload["title"] == "Realtime delivery"
+
+    with SessionLocal() as session:
+        record = session.get(WebSession, principal.session_id)
+        assert record is not None
+        record.revoked_at = utc_now()
+        session.commit()
+
+    async def assert_revoked_stream_stops() -> None:
+        generator = _inbox_event_stream(ConnectedRequest(), principal, 0)  # type: ignore[arg-type]
+        with pytest.raises(StopAsyncIteration):
+            await anext(generator)
+        await generator.aclose()
+
+    asyncio.run(assert_revoked_stream_stops())
