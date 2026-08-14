@@ -14,14 +14,14 @@ from ..database import SessionLocal
 from ..delivery_service import (
     acknowledge_delivery,
     get_inbox_delivery,
-    latest_inbox_delivery_id,
+    get_inbox_state,
     list_inbox,
     list_inbox_after,
     mark_delivery_read,
     mark_delivery_unread,
 )
 from ..deps import get_db
-from ..schemas import InboxDeliveryRead
+from ..schemas import InboxDeliveryRead, InboxStateRead
 from ..user_security import (
     UserPrincipal,
     principal_session_is_active,
@@ -33,6 +33,7 @@ router = APIRouter(tags=["inbox"])
 Severity = Literal["info", "normal", "warning", "error", "critical"]
 STREAM_POLL_SECONDS = 1.0
 STREAM_HEARTBEAT_SECONDS = 15.0
+STREAM_STATE_SECONDS = 5.0
 STREAM_BATCH_LIMIT = 100
 
 
@@ -63,6 +64,10 @@ def _sse_event(*, event: str, data: dict[str, object], event_id: int | None = No
     return "\n".join(lines) + "\n\n"
 
 
+def _state_payload(state: InboxStateRead) -> dict[str, object]:
+    return state.model_dump(mode="json")
+
+
 async def _inbox_event_stream(
     request: Request,
     principal: UserPrincipal,
@@ -71,19 +76,27 @@ async def _inbox_event_stream(
     with SessionLocal() as session:
         if not principal_session_is_active(session, principal):
             return
+        initial_state = get_inbox_state(session, principal)
         cursor = (
             initial_cursor
             if initial_cursor is not None
-            else latest_inbox_delivery_id(session, principal)
+            else initial_state.latest_delivery_id
         )
 
-    yield "retry: 3000\n" + _sse_event(event="ready", data={"cursor": cursor})
+    last_state_payload = _state_payload(initial_state)
+    yield "retry: 3000\n" + _sse_event(
+        event="ready",
+        data={"cursor": cursor, **last_state_payload},
+    )
     last_heartbeat = time.monotonic()
+    last_state_check = last_heartbeat
 
     while True:
         if await request.is_disconnected():
             return
 
+        now = time.monotonic()
+        should_check_state = now - last_state_check >= STREAM_STATE_SECONDS
         with SessionLocal() as session:
             if not principal_session_is_active(session, principal):
                 return
@@ -93,6 +106,7 @@ async def _inbox_event_stream(
                 after_id=cursor,
                 limit=STREAM_BATCH_LIMIT,
             )
+            state = get_inbox_state(session, principal) if deliveries or should_check_state else None
 
         if deliveries:
             for delivery in deliveries:
@@ -103,7 +117,16 @@ async def _inbox_event_stream(
                     data=delivery.model_dump(mode="json"),
                 )
             last_heartbeat = time.monotonic()
-        elif time.monotonic() - last_heartbeat >= STREAM_HEARTBEAT_SECONDS:
+
+        if state is not None:
+            state_payload = _state_payload(state)
+            last_state_check = time.monotonic()
+            if state_payload != last_state_payload:
+                last_state_payload = state_payload
+                yield _sse_event(event="state", data=state_payload)
+                last_heartbeat = time.monotonic()
+
+        if time.monotonic() - last_heartbeat >= STREAM_HEARTBEAT_SECONDS:
             yield ": keepalive\n\n"
             last_heartbeat = time.monotonic()
 
@@ -135,6 +158,14 @@ def inbox(
         before_id=before_id,
         limit=limit,
     )
+
+
+@router.get("/inbox/state", response_model=InboxStateRead)
+def inbox_state(
+    principal: Annotated[UserPrincipal, Depends(require_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+) -> InboxStateRead:
+    return get_inbox_state(session, principal)
 
 
 @router.get("/inbox/stream")
