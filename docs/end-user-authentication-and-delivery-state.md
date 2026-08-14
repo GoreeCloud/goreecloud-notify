@@ -1,6 +1,6 @@
 # End-User Authentication and Delivery-State Design
 
-This document defines the design boundary for the first authenticated GoreeCloud Notify inbox. It is a design record only: it does not enable user login, create sessions, change the database schema, or alter production infrastructure.
+This document began as the PR #6 design boundary for the first authenticated GoreeCloud Notify inbox. PR #7 implements the human login/session portion of this design in pre-production development; inbox fanout and Delivery read/acknowledgement mutations remain unimplemented.
 
 ## Goals
 
@@ -36,7 +36,7 @@ Producer authentication and user authentication have different purposes and must
 
 Producer/service identities continue to use scoped bearer tokens such as `notifications:write` and `notifications:read`. Those tokens are not user login credentials and must not grant access to an end-user inbox.
 
-For human users, the preferred implementation candidate is a native GoreeCloud account with a server-managed, opaque web session. This is **not yet a final implementation approval**. The implementation PR must still select and document the exact password-hashing library, session storage mechanism, account-administration workflow, and recovery process.
+For human users, PR #7 selects a native GoreeCloud account with a server-managed, opaque web session. Passwords use Argon2id through `argon2-cffi`; session tokens are cryptographically random and only SHA-256 digests are stored in the new `web_sessions` table. Initial accounts are administrator-provisioned. Self-registration and account recovery remain outside this slice.
 
 The first web-session implementation should require:
 
@@ -109,11 +109,11 @@ This keeps acknowledgement as an intentional, higher-confidence state than read/
 
 ## Proposed web API shape
 
-The following endpoints are design candidates, not implemented routes:
+The following endpoint list records current implementation status and the remaining inbox design candidates:
 
-- `POST /api/v1/session` — authenticate a human user and establish a web session
-- `DELETE /api/v1/session` — invalidate the current session
-- `GET /api/v1/me` — return the authenticated human user's safe profile
+- `POST /api/v1/session` — **implemented in PR #7**; authenticate a human user and establish a web session
+- `DELETE /api/v1/session` — **implemented in PR #7**; invalidate the current session
+- `GET /api/v1/me` — **implemented in PR #7**; return the authenticated human user's safe profile
 - `GET /api/v1/inbox` — list only that user's deliveries
 - `GET /api/v1/inbox/{delivery_id}` — return one owned delivery
 - `POST /api/v1/inbox/{delivery_id}/read` — mark owned delivery read
@@ -173,6 +173,6 @@ Before enabling end-user login or inbox mutations, the implementation PR must do
 
 ## Current decision state
 
-The approved direction at this stage is the **separation of human sessions, producer tokens, and user-level Delivery state**. The exact end-user authentication implementation remains an open implementation decision until a later code PR selects and validates it.
+The approved development direction is the **separation of human sessions, producer tokens, and user-level Delivery state**. PR #7 selects Argon2id password hashes, administrator-provisioned users, opaque server-side sessions, and Alembic-managed schema evolution for the first web-login implementation. Production rate controls, account recovery, explicit CSRF tokens for inbox mutations, and the inbox/fanout implementation remain open gates.
 
-No runtime behavior, database schema, ntfy producer, Caddy route, DNS record, AdGuard Home rewrite, NetBird policy, firewall rule, mobile client, or production container is changed by this design record.
+PR #6 itself was design-only. PR #7 adds pre-production human-session runtime and database migration files, but it still changes no ntfy producer, Caddy route, DNS record, AdGuard Home rewrite, NetBird policy, firewall rule, mobile client, or production container.

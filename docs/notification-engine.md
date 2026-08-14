@@ -77,15 +77,34 @@ Recorded in PR #6 as a design-only slice:
 
 PR #6 does not enable login routes, mutate the database schema, or alter production infrastructure.
 
-These implemented engine slices reuse the Milestone 1 database schema. A later user-authentication implementation may require a separately reviewed migration depending on the selected server-side session model.
+## Slice 6 — Human authentication implementation
+
+Implemented in PR #7:
+
+- administrator-provisioned human accounts using the existing `User` model
+- Argon2id password hashes through `argon2-cffi`
+- opaque `gcs_` session identifiers generated with a cryptographically secure source
+- SHA-256 session digests at rest in the new `web_sessions` table
+- `POST /api/v1/session`, `DELETE /api/v1/session`, and `GET /api/v1/me`
+- generic login failures and inactive-user rejection
+- configurable absolute and idle session expiration
+- `HttpOnly`, `SameSite=Strict` session cookies with a production `Secure` switch
+- credentialed CORS limited to configured origins
+- Alembic baseline and human-authentication migrations
+- startup schema verification instead of using SQLAlchemy `create_all()` as a migration mechanism
+- migration, session-expiration, session-rotation, logout-revocation, and plaintext-secret tests
+
+This slice still does not implement public registration, password recovery, production login rate limits, explicit CSRF tokens for inbox mutations, subscription fanout, or user inbox read/acknowledgement routes.
+
+Slices through PR #5 reuse the Milestone 1 database schema. PR #7 introduces the first reviewed schema evolution: an Alembic baseline plus a human-authentication migration that adds `users.password_hash` and `web_sessions`.
 
 ## Current boundary
 
 Native writes and producer history are enabled only in the pre-production development stack. Producer history is operational history for service identities; it is not the eventual end-user notification inbox and does not implement Delivery read/unread or acknowledgement state.
 
-The initial ntfy-compatible topic endpoint now exists for simple authenticated publishing, but advanced ntfy features remain unsupported and no production producer has been migrated to it. There is also no authenticated end-user delivery/read/acknowledgement API, subscription fanout, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
+The initial ntfy-compatible topic endpoint now exists for simple authenticated publishing, but advanced ntfy features remain unsupported and no production producer has been migrated to it. Human login and session validation now exist in the pre-production PR #7 stack, but there is still no authenticated end-user inbox fanout/read/acknowledgement API, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
 
-The end-user authentication and Delivery-state design is now recorded in PR #6. The next code slice may implement the selected session model and authenticated inbox only after the remaining authentication details are explicitly approved and tested.
+The end-user authentication and Delivery-state design is recorded in PR #6, and PR #7 implements the selected human-session model plus schema migration. The next code slice is the authenticated user inbox/fanout foundation; cookie-authenticated mutations remain gated on explicit CSRF protection.
 
 ## Production boundary
 
