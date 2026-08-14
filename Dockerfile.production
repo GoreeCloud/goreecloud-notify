@@ -11,10 +11,21 @@ RUN npm run build
 
 FROM python:3.14.6-slim-bookworm@sha256:86f975aca15cf04a40b399eebede9aea7c82eae084d1f1a0a6ef6bcaae871a30
 
+ARG GOREECLOUD_NOTIFY_BUILD_REVISION=development
+
+LABEL org.opencontainers.image.title="GoreeCloud Notify" \
+      org.opencontainers.image.revision="${GOREECLOUD_NOTIFY_BUILD_REVISION}"
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
+
+RUN case "$GOREECLOUD_NOTIFY_BUILD_REVISION" in \
+        development) ;; \
+        *) printf '%s\n' "$GOREECLOUD_NOTIFY_BUILD_REVISION" | grep -Eq '^[0-9a-f]{40}$' ;; \
+    esac \
+    && printf '%s\n' "$GOREECLOUD_NOTIFY_BUILD_REVISION" > /app/BUILD_REVISION
 
 RUN groupadd --system --gid 10001 goreecloud \
     && useradd --system --uid 10001 --gid goreecloud --home-dir /app goreecloud
