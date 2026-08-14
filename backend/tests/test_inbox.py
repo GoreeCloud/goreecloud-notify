@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.database import SessionLocal
-from app.delivery_service import fanout_notification, list_inbox, list_inbox_after
+from app.delivery_service import fanout_notification, get_inbox_state, list_inbox, list_inbox_after
 from app.main import app
 from app.models import (
     Channel,
@@ -23,6 +23,7 @@ from app.models import (
     WebSession,
 )
 from app.notification_service import persist_notification, resolve_route
+from app.routers import inbox as inbox_router
 from app.routers.inbox import _inbox_event_stream, _stream_cursor
 from app.schemas import NotificationCreate
 from app.security import TokenPrincipal
@@ -160,11 +161,16 @@ def test_inbox_endpoint_requires_human_session_not_producer_auth() -> None:
             "/api/v1/inbox",
             headers={"Authorization": "Bearer gcn_not_a_user_session"},
         )
+        state_response = client.get(
+            "/api/v1/inbox/state",
+            headers={"Authorization": "Bearer gcn_not_a_user_session"},
+        )
         stream_response = client.get(
             "/api/v1/inbox/stream",
             headers={"Authorization": "Bearer gcn_not_a_user_session"},
         )
     assert response.status_code == 401
+    assert state_response.status_code == 401
     assert stream_response.status_code == 401
 
 
@@ -256,6 +262,85 @@ def test_inbox_filters_read_acknowledgement_source_channel_severity_search_and_c
         assert [item["id"] for item in older.json()] == [first_id]
 
 
+def test_authoritative_inbox_state_is_user_scoped_and_tracks_mutations() -> None:
+    identity_id, first_user_id, second_user_id, _ = seed_inbox_fixture()
+    first_notification = publish(identity_id, title="State one")
+    second_notification = publish(identity_id, title="State two")
+    third_notification = publish(identity_id, title="State three")
+    now = datetime.now(timezone.utc)
+
+    with SessionLocal() as session:
+        first_delivery = session.scalar(
+            select(Delivery).where(
+                Delivery.notification_id == first_notification,
+                Delivery.user_id == first_user_id,
+            )
+        )
+        second_delivery = session.scalar(
+            select(Delivery).where(
+                Delivery.notification_id == second_notification,
+                Delivery.user_id == first_user_id,
+            )
+        )
+        third_delivery = session.scalar(
+            select(Delivery).where(
+                Delivery.notification_id == third_notification,
+                Delivery.user_id == first_user_id,
+            )
+        )
+        second_user_latest = session.scalar(
+            select(Delivery.id)
+            .where(Delivery.user_id == second_user_id)
+            .order_by(Delivery.id.desc())
+            .limit(1)
+        )
+        assert first_delivery is not None and second_delivery is not None and third_delivery is not None
+        assert second_user_latest is not None
+        first_delivery.read_at = now
+        first_delivery.acknowledged_at = now
+        session.commit()
+        expected_latest = third_delivery.id
+
+        first_state = get_inbox_state(
+            session,
+            UserPrincipal(
+                user_id=first_user_id,
+                session_id=1,
+                username="first",
+                display_name="First User",
+            ),
+        )
+        second_state = get_inbox_state(
+            session,
+            UserPrincipal(
+                user_id=second_user_id,
+                session_id=2,
+                username="second",
+                display_name="Second User",
+            ),
+        )
+
+    assert first_state.latest_delivery_id == expected_latest
+    assert first_state.total_count == 3
+    assert first_state.unread_count == 2
+    assert first_state.acknowledged_count == 1
+    assert second_state.latest_delivery_id == second_user_latest
+    assert second_state.total_count == 3
+    assert second_state.unread_count == 3
+    assert second_state.acknowledged_count == 0
+
+    with TestClient(app) as client:
+        login(client, "first", "first user password 123")
+        response = client.get("/api/v1/inbox/state")
+        assert response.status_code == 200
+        assert response.json() == {
+            "latest_delivery_id": expected_latest,
+            "total_count": 3,
+            "unread_count": 2,
+            "acknowledged_count": 1,
+        }
+
+
 def test_list_inbox_service_uses_principal_user_id_not_request_supplied_identity() -> None:
     identity_id, first_user_id, second_user_id, _ = seed_inbox_fixture()
     publish(identity_id)
@@ -337,6 +422,8 @@ def test_sse_generator_replays_owned_delivery_after_cursor_and_stops_after_revoc
     ready, inbox_event = asyncio.run(collect_initial_events())
     assert "event: ready" in ready
     assert '"cursor":0' in ready
+    assert '"total_count":1' in ready
+    assert '"unread_count":1' in ready
     assert "event: inbox" in inbox_event
     data_line = next(line for line in inbox_event.splitlines() if line.startswith("data: "))
     payload = json.loads(data_line.removeprefix("data: "))
@@ -356,3 +443,44 @@ def test_sse_generator_replays_owned_delivery_after_cursor_and_stops_after_revoc
         await generator.aclose()
 
     asyncio.run(assert_revoked_stream_stops())
+
+
+def test_sse_generator_emits_state_change_without_new_delivery(monkeypatch: pytest.MonkeyPatch) -> None:
+    identity_id, first_user_id, _, _ = seed_inbox_fixture()
+    notification_id = publish(identity_id, title="State transition")
+    principal = principal_with_session(first_user_id)
+    monkeypatch.setattr(inbox_router, "STREAM_POLL_SECONDS", 0.0)
+    monkeypatch.setattr(inbox_router, "STREAM_STATE_SECONDS", 0.0)
+
+    with SessionLocal() as session:
+        delivery = session.scalar(
+            select(Delivery).where(
+                Delivery.notification_id == notification_id,
+                Delivery.user_id == first_user_id,
+            )
+        )
+        assert delivery is not None
+        delivery_id = delivery.id
+
+    async def collect_state_change() -> tuple[str, str, str]:
+        generator = _inbox_event_stream(ConnectedRequest(), principal, 0)  # type: ignore[arg-type]
+        ready = await anext(generator)
+        inbox_event = await anext(generator)
+
+        with SessionLocal() as session:
+            delivery = session.get(Delivery, delivery_id)
+            assert delivery is not None
+            delivery.read_at = utc_now()
+            session.commit()
+
+        state_event = await anext(generator)
+        await generator.aclose()
+        return ready, inbox_event, state_event
+
+    ready, inbox_event, state_event = asyncio.run(collect_state_change())
+    assert "event: ready" in ready
+    assert '"unread_count":1' in ready
+    assert "event: inbox" in inbox_event
+    assert "event: state" in state_event
+    assert '"total_count":1' in state_event
+    assert '"unread_count":0' in state_event
