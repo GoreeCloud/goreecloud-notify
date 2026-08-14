@@ -9,7 +9,7 @@ from sqlalchemy import text
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
 from .database import Base, engine
-from .routers import admin
+from .routers import admin, notifications
 
 
 @asynccontextmanager
@@ -21,7 +21,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="Milestone 2 identity and routing foundation for GoreeCloud Notify.",
+    description="Milestone 2 notification-engine development for GoreeCloud Notify.",
     lifespan=lifespan,
 )
 
@@ -49,7 +49,7 @@ def api_meta() -> dict[str, object]:
         "milestone": 1,
         "development_milestone": 2,
         "production": False,
-        "notification_writes_enabled": False,
+        "notification_writes_enabled": True,
         "entities": [
             "User", "Device", "ServiceIdentity", "Source", "Channel",
             "Subscription", "Notification", "Delivery", "AccessToken", "Preference",
@@ -62,9 +62,15 @@ def api_meta() -> dict[str, object]:
             "source administration",
             "channel administration",
         ],
+        "implemented_engine": [
+            "native notification ingestion",
+            "notification persistence",
+            "producer source ownership enforcement",
+        ],
         "next_milestone": "Notification Engine",
-        "next_slice": "notification ingestion and persistence",
+        "next_slice": "notification history and ntfy-compatible ingestion",
     }
 
 
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(notifications.router, prefix="/api/v1")
