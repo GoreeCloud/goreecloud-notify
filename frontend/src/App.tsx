@@ -418,6 +418,7 @@ export default function App() {
       setDeliveries((current) => current.map((item) => (item.id === data.id ? data : item)))
       const { data: state } = await apiRequest<InboxState>('/api/v1/inbox/state')
       setInboxState(state)
+      setRealtimeRefresh((current) => current + 1)
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
         handleUnauthorized()
