@@ -115,6 +115,7 @@ export default function useInboxStream({
     }
 
     let closed = false
+    let synchronized = false
     setState('connecting')
     const streamUrl = new URL(`${apiBaseUrl}/api/v1/inbox/stream`, window.location.origin)
     streamUrl.searchParams.set('after_id', String(initialCursor))
@@ -124,16 +125,17 @@ export default function useInboxStream({
       if (closed) return
       const inboxState = parseInboxState(event)
       if (!inboxState) {
+        synchronized = false
         setState('reconnecting')
-        source.close()
         return
       }
+      synchronized = true
       setState('live')
       onReadyRef.current(inboxState)
     }
 
     const handleState = (event: Event) => {
-      if (closed) return
+      if (closed || !synchronized) return
       const inboxState = parseInboxState(event)
       if (!inboxState) return
       setState('live')
@@ -141,7 +143,7 @@ export default function useInboxStream({
     }
 
     const handleDelivery = (event: Event) => {
-      if (closed || !(event instanceof MessageEvent)) return
+      if (closed || !synchronized || !(event instanceof MessageEvent)) return
       const delivery = parseDelivery(event as MessageEvent<string>)
       if (!delivery) return
       setState('live')
@@ -152,11 +154,15 @@ export default function useInboxStream({
     source.addEventListener('state', handleState)
     source.addEventListener('inbox', handleDelivery)
     source.onerror = () => {
-      if (!closed) setState('reconnecting')
+      if (!closed) {
+        synchronized = false
+        setState('reconnecting')
+      }
     }
 
     return () => {
       closed = true
+      synchronized = false
       source.close()
     }
   }, [enabled, initialCursor])
