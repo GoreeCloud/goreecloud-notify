@@ -11,7 +11,7 @@ def _split_csv(value: str) -> tuple[str, ...]:
 @dataclass(frozen=True, slots=True)
 class Settings:
     app_name: str = "GoreeCloud Notify"
-    version: str = "0.1.0-dev"
+    version: str = "0.2.0-dev"
     database_url: str = os.getenv(
         "GOREECLOUD_NOTIFY_DATABASE_URL",
         "sqlite:///./data/goreecloud_notify.db",
@@ -22,6 +22,7 @@ class Settings:
             "http://127.0.0.1:5173,http://localhost:5173",
         )
     )
+    admin_token: str | None = os.getenv("GOREECLOUD_NOTIFY_ADMIN_TOKEN")
 
 
 settings = Settings()

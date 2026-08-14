@@ -9,6 +9,7 @@ from sqlalchemy import text
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
 from .database import Base, engine
+from .routers import admin
 
 
 @asynccontextmanager
@@ -20,7 +21,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="Milestone 1 foundation API for GoreeCloud Notify.",
+    description="Milestone 2 identity and routing foundation for GoreeCloud Notify.",
     lifespan=lifespan,
 )
 
@@ -28,8 +29,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
     allow_credentials=False,
-    allow_methods=["GET"],
-    allow_headers=["Accept", "Content-Type"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Accept", "Authorization", "Content-Type", "X-GoreeCloud-Admin-Token"],
 )
 
 
@@ -45,20 +46,19 @@ def api_meta() -> dict[str, object]:
     return {
         "service": settings.app_name,
         "version": settings.version,
-        "milestone": 1,
+        "milestone": 2,
         "production": False,
         "notification_writes_enabled": False,
-        "entities": [
-            "User",
-            "Device",
-            "ServiceIdentity",
-            "Source",
-            "Channel",
-            "Subscription",
-            "Notification",
-            "Delivery",
-            "AccessToken",
-            "Preference",
+        "implemented": [
+            "bootstrap administrative authorization",
+            "service identities",
+            "scoped producer token issuance",
+            "token revocation",
+            "source administration",
+            "channel administration",
         ],
-        "next_milestone": "Notification Engine",
+        "next_slice": "notification ingestion and persistence",
     }
+
+
+app.include_router(admin.router, prefix="/api/v1")
