@@ -29,6 +29,7 @@ def inbox(
     source: str | None = Query(default=None, min_length=1, max_length=120),
     channel: str | None = Query(default=None, min_length=1, max_length=120),
     severity: Severity | None = None,
+    q: str | None = Query(default=None, min_length=1, max_length=200),
     before_id: int | None = Query(default=None, ge=1),
     limit: int = Query(default=50, ge=1, le=100),
 ) -> list[InboxDeliveryRead]:
@@ -40,6 +41,7 @@ def inbox(
         source_slug=source,
         channel_slug=channel,
         severity=severity,
+        search_text=q,
         before_id=before_id,
         limit=limit,
     )
