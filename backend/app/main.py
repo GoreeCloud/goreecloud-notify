@@ -133,9 +133,12 @@ def api_meta() -> dict[str, object]:
             "reconnecting session validation",
             "fail-closed realtime resynchronization",
             "immediate filtered mutation reconciliation",
+            "explicit offline realtime state",
+            "last-received Delivery cursor offline recovery",
+            "online recovery stream reconciliation",
         ],
         "next_milestone": "Real-Time Delivery",
-        "next_slice": "Milestone 4 explicit offline recovery and browser notification permission design",
+        "next_slice": "Milestone 4 browser notification permission and privacy design",
     }
 
 
