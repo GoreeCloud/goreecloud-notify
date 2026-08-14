@@ -1,0 +1,131 @@
+name: goreecloud-notify-monitoring-readiness
+
+x-app-runtime: &app-runtime
+  image: ${GOREECLOUD_NOTIFY_MONITORING_IMAGE:-goreecloud-notify:monitoring-readiness}
+  user: "10001:10001"
+  env_file:
+    - ${GOREECLOUD_NOTIFY_MONITORING_ENV_FILE:?Set GOREECLOUD_NOTIFY_MONITORING_ENV_FILE}
+  volumes:
+    - type: bind
+      source: ${GOREECLOUD_NOTIFY_MONITORING_DATA_DIR:?Set GOREECLOUD_NOTIFY_MONITORING_DATA_DIR}
+      target: /data
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  pids_limit: 256
+
+services:
+  migrate:
+    <<: *app-runtime
+    profiles: [maintenance]
+    network_mode: none
+    restart: "no"
+    command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+
+  app:
+    <<: *app-runtime
+    restart: "no"
+    networks:
+      proxy:
+        ipv4_address: 172.19.0.20
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s
+
+  caddy:
+    image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    restart: "no"
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      proxy:
+        ipv4_address: 172.19.0.5
+        aliases:
+          - notify.goreecloud.com
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s
+
+  ntfy:
+    image: binwiederhier/ntfy:v2.26.3@sha256:081b53dbb20674fcfe05fdb4eb8af9036a2645ef979543d16f7f80803af467b1
+    command: ["serve"]
+    user: "1001:1001"
+    volumes:
+      - ${GOREECLOUD_NOTIFY_MONITORING_NTFY_CONFIG:?Set GOREECLOUD_NOTIFY_MONITORING_NTFY_CONFIG}:/etc/ntfy/server.yml:ro
+    tmpfs:
+      - /var/lib/ntfy:rw,nosuid,nodev,noexec,size=64m,uid=1001,gid=1001,mode=0700
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      proxy:
+        ipv4_address: 172.19.0.10
+        aliases:
+          - ntfy
+
+  monitor:
+    image: python:3.14.6-slim-bookworm@sha256:86f975aca15cf04a40b399eebede9aea7c82eae084d1f1a0a6ef6bcaae871a30
+    command: ["python", "-c", "import time; time.sleep(3600)"]
+    volumes:
+      - ./monitor_client.py:/readiness/monitor_client.py:ro
+      - ${GOREECLOUD_NOTIFY_MONITORING_CA_FILE:?Set GOREECLOUD_NOTIFY_MONITORING_CA_FILE}:/readiness/root.crt:ro
+      - ${GOREECLOUD_NOTIFY_MONITORING_PUBLISHER_TOKEN_FILE:?Set GOREECLOUD_NOTIFY_MONITORING_PUBLISHER_TOKEN_FILE}:/run/secrets/ntfy_publisher_token:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      proxy:
+        ipv4_address: 172.19.0.50
+
+  subscriber:
+    image: python:3.14.6-slim-bookworm@sha256:86f975aca15cf04a40b399eebede9aea7c82eae084d1f1a0a6ef6bcaae871a30
+    command: ["python", "-c", "import time; time.sleep(3600)"]
+    volumes:
+      - ./monitor_client.py:/readiness/monitor_client.py:ro
+      - ${GOREECLOUD_NOTIFY_MONITORING_SUBSCRIBER_TOKEN_FILE:?Set GOREECLOUD_NOTIFY_MONITORING_SUBSCRIBER_TOKEN_FILE}:/run/secrets/ntfy_subscriber_token:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      proxy:
+        ipv4_address: 172.19.0.60
+
+networks:
+  proxy:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24
+
+volumes:
+  caddy-data:
+  caddy-config:
