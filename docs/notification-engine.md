@@ -54,14 +54,30 @@ Implemented in PR #5:
 - topic-to-approved-channel resolution
 - producer source resolution that prefers exact or `goreecloud-`-stripped matches and otherwise allows only an unambiguous single source
 - current GoreeCloud ntfy 4 KiB message-size limit
-- priority translation into GoreeCloud severity: low/min → info, default → normal, high → warning, urgent/max → critical, while preserving the original ntfy numeric priority in the compatibility response
+- priority translation into GoreeCloud severity: low/min → info, default → normal, high → warning, urgent/max → critical
 - response envelope with ntfy-style `id`, `time`, `event`, `topic`, `message`, `title`, and `priority` fields
 - explicit `422` rejection for unsupported advanced options such as tags, actions, click URLs, attachments, Markdown, delay, email, calls, Firebase, UnifiedPush, and poll IDs
 - correction of missing-Authorization behavior so scoped endpoints return `401` instead of framework-level `422`
 
 The adapter intentionally implements only the compatibility needed for safe incremental migration. It does not claim complete ntfy protocol compatibility.
 
-These slices reuse the Milestone 1 database schema and therefore do not require a schema migration.
+## Slice 5 — End-user authentication and Delivery-state design
+
+Recorded in PR #6 as a design-only slice:
+
+- separates human user sessions from producer/service bearer tokens
+- treats the existing `User` model as the human application identity
+- treats `Delivery` as per-user inbox state because it is unique by notification and user
+- defines unread as `read_at IS NULL` and read as a UTC `read_at` timestamp
+- defines acknowledgement as an explicit `acknowledged_at` state that also marks an unread delivery read
+- keeps producer history separate from human inbox state
+- proposes server-managed opaque web sessions as the preferred implementation candidate while leaving the exact authentication implementation unapproved until the implementation PR
+- defines ownership, session, cookie/CSRF, fanout, retention, and test gates before login code may be enabled
+- explicitly avoids treating the current `Delivery.device_id` field as a complete per-device push-attempt model
+
+PR #6 does not enable login routes, mutate the database schema, or alter production infrastructure.
+
+These implemented engine slices reuse the Milestone 1 database schema. A later user-authentication implementation may require a separately reviewed migration depending on the selected server-side session model.
 
 ## Current boundary
 
@@ -69,7 +85,7 @@ Native writes and producer history are enabled only in the pre-production develo
 
 The initial ntfy-compatible topic endpoint now exists for simple authenticated publishing, but advanced ntfy features remain unsupported and no production producer has been migrated to it. There is also no authenticated end-user delivery/read/acknowledgement API, subscription fanout, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
 
-The next notification-engine work requires an explicit end-user authentication and Delivery-state design before implementing inbox read/unread and acknowledgement behavior.
+The end-user authentication and Delivery-state design is now recorded in PR #6. The next code slice may implement the selected session model and authenticated inbox only after the remaining authentication details are explicitly approved and tested.
 
 ## Production boundary
 

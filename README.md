@@ -14,8 +14,9 @@ Milestone 2 is currently split into focused stacked changes:
 - PR #3: native `POST /api/v1/notifications` ingestion, persistence through the existing Notification model, producer source-ownership enforcement, and focused tests.
 - PR #4: producer-scoped notification history and detail access with `notifications:read`, source isolation, filters, and bounded cursor pagination.
 - PR #5: initial ntfy-compatible POST/PUT topic publishing for authenticated producers, including simple message/title/priority translation and explicit rejection of unsupported ntfy features.
+- PR #6: design-only human authentication and user-level Delivery read/unread/acknowledgement semantics; no login runtime or schema change.
 
-Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. End-user delivery/read/acknowledgement state and production migration remain unimplemented.
+Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. End-user delivery/read/acknowledgement runtime behavior and production migration remain unimplemented; PR #6 records the design boundary before code is enabled.
 
 ## Repository structure
 
