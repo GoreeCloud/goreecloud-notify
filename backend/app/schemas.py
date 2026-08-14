@@ -66,6 +66,14 @@ class ChannelRead(BaseModel):
     description: str | None
 
 
+class SubscriptionRead(BaseModel):
+    channel_id: int
+    channel: str
+    name: str
+    description: str | None
+    subscribed: bool
+
+
 class NotificationCreate(BaseModel):
     source: str = Field(min_length=1, max_length=120)
     channel: str = Field(min_length=1, max_length=120)
