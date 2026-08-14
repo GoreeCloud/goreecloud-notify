@@ -1,8 +1,10 @@
 # Notification Engine — Milestone 2
 
-The first Milestone 2 slice establishes the identity and routing control plane. It is pre-production and does not enable notification writes yet.
+Milestone 2 is being implemented as focused, stacked pre-production slices. Nothing in these branches changes the active ntfy production service.
 
-## Implemented in this slice
+## Slice 1 — Identity and routing control plane
+
+Implemented in PR #2:
 
 - bootstrap administrative authorization through `X-GoreeCloud-Admin-Token`
 - service identities for notification producers
@@ -14,14 +16,26 @@ The first Milestone 2 slice establishes the identity and routing control plane. 
 - channel administration
 - source and channel inventory endpoints
 
-The implementation reuses the Milestone 1 database tables and therefore does not require a schema migration.
+## Slice 2 — Native notification ingestion and persistence
 
-## Next slice
+Implemented in PR #3:
 
-The next Milestone 2 slice will connect scoped producer identities to notification ingestion and persistence. Native publishing and ntfy-compatible ingestion remain disabled until that code is separately implemented and validated.
+- native `POST /api/v1/notifications`
+- required `notifications:write` producer scope
+- source and channel resolution
+- producer source-ownership enforcement
+- persistence through the existing `Notification` SQLAlchemy model
+- response mapping to the resolved source and channel
+- automated tests for persistence, source impersonation rejection, and missing-channel rejection
 
-User authentication, delivery fanout, subscriptions, read state, acknowledgement APIs, WebSocket/SSE delivery, mobile push, and production migration remain later work.
+This slice reuses the Milestone 1 database schema and therefore does not require a schema migration.
+
+## Current boundary
+
+Native writes are enabled only in the pre-production PR #3 development API. There is no ntfy-compatible topic endpoint yet. There is also no authenticated end-user delivery/read/acknowledgement API, subscription fanout, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
+
+The next notification-engine slice is administrative notification history/read access followed by a separately reviewed ntfy-compatible ingestion adapter.
 
 ## Production boundary
 
-`notify.goreecloud.com` continues to belong to ntfy. No Caddy, DNS, AdGuard Home, NetBird, producer configuration, or production container is changed by this milestone.
+`notify.goreecloud.com` continues to belong to ntfy. No Caddy, DNS, AdGuard Home, NetBird, producer configuration, firewall, mobile-client, or production-container change is made by these Milestone 2 slices.
