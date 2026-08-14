@@ -22,7 +22,7 @@ export type RealtimeInboxState = {
   acknowledged_count: number
 }
 
-export type InboxStreamState = 'idle' | 'connecting' | 'live' | 'reconnecting'
+export type InboxStreamState = 'idle' | 'connecting' | 'live' | 'reconnecting' | 'offline'
 
 type InboxStreamOptions = {
   enabled: boolean
@@ -92,9 +92,11 @@ export default function useInboxStream({
   onDelivery,
 }: InboxStreamOptions): InboxStreamState {
   const [state, setState] = useState<InboxStreamState>('idle')
+  const [networkOnline, setNetworkOnline] = useState(() => navigator.onLine)
   const onReadyRef = useRef(onReady)
   const onStateRef = useRef(onState)
   const onDeliveryRef = useRef(onDelivery)
+  const replayCursorRef = useRef<number | null>(initialCursor)
 
   useEffect(() => {
     onReadyRef.current = onReady
@@ -109,16 +111,40 @@ export default function useInboxStream({
   }, [onDelivery])
 
   useEffect(() => {
+    const handleOnline = () => setNetworkOnline(true)
+    const handleOffline = () => setNetworkOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!enabled) {
+      replayCursorRef.current = initialCursor
+    } else if (replayCursorRef.current === null && initialCursor !== null) {
+      replayCursorRef.current = initialCursor
+    }
+  }, [enabled, initialCursor])
+
+  useEffect(() => {
     if (!enabled || initialCursor === null) {
       setState('idle')
+      return
+    }
+    if (!networkOnline) {
+      setState('offline')
       return
     }
 
     let closed = false
     let synchronized = false
     setState('connecting')
+    const replayCursor = replayCursorRef.current ?? initialCursor
     const streamUrl = new URL(`${apiBaseUrl}/api/v1/inbox/stream`, window.location.origin)
-    streamUrl.searchParams.set('after_id', String(initialCursor))
+    streamUrl.searchParams.set('after_id', String(replayCursor))
     const source = new EventSource(streamUrl.toString(), { withCredentials: true })
 
     const handleReady = (event: Event) => {
@@ -146,6 +172,7 @@ export default function useInboxStream({
       if (closed || !synchronized || !(event instanceof MessageEvent)) return
       const delivery = parseDelivery(event as MessageEvent<string>)
       if (!delivery) return
+      replayCursorRef.current = Math.max(replayCursorRef.current ?? 0, delivery.id)
       setState('live')
       onDeliveryRef.current(delivery)
     }
@@ -156,7 +183,7 @@ export default function useInboxStream({
     source.onerror = () => {
       if (!closed) {
         synchronized = false
-        setState('reconnecting')
+        setState(navigator.onLine ? 'reconnecting' : 'offline')
       }
     }
 
@@ -165,7 +192,7 @@ export default function useInboxStream({
       synchronized = false
       source.close()
     }
-  }, [enabled, initialCursor])
+  }, [enabled, initialCursor, networkOnline])
 
   return state
 }
