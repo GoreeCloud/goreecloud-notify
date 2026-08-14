@@ -27,7 +27,6 @@ RUN python -m pip install \
         --no-cache-dir \
         --only-binary=:all: \
         -r requirements.txt \
-        -c constraints.txt \
     && python -m pip check
 
 COPY backend/alembic.ini ./alembic.ini
