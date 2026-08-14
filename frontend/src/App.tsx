@@ -17,7 +17,9 @@ type ApiMeta = {
   next_slice: string
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+// Production serves the frontend and API from the same private HTTPS origin.
+// Development may still override this with VITE_API_BASE_URL.
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 
 async function fetchJson<T>(path: string, signal: AbortSignal): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, { signal })
