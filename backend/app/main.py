@@ -117,9 +117,11 @@ def api_meta() -> dict[str, object]:
             "read and acknowledgement controls",
             "fail-visible logout behavior",
             "responsive layout and appearance controls",
+            "Chromium browser interaction validation",
+            "automated WCAG A and AA accessibility checks",
         ],
         "next_milestone": "Glaze UI Inbox",
-        "next_slice": "Milestone 3 browser and accessibility validation",
+        "next_slice": "Milestone 3 manual browser and accessibility acceptance",
     }
 
 
