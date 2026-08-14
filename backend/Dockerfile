@@ -11,6 +11,8 @@ RUN groupadd --system --gid 10001 goreecloud \
 COPY requirements.txt ./requirements.txt
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
+COPY alembic.ini ./alembic.ini
+COPY alembic ./alembic
 COPY app ./app
 RUN mkdir -p /data && chown -R goreecloud:goreecloud /app /data
 
@@ -18,4 +20,4 @@ USER goreecloud
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
