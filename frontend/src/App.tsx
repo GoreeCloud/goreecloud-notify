@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import './refinement.css'
 
 type Health = {
   status: string
@@ -50,6 +51,7 @@ type CsrfToken = {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 const csrfHeader = 'X-CSRF-Token'
+const inboxPageSize = 50
 
 class ApiError extends Error {
   status: number
@@ -77,7 +79,7 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<{ da
       const payload = (await response.json()) as { detail?: string }
       if (payload.detail) message = payload.detail
     } catch {
-      // Keep the status-based message when the response is intentionally empty or non-JSON.
+      // Preserve the status-based message for an intentionally empty or non-JSON error response.
     }
     throw new ApiError(response.status, message)
   }
@@ -104,6 +106,23 @@ function initialTheme(): ThemeMode {
   return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
 }
 
+function buildInboxPath(options: {
+  readFilter: ReadFilter
+  severityFilter: Severity | 'all'
+  sourceFilter: string
+  search: string
+  beforeId?: number
+}): string {
+  const params = new URLSearchParams({ limit: String(inboxPageSize) })
+  if (options.readFilter === 'read') params.set('read', 'true')
+  if (options.readFilter === 'unread') params.set('read', 'false')
+  if (options.severityFilter !== 'all') params.set('severity', options.severityFilter)
+  if (options.sourceFilter !== 'all') params.set('source', options.sourceFilter)
+  if (options.search.trim()) params.set('q', options.search.trim())
+  if (options.beforeId !== undefined) params.set('before_id', String(options.beforeId))
+  return `/api/v1/inbox?${params.toString()}`
+}
+
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
   const [meta, setMeta] = useState<ApiMeta | null>(null)
@@ -112,13 +131,18 @@ export default function App() {
   const [sessionLoading, setSessionLoading] = useState(true)
   const [csrfToken, setCsrfToken] = useState<string | null>(null)
   const [deliveries, setDeliveries] = useState<InboxDelivery[]>([])
+  const [knownSources, setKnownSources] = useState<string[]>([])
   const [inboxLoading, setInboxLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [inboxError, setInboxError] = useState<string | null>(null)
   const [loginError, setLoginError] = useState<string | null>(null)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loginBusy, setLoginBusy] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [readFilter, setReadFilter] = useState<ReadFilter>('all')
   const [severityFilter, setSeverityFilter] = useState<Severity | 'all'>('all')
   const [sourceFilter, setSourceFilter] = useState('all')
@@ -126,27 +150,25 @@ export default function App() {
   const [mutationId, setMutationId] = useState<number | null>(null)
   const [theme, setTheme] = useState<ThemeMode>(initialTheme)
 
-  async function loadInbox() {
-    setInboxLoading(true)
-    setInboxError(null)
-    try {
-      const { data } = await apiRequest<InboxDelivery[]>('/api/v1/inbox?limit=100')
-      setDeliveries(data)
-      setSelectedId((current) => {
-        if (current !== null && data.some((delivery) => delivery.id === current)) return current
-        return data[0]?.id ?? null
-      })
-    } catch (reason) {
-      setInboxError(reason instanceof Error ? reason.message : 'Unable to load inbox')
-    } finally {
-      setInboxLoading(false)
-    }
-  }
-
   async function loadCsrf() {
     const { data } = await apiRequest<CsrfToken>('/api/v1/csrf')
     setCsrfToken(data.csrf_token)
     return data.csrf_token
+  }
+
+  function rememberSources(items: InboxDelivery[]) {
+    setKnownSources((current) => Array.from(new Set([...current, ...items.map((item) => item.source)])).sort())
+  }
+
+  function applyPage(items: InboxDelivery[], append: boolean) {
+    rememberSources(items)
+    setHasMore(items.length === inboxPageSize)
+    setDeliveries((current) => append ? [...current, ...items] : items)
+    setSelectedId((current) => {
+      const available = append ? [...deliveries, ...items] : items
+      if (current !== null && available.some((delivery) => delivery.id === current)) return current
+      return available[0]?.id ?? null
+    })
   }
 
   useEffect(() => {
@@ -164,51 +186,70 @@ export default function App() {
       .catch(() => undefined)
 
     void apiRequest<User>('/api/v1/me', { signal: controller.signal })
-      .then(async ({ data }) => {
-        setUser(data)
-        setSessionLoading(false)
-        await Promise.all([loadCsrf(), loadInbox()])
-      })
+      .then(({ data }) => setUser(data))
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        setSessionLoading(false)
       })
+      .finally(() => setSessionLoading(false))
 
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 250)
+    return () => window.clearTimeout(timer)
+  }, [search])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     window.localStorage.setItem('goreecloud-notify-theme', theme)
   }, [theme])
 
-  const sources = useMemo(
-    () => Array.from(new Set(deliveries.map((delivery) => delivery.source))).sort(),
-    [deliveries],
-  )
-
-  const filteredDeliveries = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    return deliveries.filter((delivery) => {
-      if (readFilter === 'read' && !delivery.read_at) return false
-      if (readFilter === 'unread' && delivery.read_at) return false
-      if (severityFilter !== 'all' && delivery.severity !== severityFilter) return false
-      if (sourceFilter !== 'all' && delivery.source !== sourceFilter) return false
-      if (!term) return true
-      return [delivery.title, delivery.body, delivery.source, delivery.channel, delivery.severity]
-        .join(' ')
-        .toLowerCase()
-        .includes(term)
+  useEffect(() => {
+    if (!user || csrfToken) return
+    void loadCsrf().catch((reason: unknown) => {
+      if (reason instanceof ApiError && reason.status === 401) {
+        setUser(null)
+        return
+      }
+      setInboxError(reason instanceof Error ? reason.message : 'Unable to prepare protected actions')
     })
-  }, [deliveries, readFilter, search, severityFilter, sourceFilter])
+  }, [user, csrfToken])
+
+  useEffect(() => {
+    if (!user) return
+    const controller = new AbortController()
+    setInboxLoading(true)
+    setInboxError(null)
+    const path = buildInboxPath({ readFilter, severityFilter, sourceFilter, search: debouncedSearch })
+
+    void apiRequest<InboxDelivery[]>(path, { signal: controller.signal })
+      .then(({ data }) => applyPage(data, false))
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (reason instanceof ApiError && reason.status === 401) {
+          setUser(null)
+          setCsrfToken(null)
+          setDeliveries([])
+          return
+        }
+        setInboxError(reason instanceof Error ? reason.message : 'Unable to load inbox')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setInboxLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [user, readFilter, severityFilter, sourceFilter, debouncedSearch])
 
   const selectedDelivery = useMemo(
-    () => filteredDeliveries.find((delivery) => delivery.id === selectedId) ?? filteredDeliveries[0] ?? null,
-    [filteredDeliveries, selectedId],
+    () => deliveries.find((delivery) => delivery.id === selectedId) ?? deliveries[0] ?? null,
+    [deliveries, selectedId],
   )
 
   const unreadCount = deliveries.filter((delivery) => !delivery.read_at).length
   const acknowledgedCount = deliveries.filter((delivery) => delivery.acknowledged_at).length
+  const filtersActive = readFilter !== 'all' || severityFilter !== 'all' || sourceFilter !== 'all' || Boolean(debouncedSearch.trim())
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -219,12 +260,11 @@ export default function App() {
         method: 'POST',
         body: JSON.stringify({ username, password }),
       })
+      const token = response.headers.get(csrfHeader)
       setUser(data)
       setPassword('')
-      const token = response.headers.get(csrfHeader)
       if (token) setCsrfToken(token)
       else await loadCsrf()
-      await loadInbox()
     } catch (reason) {
       setLoginError(reason instanceof Error ? reason.message : 'Unable to sign in')
     } finally {
@@ -233,18 +273,52 @@ export default function App() {
   }
 
   async function handleLogout() {
+    setLogoutBusy(true)
+    setInboxError(null)
     try {
       const token = csrfToken ?? (await loadCsrf())
       await apiRequest<void>('/api/v1/session', {
         method: 'DELETE',
         headers: { [csrfHeader]: token },
       })
-    } finally {
       setUser(null)
       setCsrfToken(null)
       setDeliveries([])
+      setKnownSources([])
       setSelectedId(null)
-      setInboxError(null)
+      setHasMore(false)
+    } catch (reason) {
+      setInboxError(`Sign out could not be confirmed. Your session remains active in this browser. ${reason instanceof Error ? reason.message : ''}`.trim())
+    } finally {
+      setLogoutBusy(false)
+    }
+  }
+
+  async function loadMore() {
+    const beforeId = deliveries.at(-1)?.id
+    if (beforeId === undefined || loadingMore || !hasMore) return
+    setLoadingMore(true)
+    setInboxError(null)
+    try {
+      const path = buildInboxPath({
+        readFilter,
+        severityFilter,
+        sourceFilter,
+        search: debouncedSearch,
+        beforeId,
+      })
+      const { data } = await apiRequest<InboxDelivery[]>(path)
+      applyPage(data, true)
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 401) {
+        setUser(null)
+        setCsrfToken(null)
+        setDeliveries([])
+      } else {
+        setInboxError(reason instanceof Error ? reason.message : 'Unable to load more notifications')
+      }
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -261,10 +335,24 @@ export default function App() {
       })
       setDeliveries((current) => current.map((item) => (item.id === data.id ? data : item)))
     } catch (reason) {
-      setInboxError(reason instanceof Error ? reason.message : 'Unable to update notification')
+      if (reason instanceof ApiError && reason.status === 401) {
+        setUser(null)
+        setCsrfToken(null)
+        setDeliveries([])
+      } else {
+        setInboxError(reason instanceof Error ? reason.message : 'Unable to update notification')
+      }
     } finally {
       setMutationId(null)
     }
+  }
+
+  function clearFilters() {
+    setSearch('')
+    setDebouncedSearch('')
+    setReadFilter('all')
+    setSeverityFilter('all')
+    setSourceFilter('all')
   }
 
   if (sessionLoading) {
@@ -384,7 +472,9 @@ export default function App() {
             <strong>{user.display_name}</strong>
             <span>@{user.username}{user.is_admin ? ' · Admin' : ''}</span>
           </div>
-          <button className="text-button" onClick={() => void handleLogout()}>Sign out</button>
+          <button className="text-button" disabled={logoutBusy} onClick={() => void handleLogout()}>
+            {logoutBusy ? 'Signing out…' : 'Sign out'}
+          </button>
         </div>
       </aside>
 
@@ -393,17 +483,17 @@ export default function App() {
           <div>
             <span className="eyebrow">Milestone 3 · Glaze UI Inbox</span>
             <h1 id="inbox-title">Good day, {user.display_name.split(' ')[0]}</h1>
-            <p>{unreadCount ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'} need your attention.` : 'You are caught up.'}</p>
+            <p>{unreadCount ? `${unreadCount} unread loaded notification${unreadCount === 1 ? '' : 's'} need your attention.` : 'No unread notifications are present in the loaded results.'}</p>
           </div>
-          <button className="refresh-button" onClick={() => void loadInbox()} disabled={inboxLoading}>
-            {inboxLoading ? 'Refreshing…' : 'Refresh'}
+          <button className="refresh-button" onClick={clearFilters} disabled={!filtersActive || inboxLoading}>
+            Clear filters
           </button>
         </header>
 
         <section className="summary-grid" aria-label="Inbox summary">
-          <article><span>Loaded</span><strong>{deliveries.length}</strong><small>most recent deliveries</small></article>
-          <article><span>Unread</span><strong>{unreadCount}</strong><small>waiting to be reviewed</small></article>
-          <article><span>Acknowledged</span><strong>{acknowledgedCount}</strong><small>explicitly handled</small></article>
+          <article><span>Loaded</span><strong>{deliveries.length}</strong><small>{hasMore ? 'more results are available' : 'current result set'}</small></article>
+          <article><span>Unread loaded</span><strong>{unreadCount}</strong><small>waiting to be reviewed</small></article>
+          <article><span>Acknowledged loaded</span><strong>{acknowledgedCount}</strong><small>explicitly handled</small></article>
         </section>
 
         <section className="toolbar" aria-label="Notification filters">
@@ -430,17 +520,20 @@ export default function App() {
           <label>
             <span className="visually-hidden">Source</span>
             <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
-              <option value="all">All sources</option>
-              {sources.map((source) => <option key={source} value={source}>{source}</option>)}
+              <option value="all">All known sources</option>
+              {knownSources.map((source) => <option key={source} value={source}>{source}</option>)}
             </select>
           </label>
         </section>
 
+        <div className="result-status" role="status" aria-live="polite">
+          {inboxLoading ? 'Loading notifications…' : `${deliveries.length} notification${deliveries.length === 1 ? '' : 's'} loaded${filtersActive ? ' for the current filters' : ''}.`}
+        </div>
         {inboxError ? <div className="error-banner" role="alert">{inboxError}</div> : null}
 
         <div className="notification-workspace">
           <section id="notification-list" className="notification-list" aria-label="Notifications" aria-busy={inboxLoading}>
-            {filteredDeliveries.length ? filteredDeliveries.map((delivery) => (
+            {deliveries.length ? deliveries.map((delivery) => (
               <button
                 key={delivery.id}
                 className={`notification-row ${selectedDelivery?.id === delivery.id ? 'selected' : ''} ${delivery.read_at ? 'read' : 'unread'}`}
@@ -466,9 +559,17 @@ export default function App() {
             )) : (
               <div className="empty-state" role="status">
                 <strong>No matching notifications</strong>
-                <span>{deliveries.length ? 'Adjust the current filters or search.' : 'Your inbox is empty.'}</span>
+                <span>{filtersActive ? 'Adjust or clear the current filters.' : 'Your inbox is empty.'}</span>
               </div>
             )}
+
+            {hasMore ? (
+              <div className="list-footer">
+                <button className="secondary-button" disabled={loadingMore || inboxLoading} onClick={() => void loadMore()}>
+                  {loadingMore ? 'Loading more…' : 'Load more'}
+                </button>
+              </div>
+            ) : null}
           </section>
 
           <aside className="detail-panel" aria-label="Notification detail">
