@@ -128,6 +128,10 @@ class UserCreate(BaseModel):
     is_admin: bool = False
 
 
+class PasswordResetCreate(BaseModel):
+    password: str = Field(min_length=12, max_length=256)
+
+
 class UserRead(BaseModel):
     id: int
     username: str

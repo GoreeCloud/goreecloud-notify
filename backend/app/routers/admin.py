@@ -3,16 +3,17 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..datetime_utils import as_utc
 from ..deps import get_db
-from ..models import AdminAuditEvent, AccessToken, Channel, ServiceIdentity, Source, User
+from ..models import AdminAuditEvent, AccessToken, Channel, ServiceIdentity, Source, User, WebSession
 from ..schemas import (
     ChannelCreate,
     ChannelRead,
+    PasswordResetCreate,
     ServiceIdentityCreate,
     ServiceIdentityRead,
     SourceCreate,
@@ -28,6 +29,7 @@ from ..user_security import (
     hash_password,
     require_administrator,
     require_csrf_administrator,
+    utc_now,
 )
 
 router = APIRouter(tags=["administration"])
@@ -131,6 +133,35 @@ def create_user(
         raise HTTPException(status_code=409, detail="user already exists") from exc
     session.refresh(user)
     return _user_read(user)
+
+
+@router.post("/users/{user_id}/password-reset", status_code=status.HTTP_204_NO_CONTENT)
+def reset_user_password(
+    user_id: int,
+    payload: PasswordResetCreate,
+    principal: Annotated[UserPrincipal, Depends(require_csrf_administrator)],
+    session: Annotated[Session, Depends(get_db)],
+) -> None:
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")
+
+    now = utc_now()
+    user.password_hash = hash_password(payload.password)
+    session.execute(
+        update(WebSession)
+        .where(WebSession.user_id == user.id, WebSession.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    _audit(
+        session,
+        principal,
+        mechanism="session",
+        action="user.password_reset",
+        target_type="user",
+        target_id=user.id,
+    )
+    session.commit()
 
 
 @router.post("/service-identities", response_model=ServiceIdentityRead, status_code=status.HTTP_201_CREATED)
