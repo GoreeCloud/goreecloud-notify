@@ -11,7 +11,7 @@ The repository now contains four major development layers:
 1. **Milestone 1 foundation** — FastAPI, React/TypeScript/Vite, SQLite/SQLAlchemy, Docker development topology, documentation, tests, and GitHub Actions.
 2. **Milestone 2 notification engine** — producer identities and scoped tokens, sources/channels, native and initial ntfy-compatible ingestion, persistence, producer history, administrator-provisioned human users, opaque web sessions, subscription fanout, user-owned inbox state, CSRF protection, subscription administration, and non-destructive retention analysis.
 3. **Milestone 3 Glaze UI Inbox** — authenticated web sign-in, session restoration, notification-center layout, server-backed search/filters, cursor pagination, user-owned channel subscription management, source/severity presentation, notification detail, read/unread and acknowledgement actions, fail-visible logout behavior, responsive accessibility controls, system/light/dark appearance selection, Chromium interaction validation, and automated WCAG A/AA checks.
-4. **Milestone 4 real-time delivery** — an authenticated Server-Sent Events inbox stream, persisted Delivery cursors, replay semantics, long-lived session revalidation, native browser EventSource integration, live/reconnecting connection state, and stream-handshake inbox reconciliation.
+4. **Milestone 4 real-time delivery** — an authenticated Server-Sent Events inbox stream, persisted Delivery cursors, replay semantics, long-lived session revalidation, authoritative inbox aggregate state, cursor-bootstrap synchronization, native browser EventSource integration, live/reconnecting state, and stream-handshake reconciliation.
 
 The stacked hardening/readiness line also includes fail-closed session configuration, SQLite foreign-key enforcement, UTC datetime canonicalization, production administrator authorization, login abuse controls, administrator password reset, required-text normalization, backup/restore tooling and recovery validation, production runtime/private-publication readiness, and monitoring/outage-alert readiness.
 
@@ -39,7 +39,7 @@ The UI does not display producer tokens, session-cookie values, CSRF values, dat
 
 ## Milestone 4 real-time delivery
 
-The first Milestone 4 slice uses Server-Sent Events because the current web requirement is one-way server-to-browser notification delivery. It does not add a WebSocket dependency merely for transport symmetry.
+Milestone 4 currently uses Server-Sent Events because the web requirement is one-way server-to-browser notification delivery. It does not add a WebSocket dependency merely for transport symmetry.
 
 ### Server stream contract
 
@@ -49,7 +49,6 @@ The first Milestone 4 slice uses Server-Sent Events because the current web requ
 - Authentication is completed with a short-lived SQLAlchemy session before the `StreamingResponse` starts; no request-scoped authentication database session is intentionally held for the lifetime of the connection.
 - The stream is user-isolated by `Delivery.user_id`.
 - Delivery state is read from persisted SQLite data instead of process-local pub/sub state, so correctness does not depend on one particular application worker retaining an in-memory event.
-- If no replay cursor is supplied, the connection snapshots the current latest owned Delivery ID and emits a `ready` event for that cursor. Newer deliveries are then emitted in ascending Delivery-ID order.
 - Each `inbox` event uses the Delivery ID as the SSE event ID and carries the existing `InboxDeliveryRead` representation.
 - `after_id` can explicitly request replay after a non-negative Delivery ID.
 - `Last-Event-ID`, when supplied by an SSE client, takes precedence over `after_id`; malformed or negative header values fail with HTTP 400.
@@ -57,30 +56,59 @@ The first Milestone 4 slice uses Server-Sent Events because the current web requ
 - The backing `WebSession` is revalidated while the stream is open. Session revocation, password-reset session invalidation, user deactivation, absolute expiry, or idle expiry terminates continued stream authorization.
 - Streaming responses use `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
 
-Central Caddy remains the intended HTTPS gateway. Its normal reverse-proxy behavior supports `text/event-stream` streaming, so this slice does not add a separate public listener or a second application gateway.
+Central Caddy remains the intended HTTPS gateway. The source-level design does not add a separate public listener or second application gateway for SSE.
 
-### Browser integration
+### Authoritative inbox state
+
+`GET /api/v1/inbox/state` provides one user-scoped synchronization snapshot containing:
+
+- `latest_delivery_id` — the newest persisted Delivery ID owned by the authenticated user, or `0` for an empty inbox;
+- `total_count` — the authenticated user's total Delivery count;
+- `unread_count` — the total number of owned Deliveries where `read_at` is unset;
+- `acknowledged_count` — the total number of owned Deliveries where `acknowledged_at` is set.
+
+Those aggregate values are calculated server-side in one user-scoped database query. The Glaze UI no longer presents a loaded 50-item page count as though it were the user's total unread state.
+
+The SSE `ready` event carries the same authoritative state together with the active replay cursor. The stream also emits `state` events when aggregate state changes, including read or acknowledgement activity from another browser tab or client that does not create a new Delivery.
+
+### Cursor-bootstrap synchronization
+
+The browser now establishes the real-time connection with an explicit synchronization sequence:
+
+1. restore the authenticated human session;
+2. load `GET /api/v1/inbox/state` and retain its `latest_delivery_id` as the initial stream cursor;
+3. load/render the normal server-backed inbox page independently;
+4. open `EventSource` with `after_id=<snapshot latest_delivery_id>`;
+5. accept realtime Delivery/state events only after a valid `ready` synchronization snapshot is received;
+6. refresh the normal REST inbox on every valid `ready` event.
+
+This sequence closes the ordinary race where a Delivery can be created between the browser's initial REST inbox load and the real-time connection: anything newer than the retained state cursor is replayable through the stream, while the post-handshake REST refresh reconciles the displayed page and deduplicates by Delivery ID.
+
+The initial stream cursor is deliberately kept stable for the lifetime of the EventSource hook rather than being rewritten every time aggregate counts change. Browser reconnects can therefore use the SSE protocol's `Last-Event-ID` semantics without React repeatedly destroying and recreating the stream.
+
+### Browser integration and stale-state behavior
 
 The Glaze inbox uses the browser's native `EventSource` implementation with credentials enabled.
 
-- Authenticated users open the SSE stream automatically.
 - The interface reports connecting, live, reconnecting, or idle state in an accessible status region.
-- A `ready` event triggers a normal server-backed inbox refresh so initial REST state is reconciled with the stream handshake.
-- New events are deduplicated by Delivery ID and prepended when they satisfy the current simple read/source/severity view.
+- When the transport enters reconnecting state, the interface explicitly warns that loaded results may be stale until recovery.
+- While reconnecting, the client periodically revalidates `GET /api/v1/me`. An HTTP 401 clears the authenticated UI instead of leaving a revoked or expired session looking active indefinitely.
+- After any transport error, Delivery and aggregate-state events are ignored until a fresh valid `ready` snapshot re-establishes synchronization.
+- Malformed synchronization snapshots do not become authoritative UI state.
+- A valid `ready` event updates authoritative counts and triggers a normal server-backed inbox reconciliation.
+- New Delivery events are deduplicated by Delivery ID and prepended when they satisfy the current simple read/source/severity view.
 - When server-backed text search is active, a real-time event triggers a server refresh rather than duplicating search semantics in browser code.
-- The browser gate passes a real mocked `text/event-stream` response through native Chromium `EventSource` parsing and verifies that the live Delivery appears without a manual refresh.
-- The browser gate also verifies the reconnecting UI state when its finite synthetic stream closes. The backend test suite separately owns the `Last-Event-ID` parsing/replay contract because Playwright's static intercepted stream is not treated as proof of a complete reconnect network exchange.
+- Read, unread, or acknowledgement mutations refresh authoritative aggregate state and immediately reconcile the current filtered inbox rather than waiting for the periodic SSE state poll.
 
-### First-slice boundary
+### Current Milestone 4 boundary
 
-This slice establishes authenticated real-time transport and replay primitives, but it intentionally does **not** claim a complete offline synchronization protocol.
+The implemented synchronization model now covers authoritative counts, cursor bootstrap, replay primitives, post-handshake reconciliation, cross-client aggregate-state events, fail-closed resynchronization, and visible reconnecting/stale state.
 
-The next Milestone 4 work remains:
+Remaining Milestone 4 work includes:
 
-- a race-resistant cursor synchronization/reconciliation contract across REST load, stream handshake, disconnect, reconnect, and process restart;
-- authoritative user-level unread counts rather than counts limited to the currently loaded result page;
-- explicit stale/offline state and recovery behavior;
-- browser Notifications API support only after permission, privacy, foreground/background, and UX behavior are deliberately approved;
+- more explicit browser offline/online recovery semantics and validation for prolonged network loss;
+- deliberate browser Notifications API permission/privacy/foreground/background behavior before enabling system notifications;
+- manual multi-tab and network-interruption acceptance beyond automated synthetic browser coverage;
 - additional transport only if a later requirement cannot be met cleanly with SSE.
 
 ## Browser and accessibility validation
@@ -91,7 +119,10 @@ The gate builds the immutable Vite artifact, installs Chromium for the CI runner
 
 - authenticated inbox rendering and semantic navigation;
 - native EventSource parsing of a synthetic live Delivery;
-- visible live/reconnecting transport state;
+- `after_id` bootstrap from the authoritative server cursor;
+- authoritative total/unread/read navigation counts that exceed the loaded page size;
+- live/reconnecting transport state;
+- immediate server-backed reconciliation after a read mutation in a filtered unread view;
 - keyboard discovery of the skip-to-notifications link;
 - server-backed unread filtering and debounced search requests;
 - cursor-based `Load more` behavior;
@@ -101,7 +132,7 @@ The gate builds the immutable Vite artifact, installs Chromium for the CI runner
 - sign-in form labels and controls;
 - automated Axe analysis for selected WCAG A/AA rule tags on authenticated and unauthenticated surfaces.
 
-Automated browser and Axe checks are evidence for detectable interaction/accessibility problems, not proof of complete accessibility conformance. Manual keyboard, screen-reader, zoom/reflow, visual contrast/usability, and inclusive-user acceptance remain separate acceptance work.
+Automated browser and Axe checks are evidence for detectable interaction/accessibility problems, not proof of complete accessibility conformance. Manual keyboard, screen-reader, zoom/reflow, visual contrast/usability, multi-tab, network-interruption, and inclusive-user acceptance remain separate acceptance work.
 
 ## Repository structure
 
@@ -172,7 +203,8 @@ Development host publications remain loopback-only. The production-readiness des
 - `GET /api/v1/me` — current authenticated human profile
 - `GET /api/v1/csrf` — current session-bound CSRF token
 - `GET /api/v1/inbox` — user-owned Delivery history with `read`, `acknowledged`, `source`, `channel`, `severity`, `q`, `before_id`, and bounded `limit` query controls
-- `GET /api/v1/inbox/stream` — session-authenticated SSE stream with persisted Delivery cursor/replay semantics
+- `GET /api/v1/inbox/state` — authoritative user-scoped latest Delivery cursor and total/unread/acknowledged counts
+- `GET /api/v1/inbox/stream` — session-authenticated SSE stream with persisted Delivery cursor/replay and aggregate-state events
 - `GET /api/v1/inbox/{delivery_id}` — user-owned Delivery detail
 - `POST /api/v1/inbox/{delivery_id}/read` — mark read
 - `DELETE /api/v1/inbox/{delivery_id}/read` — mark unread
@@ -199,7 +231,7 @@ Before controlled cutover, GoreeCloud Notify still requires the applicable targe
 ## Next roadmap
 
 - **Milestone 3 acceptance:** manual browser/visual and accessibility review remains an independent acceptance activity for the Glaze interface.
-- **Milestone 4:** continue from the implemented authenticated SSE transport into cursor synchronization/reconnect/offline semantics and authoritative unread counts; evaluate browser notifications only after those state semantics are stable.
+- **Milestone 4:** continue from synchronized authenticated SSE delivery into explicit prolonged-offline recovery and deliberate browser Notifications API permission/privacy behavior.
 - **Milestone 5:** Android client evaluation/implementation after web/API stability.
 - **Milestone 6:** controlled ntfy migration with producer-by-producer validation and rollback.
 - **Milestone 7:** GoreeCloud platform integrations.
