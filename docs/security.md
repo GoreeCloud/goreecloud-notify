@@ -12,7 +12,7 @@ GoreeCloud Notify remains pre-production. The current stacked Milestone 2 develo
 
 ## Human identities
 
-The PR #7 authentication implementation keeps human credentials separate from producer tokens.
+The PR #7 authentication implementation keeps human credentials separate from producer tokens. PR #9 adds server-side synchronizer CSRF protection for cookie-authenticated state changes.
 
 - human accounts use the existing `User` model
 - accounts are administrator-provisioned; public self-registration is not enabled
@@ -27,8 +27,14 @@ The PR #7 authentication implementation keeps human credentials separate from pr
 - browser session cookies are `HttpOnly` and `SameSite=Strict`
 - deployed HTTPS environments must enable the `Secure` cookie attribute
 - reusable authentication tokens are not stored in browser local storage
+- each web session owns a cryptographically random synchronizer CSRF token stored in server-side session state
+- login exposes the CSRF token through the `X-CSRF-Token` response header and `GET /api/v1/csrf` can recover it for an authenticated SPA
+- state-changing inbox routes and logout require the matching `X-CSRF-Token` request header
+- CSRF comparisons use constant-time comparison
+- `SameSite=Strict` remains defense in depth rather than the only CSRF control
+- the CSRF token is not an authentication credential and is only useful alongside the HttpOnly authenticated session cookie
 
-Explicit CSRF-token handling and production login rate controls remain mandatory before cookie-authenticated inbox mutation endpoints are enabled. Password recovery/reset, administrator roles, support impersonation, and public signup remain unimplemented.
+Production login rate controls remain mandatory before production approval. Password recovery/reset, administrator roles, support impersonation, and public signup remain unimplemented.
 
 ## Runtime and network controls
 
@@ -43,4 +49,4 @@ Explicit CSRF-token handling and production login rate controls remain mandatory
 
 ## Database migration boundary
 
-Alembic now owns persistent schema evolution. The authentication slice adds a full pre-auth baseline revision and a second migration for `users.password_hash` plus `web_sessions`. Startup verifies the required schema instead of silently altering an existing database.
+Alembic owns persistent schema evolution. PR #7 adds the pre-auth baseline and human-authentication revisions. PR #9 adds `0003_csrf_delivery_mutations`, which adds `web_sessions.csrf_token`. Existing pre-CSRF sessions are assigned CSRF state and revoked during upgrade so users must establish a new session under the new protection. Startup verifies the CSRF-era schema instead of silently altering an existing database.

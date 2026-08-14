@@ -26,7 +26,13 @@ Development session defaults are configurable with:
 - `GOREECLOUD_NOTIFY_SESSION_IDLE_MINUTES=60`
 - `GOREECLOUD_NOTIFY_SESSION_TOUCH_MINUTES=5`
 
-A deployed HTTPS environment must set `GOREECLOUD_NOTIFY_SESSION_COOKIE_SECURE=true`. The cookie is `HttpOnly` and `SameSite=Strict`. Explicit CSRF-token handling is still required before cookie-authenticated inbox mutation endpoints are enabled.
+A deployed HTTPS environment must set `GOREECLOUD_NOTIFY_SESSION_COOKIE_SECURE=true`. The cookie is `HttpOnly` and `SameSite=Strict`. PR #9 uses a server-side synchronizer CSRF token for cookie-authenticated state changes: login returns `X-CSRF-Token`, `GET /api/v1/csrf` recovers it for the authenticated SPA, and mutation requests send it back in the `X-CSRF-Token` header. The token is session-bound server state, not a second authentication credential.
+
+### PR #9 migration behavior
+
+`0003_csrf_delivery_mutations` adds the per-session CSRF token. During upgrade it revokes every existing pre-CSRF web session. This is intentional: after upgrading to PR #9, human users must log in again so no session created under the previous security contract can perform protected mutations.
+
+The migration is schema-compatible with SQLite through Alembic batch operations, and no manual session-row edits should be used to bypass the forced re-login boundary.
 
 ## Frontend quality gate
 

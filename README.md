@@ -17,8 +17,9 @@ Milestone 2 is currently split into focused stacked changes:
 - PR #6: design-only human authentication and user-level Delivery read/unread/acknowledgement semantics.
 - PR #7: administrator-provisioned human accounts, Argon2id credential hashes, opaque server-side web sessions, Alembic schema migrations, login/logout, and `GET /api/v1/me`.
 - PR #8: subscription-based per-user `Delivery` fanout plus authenticated read-only `GET /api/v1/inbox` and delivery-detail access with strict user isolation and bounded filtering/pagination.
+- PR #9: server-side synchronizer CSRF tokens plus owned Delivery read, unread, acknowledgement, and CSRF-protected logout mutations.
 
-Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. Human login/session runtime is implemented on the pre-production PR #7 stack. PR #8 adds subscription-based user-level Delivery fanout and a read-only authenticated inbox. Read/unread and acknowledgement mutations, real-time delivery, and production migration remain unimplemented.
+Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. Human login/session runtime is implemented on the pre-production PR #7 stack. PR #8 adds subscription-based user-level Delivery fanout and a read-only authenticated inbox. PR #9 adds session-bound synchronizer CSRF protection and owned Delivery read/unread/acknowledgement mutations. Real-time delivery and production migration remain unimplemented.
 
 ## Repository structure
 
@@ -77,10 +78,14 @@ Development ports remain loopback-only: frontend `127.0.0.1:5173`, backend `127.
 - `POST|PUT /{topic}` — initial ntfy-compatible simple topic publishing for scoped producers
 - `POST /api/v1/users` — administrator-provisioned human account creation
 - `POST /api/v1/session` — human login with an opaque `HttpOnly` web session cookie
-- `DELETE /api/v1/session` — server-side session revocation/logout
+- `DELETE /api/v1/session` — CSRF-protected server-side session revocation/logout
+- `GET /api/v1/csrf` — recover the current session-bound synchronizer token for the authenticated SPA
 - `GET /api/v1/me` — current authenticated human profile
 - `GET /api/v1/inbox` — authenticated user-owned Delivery history with read/acknowledgement/source/channel/severity filters and bounded pagination
 - `GET /api/v1/inbox/{delivery_id}` — authenticated user-owned Delivery detail; other users' delivery IDs are hidden as not found
+- `POST /api/v1/inbox/{delivery_id}/read` — CSRF-protected owned Delivery mark-read mutation
+- `DELETE /api/v1/inbox/{delivery_id}/read` — CSRF-protected owned Delivery mark-unread mutation; acknowledgement is preserved
+- `POST /api/v1/inbox/{delivery_id}/acknowledge` — CSRF-protected owned acknowledgement; acknowledgement also marks an unread Delivery read
 - tags, actions, attachments, Markdown, delays, email, calls, and other advanced ntfy options are explicitly unsupported in the initial adapter rather than silently discarded
 
 See `docs/notification-engine.md` for the current Milestone 2 boundary.

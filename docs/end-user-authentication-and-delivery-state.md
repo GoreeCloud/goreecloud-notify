@@ -1,6 +1,6 @@
 # End-User Authentication and Delivery-State Design
 
-This document began as the PR #6 design boundary for the first authenticated GoreeCloud Notify inbox. PR #7 implements the human login/session portion of this design in pre-production development. PR #8 implements subscription-based Delivery fanout plus authenticated read-only inbox list/detail access; Delivery read/unread and acknowledgement mutations remain unimplemented pending explicit CSRF protection.
+This document began as the PR #6 design boundary for the first authenticated GoreeCloud Notify inbox. PR #7 implements the human login/session portion of this design in pre-production development. PR #8 implements subscription-based Delivery fanout plus authenticated inbox list/detail access. PR #9 implements session-bound synchronizer CSRF protection plus owned Delivery read/unread and acknowledgement mutations.
 
 ## Goals
 
@@ -112,13 +112,14 @@ This keeps acknowledgement as an intentional, higher-confidence state than read/
 The following endpoint list records current implementation status and the remaining inbox design candidates:
 
 - `POST /api/v1/session` — **implemented in PR #7**; authenticate a human user and establish a web session
-- `DELETE /api/v1/session` — **implemented in PR #7**; invalidate the current session
+- `DELETE /api/v1/session` — **implemented in PR #7 and CSRF-protected in PR #9**; invalidate the current session
 - `GET /api/v1/me` — **implemented in PR #7**; return the authenticated human user's safe profile
+- `GET /api/v1/csrf` — **implemented in PR #9**; recover the session-bound synchronizer token for the authenticated SPA
 - `GET /api/v1/inbox` — **implemented in PR #8**; list only that user's deliveries with bounded filters/pagination
 - `GET /api/v1/inbox/{delivery_id}` — **implemented in PR #8**; return one owned delivery and hide non-owned IDs as not found
-- `POST /api/v1/inbox/{delivery_id}/read` — mark owned delivery read
-- `DELETE /api/v1/inbox/{delivery_id}/read` — mark owned delivery unread
-- `POST /api/v1/inbox/{delivery_id}/acknowledge` — acknowledge owned delivery
+- `POST /api/v1/inbox/{delivery_id}/read` — **implemented in PR #9**; CSRF-protected, idempotently mark an owned delivery read
+- `DELETE /api/v1/inbox/{delivery_id}/read` — **implemented in PR #9**; CSRF-protected, mark an owned delivery unread without removing acknowledgement
+- `POST /api/v1/inbox/{delivery_id}/acknowledge` — **implemented in PR #9**; CSRF-protected, acknowledge an owned delivery and mark it read if needed
 
 The inbox should support bounded pagination and filters for unread/read, acknowledgement, source, channel, and severity. Search and broader Glaze UI inbox behavior belong to Milestone 3.
 
@@ -157,7 +158,7 @@ GoreeCloud Notify remains a notification-delivery system rather than the authori
 
 ## Implementation gates
 
-Before enabling cookie-authenticated inbox mutations, the implementation must document and test the remaining mutation-specific controls; PR #7 already satisfied the login/session subset of these gates:
+PR #9 satisfies the initial cookie-authenticated Delivery mutation gates. Remaining production hardening requirements still apply:
 
 - the selected password-hashing implementation
 - server-side session storage and revocation
@@ -173,6 +174,6 @@ Before enabling cookie-authenticated inbox mutations, the implementation must do
 
 ## Current decision state
 
-The approved development direction is the **separation of human sessions, producer tokens, and user-level Delivery state**. PR #7 selects Argon2id password hashes, administrator-provisioned users, opaque server-side sessions, and Alembic-managed schema evolution for the first web-login implementation. Production rate controls, account recovery, explicit CSRF tokens for inbox mutations, and the read/unread/acknowledgement mutation implementation remain open gates. Subscription fanout and read-only inbox access are implemented in PR #8.
+The approved development direction is the **separation of human sessions, producer tokens, and user-level Delivery state**. PR #7 selects Argon2id password hashes, administrator-provisioned users, opaque server-side sessions, and Alembic-managed schema evolution for the first web-login implementation. Production rate controls and account recovery remain open gates. Subscription fanout and inbox access are implemented in PR #8; PR #9 implements session-bound synchronizer CSRF protection and owned read/unread/acknowledgement state transitions.
 
-PR #6 itself was design-only. PR #7 adds pre-production human-session runtime and database migration files. PR #8 adds read-only inbox/fanout behavior without a new schema migration. None of these slices changes an ntfy producer, Caddy route, DNS record, AdGuard Home rewrite, NetBird policy, firewall rule, mobile client, or production container.
+PR #6 itself was design-only. PR #7 adds pre-production human-session runtime and database migration files. PR #8 adds inbox/fanout behavior without a new schema migration. PR #9 adds CSRF session state through Alembic revision `0003_csrf_delivery_mutations` and the Delivery mutation routes; upgrading revokes existing pre-CSRF sessions and requires a fresh login. None of these slices changes an ntfy producer, Caddy route, DNS record, AdGuard Home rewrite, NetBird policy, firewall rule, mobile client, or production container.

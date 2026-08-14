@@ -98,6 +98,7 @@ This slice still does not implement public registration, password recovery, prod
 
 Slices through PR #5 reuse the Milestone 1 database schema. PR #7 introduces the first reviewed schema evolution: an Alembic baseline plus a human-authentication migration that adds `users.password_hash` and `web_sessions`.
 
+
 ## Slice 7 — Subscription fanout and read-only user inbox
 
 Implemented in PR #8:
@@ -115,13 +116,32 @@ Implemented in PR #8:
 
 This slice adds no schema migration. It deliberately does **not** add cookie-authenticated read/unread or acknowledgement mutations; those remain blocked until explicit CSRF protection is implemented and validated.
 
+
+## Slice 8 — CSRF-protected Delivery state mutations
+
+Implemented in PR #9:
+
+- server-side synchronizer CSRF token bound to each human `WebSession`
+- login exposes `X-CSRF-Token`; `GET /api/v1/csrf` recovers the current session token for the authenticated SPA
+- `DELETE /api/v1/session` now requires the valid session-bound CSRF header
+- `POST /api/v1/inbox/{delivery_id}/read` marks only an owned Delivery read and is idempotent
+- `DELETE /api/v1/inbox/{delivery_id}/read` marks only an owned Delivery unread without clearing acknowledgement
+- `POST /api/v1/inbox/{delivery_id}/acknowledge` sets the first acknowledgement timestamp and also marks an unread Delivery read
+- repeat acknowledgement preserves the original acknowledgement timestamp; no general unacknowledge route is implemented
+- cross-user mutation attempts remain hidden as `404`, and producer bearer tokens cannot satisfy human mutation authentication
+- SQLite-reloaded timestamps are normalized to UTC at the inbox API boundary for stable response semantics
+- CORS explicitly allows and exposes `X-CSRF-Token`; `SameSite=Strict` remains defense in depth rather than the sole CSRF protection
+- Alembic revision `0003_csrf_delivery_mutations` adds `web_sessions.csrf_token` and revokes existing pre-CSRF sessions during upgrade, requiring fresh login
+
+The synchronizer token is server-side session state rather than an authentication credential. It is intentionally returned to authenticated browser code so the SPA can place it in a custom header, while the reusable session identifier remains in an `HttpOnly` cookie.
+
 ## Current boundary
 
 Native writes and producer history are enabled only in the pre-production development stack. Producer history is operational history for service identities; it is not the eventual end-user notification inbox and does not implement Delivery read/unread or acknowledgement state.
 
-The initial ntfy-compatible topic endpoint now exists for simple authenticated publishing, but advanced ntfy features remain unsupported and no production producer has been migrated to it. Human login and session validation exist in the pre-production PR #7 stack. PR #8 adds subscription-based Delivery fanout and authenticated read-only inbox list/detail access, but read/unread and acknowledgement mutations remain blocked on explicit CSRF protection. WebSocket/SSE delivery, mobile push, attachment support, and production producer migration also remain unimplemented.
+The initial ntfy-compatible topic endpoint now exists for simple authenticated publishing, but advanced ntfy features remain unsupported and no production producer has been migrated to it. Human login and session validation exist in the pre-production PR #7 stack. PR #8 adds subscription-based Delivery fanout and authenticated inbox list/detail access. PR #9 adds the synchronizer CSRF mechanism and owned Delivery read/unread/acknowledgement mutations. WebSocket/SSE delivery, mobile push, attachment support, production producer migration, public account recovery, and production login rate controls remain unimplemented.
 
-The end-user authentication and Delivery-state design is recorded in PR #6, PR #7 implements the selected human-session model plus schema migration, and PR #8 implements the read-only inbox/fanout foundation. The next code slice is explicit CSRF protection followed by owned Delivery read/unread and acknowledgement mutations.
+The end-user authentication and Delivery-state design is recorded in PR #6, PR #7 implements the selected human-session model plus schema migration, PR #8 implements inbox/fanout, and PR #9 implements CSRF-protected owned Delivery state transitions. The next code slice is subscription administration and Milestone 2 hardening.
 
 ## Production boundary
 
