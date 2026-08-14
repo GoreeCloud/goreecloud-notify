@@ -10,6 +10,7 @@ def test_healthz() -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["service"] == "GoreeCloud Notify"
+    assert "build_revision" not in response.json()
 
 
 def test_meta_tracks_realtime_delivery_development() -> None:
@@ -18,6 +19,7 @@ def test_meta_tracks_realtime_delivery_development() -> None:
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["build_revision"] == "development"
     assert payload["milestone"] == 1
     assert payload["production"] is False
     assert payload["notification_writes_enabled"] is True
