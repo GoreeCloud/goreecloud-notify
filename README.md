@@ -10,7 +10,7 @@ The repository now contains three major development layers:
 
 1. **Milestone 1 foundation** — FastAPI, React/TypeScript/Vite, SQLite/SQLAlchemy, Docker development topology, documentation, tests, and GitHub Actions.
 2. **Milestone 2 notification engine** — producer identities and scoped tokens, sources/channels, native and initial ntfy-compatible ingestion, persistence, producer history, administrator-provisioned human users, opaque web sessions, subscription fanout, user-owned inbox state, CSRF protection, subscription administration, and non-destructive retention analysis.
-3. **Milestone 3 Glaze UI Inbox** — authenticated web sign-in, session restoration, notification-center layout, server-backed search/filters, cursor pagination, source/severity presentation, notification detail, read/unread and acknowledgement actions, fail-visible logout behavior, responsive accessibility controls, and system/light/dark appearance selection.
+3. **Milestone 3 Glaze UI Inbox** — authenticated web sign-in, session restoration, notification-center layout, server-backed search/filters, cursor pagination, user-owned channel subscription management, source/severity presentation, notification detail, read/unread and acknowledgement actions, fail-visible logout behavior, responsive accessibility controls, and system/light/dark appearance selection.
 
 The stacked hardening/readiness line also includes fail-closed session configuration, SQLite foreign-key enforcement, UTC datetime canonicalization, production administrator authorization, login abuse controls, administrator password reset, required-text normalization, backup/restore tooling and recovery validation, production runtime/private-publication readiness, and monitoring/outage-alert readiness.
 
@@ -18,7 +18,7 @@ All of those changes remain draft and pre-production until intentionally integra
 
 ## Milestone 3 web experience
 
-The Milestone 3 inbox uses the existing security contracts rather than creating a separate frontend authentication model.
+The Milestone 3 inbox uses the existing security contracts rather than creating separate frontend authentication, subscription, or preference models.
 
 - `POST /api/v1/session` creates the HttpOnly human session and returns the session-bound CSRF token header.
 - `GET /api/v1/me` restores an existing authenticated browser session.
@@ -26,7 +26,10 @@ The Milestone 3 inbox uses the existing security contracts rather than creating 
 - `GET /api/v1/inbox` provides a bounded page of user-owned deliveries and accepts read/source/channel/severity/search/cursor filters.
 - `q` performs case-insensitive user-scoped search across notification title/body plus source and channel names/slugs; SQL LIKE wildcard characters supplied by the user are escaped and treated literally.
 - The web client debounces search, composes server-backed read/severity/source filters, cancels stale filter requests, and loads older results with the existing `before_id` cursor.
-- Read, unread, acknowledgement, and logout mutations send the existing `X-CSRF-Token` protection.
+- `GET /api/v1/subscriptions` supplies the authenticated user's state for all available notification channels.
+- The Glaze channel-management disclosure uses the existing CSRF-protected `PUT` and `DELETE /api/v1/subscriptions/{channel_slug}` endpoints rather than storing subscription state only in the browser.
+- Unsubscribing affects future Delivery fanout for that account; it does not delete existing notification history. Resubscribing resumes future fanout under the existing backend contract.
+- Read, unread, acknowledgement, subscription, and logout mutations use the existing session-bound CSRF protection.
 - Browser requests use `credentials: include`, which preserves the production same-origin model while allowing the separate local Vite origin to use the existing development CORS configuration.
 - A logout request that cannot confirm server-side session revocation leaves the authenticated UI active and presents an error rather than falsely reporting a successful sign-out.
 - Theme preference is presentation-only browser state stored in local storage; it is not an authentication or server preference record.
@@ -99,8 +102,9 @@ Development host publications remain loopback-only. The production-readiness des
 - `POST /api/v1/inbox/{delivery_id}/read` — mark read
 - `DELETE /api/v1/inbox/{delivery_id}/read` — mark unread
 - `POST /api/v1/inbox/{delivery_id}/acknowledge` — acknowledge and mark read
-- `GET /api/v1/subscriptions` — current user's channel subscription state
-- `PUT|DELETE /api/v1/subscriptions/{channel_slug}` — CSRF-protected subscription changes
+- `GET /api/v1/subscriptions` — all available channels plus the current user's owned subscription state
+- `PUT /api/v1/subscriptions/{channel_slug}` — CSRF-protected idempotent subscribe/resubscribe
+- `DELETE /api/v1/subscriptions/{channel_slug}` — CSRF-protected idempotent unsubscribe without deleting historical deliveries
 
 ### Producers and compatibility
 
@@ -119,7 +123,7 @@ Before controlled cutover, GoreeCloud Notify still requires the applicable targe
 
 ## Next roadmap
 
-- **Milestone 3:** continue with subscription experience integration and browser/visual validation, followed by any remaining accessibility refinements.
+- **Milestone 3:** browser/visual and accessibility validation of the authenticated Glaze inbox and channel controls, followed by any evidence-backed interaction refinements.
 - **Milestone 4:** real-time WebSocket and/or SSE delivery, reconnect behavior, unread counters, and browser notification support where approved.
 - **Milestone 5:** Android client evaluation/implementation after web/API stability.
 - **Milestone 6:** controlled ntfy migration with producer-by-producer validation and rollback.
