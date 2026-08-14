@@ -6,7 +6,16 @@ from sqlalchemy import select
 
 from app.database import Base, SessionLocal, engine
 from app.main import app
-from app.models import AccessToken, Channel, Notification, ServiceIdentity, Source
+from app.models import (
+    AccessToken,
+    Channel,
+    Delivery,
+    Notification,
+    ServiceIdentity,
+    Source,
+    Subscription,
+    User,
+)
 from app.security import token_digest
 
 
@@ -171,3 +180,35 @@ def test_ambiguous_multi_source_identity_requires_native_api() -> None:
             headers=auth(token),
         )
     assert response.status_code == 409
+
+
+def test_compatibility_publish_uses_the_same_subscription_fanout() -> None:
+    token = setup_producer()
+    with SessionLocal() as session:
+        channel = session.scalar(select(Channel).where(Channel.slug == "goreecloud-healthchecks"))
+        assert channel is not None
+        user = User(username="compat-reader", display_name="Compat Reader")
+        session.add(user)
+        session.flush()
+        session.add(Subscription(user_id=user.id, channel_id=channel.id, enabled=True))
+        session.commit()
+        user_id = user.id
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/goreecloud-healthchecks",
+            content="Compatibility fanout",
+            headers=auth(token),
+        )
+    assert response.status_code == 200
+
+    with SessionLocal() as session:
+        notification = session.scalar(select(Notification))
+        assert notification is not None
+        delivery = session.scalar(
+            select(Delivery).where(
+                Delivery.notification_id == notification.id,
+                Delivery.user_id == user_id,
+            )
+        )
+        assert delivery is not None
