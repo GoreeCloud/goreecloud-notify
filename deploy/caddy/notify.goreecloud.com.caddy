@@ -1,0 +1,20 @@
+# Proposed production site block for the future controlled ntfy -> GoreeCloud Notify cutover.
+# Do not install this fragment while notify.goreecloud.com still routes to ntfy.
+notify.goreecloud.com {
+    tls {
+        dns porkbun {
+            api_key {$PORKBUN_API_KEY}
+            api_secret_key {$PORKBUN_API_SECRET_KEY}
+        }
+        propagation_delay 30s
+        propagation_timeout 10m
+        resolvers 1.1.1.1 8.8.8.8
+    }
+
+    @netbird_client remote_ip 100.64.0.0/10
+    handle @netbird_client {
+        reverse_proxy goreecloud-notify:8000
+    }
+
+    respond "Forbidden" 403
+}
