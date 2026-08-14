@@ -5,10 +5,16 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from ..delivery_service import get_inbox_delivery, list_inbox
+from ..delivery_service import (
+    acknowledge_delivery,
+    get_inbox_delivery,
+    list_inbox,
+    mark_delivery_read,
+    mark_delivery_unread,
+)
 from ..deps import get_db
 from ..schemas import InboxDeliveryRead
-from ..user_security import UserPrincipal, require_user_session
+from ..user_security import UserPrincipal, require_csrf_user_session, require_user_session
 
 router = APIRouter(tags=["inbox"])
 Severity = Literal["info", "normal", "warning", "error", "critical"]
@@ -46,3 +52,30 @@ def inbox_detail(
     session: Annotated[Session, Depends(get_db)],
 ) -> InboxDeliveryRead:
     return get_inbox_delivery(session, principal, delivery_id)
+
+
+@router.post("/inbox/{delivery_id}/read", response_model=InboxDeliveryRead)
+def mark_read(
+    delivery_id: int,
+    principal: Annotated[UserPrincipal, Depends(require_csrf_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+) -> InboxDeliveryRead:
+    return mark_delivery_read(session, principal, delivery_id)
+
+
+@router.delete("/inbox/{delivery_id}/read", response_model=InboxDeliveryRead)
+def mark_unread(
+    delivery_id: int,
+    principal: Annotated[UserPrincipal, Depends(require_csrf_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+) -> InboxDeliveryRead:
+    return mark_delivery_unread(session, principal, delivery_id)
+
+
+@router.post("/inbox/{delivery_id}/acknowledge", response_model=InboxDeliveryRead)
+def acknowledge(
+    delivery_id: int,
+    principal: Annotated[UserPrincipal, Depends(require_csrf_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+) -> InboxDeliveryRead:
+    return acknowledge_delivery(session, principal, delivery_id)

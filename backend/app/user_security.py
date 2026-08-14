@@ -8,7 +8,7 @@ from typing import Annotated
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,7 @@ from .deps import get_db
 from .models import User, WebSession
 
 SESSION_PREFIX = "gcs_"
+CSRF_HEADER = "X-CSRF-Token"
 PASSWORD_HASHER = PasswordHasher()
 DUMMY_PASSWORD_HASH = PASSWORD_HASHER.hash("goreecloud-notify-dummy-password")
 
@@ -57,6 +58,10 @@ def issue_session_token() -> str:
     return f"{SESSION_PREFIX}{secrets.token_urlsafe(32)}"
 
 
+def issue_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
 @dataclass(frozen=True, slots=True)
 class UserPrincipal:
     user_id: int
@@ -88,6 +93,7 @@ def create_web_session(session: Session, user: User) -> tuple[WebSession, str]:
     record = WebSession(
         user_id=user.id,
         session_digest=session_digest(raw_token),
+        csrf_token=issue_csrf_token(),
         created_at=now,
         last_seen_at=now,
         expires_at=now + timedelta(minutes=settings.session_lifetime_minutes),
@@ -137,7 +143,7 @@ def require_user_session(
     user = session.get(User, record.user_id)
     if user is None or not user.is_active:
         record.revoked_at = now
-        session.commit()
+        session.comit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user session unavailable")
 
     if last_seen + timedelta(minutes=settings.session_touch_minutes) <= now:
@@ -150,3 +156,24 @@ def require_user_session(
         username=user.username,
         display_name=user.display_name,
     )
+
+
+def csrf_token_for_principal(session: Session, principal: UserPrincipal) -> str:
+    record = session.get(WebSession, principal.session_id)
+    if record is None or record.revoked_at is not None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid user session")
+    return record.csrf_token
+
+
+def require_csrf_user_session(
+    principal: Annotated[UserPrincipal, Depends(require_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> UserPrincipal:
+    if not csrf_token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF token required")
+
+    expected = csrf_token_for_principal(session, principal)
+    if not secrets.compare_digest(expected, csrf_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid CSRF token")
+    return principal

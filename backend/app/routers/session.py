@@ -7,11 +7,14 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..deps import get_db
-from ..schemas import SessionCreate, UserRead
+from ..schemas import CsrfTokenRead, SessionCreate, UserRead
 from ..user_security import (
+    CSRF_HEADER,
     UserPrincipal,
     authenticate_user,
     create_web_session,
+    csrf_token_for_principal,
+    require_csrf_user_session,
     require_user_session,
     revoke_web_session,
 )
@@ -38,7 +41,7 @@ def login(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid credentials")
 
-    _, raw_token = create_web_session(session, user)
+    record, raw_token = create_web_session(session, user)
     response.set_cookie(
         key=settings.session_cookie_name,
         value=raw_token,
@@ -48,6 +51,7 @@ def login(
         samesite="strict",
         path="/",
     )
+    response.headers[CSRF_HEADER] = record.csrf_token
     return UserRead(
         id=user.id,
         username=user.username,
@@ -59,6 +63,7 @@ def login(
 @router.delete("/session", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     response: Response,
+    _principal: Annotated[UserPrincipal, Depends(require_csrf_user_session)],
     session: Annotated[Session, Depends(get_db)],
     raw_token: Annotated[
         str | None, Cookie(alias=settings.session_cookie_name)
@@ -79,3 +84,11 @@ def me(
     principal: Annotated[UserPrincipal, Depends(require_user_session)],
 ) -> UserRead:
     return _user_read(principal)
+
+
+@router.get("/csrf", response_model=CsrfTokenRead)
+def csrf_token(
+    principal: Annotated[UserPrincipal, Depends(require_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+) -> CsrfTokenRead:
+    return CsrfTokenRead(csrf_token=csrf_token_for_principal(session, principal))

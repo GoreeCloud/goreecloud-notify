@@ -117,3 +117,7 @@ class UserRead(BaseModel):
 class SessionCreate(BaseModel):
     username: str = Field(min_length=1, max_length=120)
     password: str = Field(min_length=1, max_length=256)
+
+
+class CsrfTokenRead(BaseModel):
+    csrf_token: str

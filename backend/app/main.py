@@ -30,7 +30,8 @@ app.add_middleware(
     allow_origins=list(settings.cors_origins),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Accept", "Authorization", "Content-Type", "X-GoreeCloud-Admin-Token"],
+    allow_headers=["Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-GoreeCloud-Admin-Token"],
+    expose_headers=["X-CSRF-Token"],
 )
 
 
@@ -72,10 +73,11 @@ def api_meta() -> dict[str, object]:
             "administrator-provisioned human users",
             "opaque server-side user sessions",
             "subscription-based user Delivery fanout",
-            "authenticated read-only user inbox",
+            "authenticated user inbox",
+            "CSRF-protected Delivery read and acknowledgement mutations",
         ],
         "next_milestone": "Notification Engine",
-        "next_slice": "CSRF-protected Delivery read and acknowledgement mutations",
+        "next_slice": "subscription administration and Milestone 2 hardening",
     }
 
 

@@ -4,9 +4,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
-from .models import Channel, Delivery, Notification, Source, Subscription, User
+from .models import Channel, Delivery, Notification, Source, Subscription, User, utc_now
 from .schemas import InboxDeliveryRead
-from .user_security import UserPrincipal
+from .user_security import UserPrincipal, as_utc
 
 
 def fanout_notification(session: Session, notification: Notification) -> int:
@@ -77,12 +77,27 @@ def _to_inbox_read(
         title=notification.title,
         body=notification.body,
         severity=notification.severity,
-        notification_created_at=notification.created_at,
-        delivered_at=delivery.created_at,
-        expires_at=notification.expires_at,
-        read_at=delivery.read_at,
-        acknowledged_at=delivery.acknowledged_at,
+        notification_created_at=as_utc(notification.created_at),
+        delivered_at=as_utc(delivery.created_at),
+        expires_at=as_utc(notification.expires_at) if notification.expires_at is not None else None,
+        read_at=as_utc(delivery.read_at) if delivery.read_at is not None else None,
+        acknowledged_at=(
+            as_utc(delivery.acknowledged_at) if delivery.acknowledged_at is not None else None
+        ),
     )
+
+
+def _owned_inbox_row(
+    session: Session,
+    principal: UserPrincipal,
+    delivery_id: int,
+) -> tuple[Delivery, Notification, Source, Channel]:
+    row = session.execute(
+        _inbox_query(principal.user_id).where(Delivery.id == delivery_id)
+    ).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="delivery not found")
+    return row
 
 
 def list_inbox(
@@ -124,9 +139,46 @@ def get_inbox_delivery(
     principal: UserPrincipal,
     delivery_id: int,
 ) -> InboxDeliveryRead:
-    row = session.execute(
-        _inbox_query(principal.user_id).where(Delivery.id == delivery_id)
-    ).one_or_none()
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="delivery not found")
+    return _to_inbox_read(*_owned_inbox_row(session, principal, delivery_id))
+
+
+def mark_delivery_read(
+    session: Session,
+    principal: UserPrincipal,
+    delivery_id: int,
+) -> InboxDeliveryRead:
+    row = _owned_inbox_row(session, principal, delivery_id)
+    delivery = row[0]
+    if delivery.read_at is None:
+        delivery.read_at = utc_now()
+        session.commit()
+    return _to_inbox_read(*row)
+
+
+def mark_delivery_unread(
+    session: Session,
+    principal: UserPrincipal,
+    delivery_id: int,
+) -> InboxDeliveryRead:
+    row = _owned_inbox_row(session, principal, delivery_id)
+    delivery = row[0]
+    if delivery.read_at is not None:
+        delivery.read_at = None
+        session.commit()
+    return _to_inbox_read(*row)
+
+
+def acknowledge_delivery(
+    session: Session,
+    principal: UserPrincipal,
+    delivery_id: int,
+) -> InboxDeliveryRead:
+    row = _owned_inbox_row(session, principal, delivery_id)
+    delivery = row[0]
+    if delivery.acknowledged_at is None:
+        now = utc_now()
+        delivery.acknowledged_at = now
+        if delivery.read_at is None:
+            delivery.read_at = now
+        session.commit()
     return _to_inbox_read(*row)
