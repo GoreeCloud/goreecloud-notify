@@ -268,7 +268,12 @@ async function mockAuthenticatedApi(page: Page) {
     return json(route, { detail: `Unhandled browser test route: ${request.method()} ${path}` }, 500)
   })
 
-  return { inboxQueries, subscriptionMethods, streamQueries }
+  return {
+    inboxQueries,
+    subscriptionMethods,
+    streamQueries,
+    recoveryCursor: liveDelivery.id,
+  }
 }
 
 async function assertNoAutomatedWcagViolations(page: Page) {
@@ -298,7 +303,7 @@ test('authenticated Glaze inbox synchronizes, survives offline recovery, and pre
   await expect(page.getByText(/Live updates offline; loaded results are stale until network recovery/)).toBeVisible()
   await context.setOffline(false)
   await expect.poll(
-    () => evidence.streamQueries.some((query) => query.includes(`after_id=${liveDelivery.id}`)),
+    () => evidence.streamQueries.some((query) => query.includes(`after_id=${evidence.recoveryCursor}`)),
     { timeout: 8_000 },
   ).toBe(true)
   await expect(page.getByText(/Live updates (connected|reconnecting)/)).toBeVisible()
