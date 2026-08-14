@@ -144,6 +144,40 @@ def test_inactive_user_cannot_login() -> None:
     assert response.json()["detail"] == "invalid credentials"
 
 
+def test_deactivated_user_existing_session_is_rejected_and_persistently_revoked() -> None:
+    user_id = create_user()
+    with TestClient(app) as client:
+        login = client.post(
+            "/api/v1/session",
+            json={"username": "ladamian", "password": "correct horse battery staple"},
+        )
+        assert login.status_code == 200
+        raw_token = client.cookies.get(settings.session_cookie_name)
+        assert raw_token is not None
+
+        with SessionLocal() as session:
+            user = session.get(User, user_id)
+            assert user is not None
+            user.is_active = False
+            session.commit()
+
+        first = client.get("/api/v1/me")
+        second = client.get("/api/v1/me")
+
+    assert first.status_code == 401
+    assert first.json()["detail"] == "user session unavailable"
+    assert second.status_code == 401
+    assert second.json()["detail"] == "invalid user session"
+
+    with SessionLocal() as session:
+        record = session.scalar(
+            select(WebSession).where(WebSession.session_digest == session_digest(raw_token))
+        )
+        assert record is not None
+        assert record.user_id == user_id
+        assert record.revoked_at is not None
+
+
 def test_absolute_expiration_is_enforced() -> None:
     user_id = create_user()
     raw_token = "gcs_absolute_expired_test"
