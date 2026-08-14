@@ -1,0 +1,16 @@
+{
+    auto_https disable_redirects
+}
+
+notify.goreecloud.com {
+    tls internal
+
+    # 100.64.0.0/10 models ordinary approved NetBird clients. 172.19.0.50 is
+    # the fixed disposable Uptime Kuma source used only by this readiness gate.
+    @approved_monitor remote_ip 100.64.0.0/10 172.19.0.50
+    handle @approved_monitor {
+        reverse_proxy app:8000
+    }
+
+    respond "Forbidden" 403
+}
