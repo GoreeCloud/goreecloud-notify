@@ -1,0 +1,59 @@
+name: goreecloud-notify
+
+x-runtime: &runtime
+  image: goreecloud-notify:${GOREECLOUD_NOTIFY_IMAGE_TAG:?Set GOREECLOUD_NOTIFY_IMAGE_TAG to an approved release identifier}
+  build:
+    context: .
+    dockerfile: Dockerfile.production
+  user: "10001:10001"
+  env_file:
+    - ${GOREECLOUD_NOTIFY_ENV_FILE:?Set GOREECLOUD_NOTIFY_ENV_FILE to the protected production environment file}
+  volumes:
+    - type: bind
+      source: ${GOREECLOUD_NOTIFY_DATA_DIR:?Set GOREECLOUD_NOTIFY_DATA_DIR to the approved persistent data directory}
+      target: /data
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  pids_limit: 256
+
+services:
+  app:
+    <<: *runtime
+    container_name: goreecloud-notify
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - proxy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  migrate:
+    <<: *runtime
+    profiles:
+      - maintenance
+    restart: "no"
+    network_mode: none
+    command:
+      - alembic
+      - -c
+      - alembic.ini
+      - upgrade
+      - head
+
+networks:
+  proxy:
+    external: true
+    name: proxy
