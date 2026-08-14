@@ -217,13 +217,14 @@ test('authenticated Glaze inbox supports browser interactions and automated acce
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Good day, Browser' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Inbox views' })).toBeVisible()
+  const inboxNavigation = page.getByRole('navigation', { name: 'Inbox views' })
+  await expect(inboxNavigation).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
 
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to notifications' })).toBeFocused()
 
-  await page.getByRole('button', { name: 'Unread' }).click()
+  await inboxNavigation.getByRole('button', { name: /^Unread/ }).click()
   await expect.poll(() => evidence.inboxQueries.some((query) => query.includes('read=false'))).toBe(true)
 
   await page.getByRole('searchbox', { name: 'Search notifications' }).fill('critical')
