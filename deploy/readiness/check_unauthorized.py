@@ -1,22 +1,17 @@
 from __future__ import annotations
 
 import ssl
-import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 BASE_URL = "https://notify.goreecloud.com"
-CA_CERT = Path("/caddy-data/caddy/pki/authorities/local/root.crt")
+CA_CERT = Path("/readiness/root.crt")
 
 
 def main() -> None:
-    for _ in range(60):
-        if CA_CERT.is_file():
-            break
-        time.sleep(0.5)
-    else:
-        raise RuntimeError("Caddy readiness CA was not created")
+    if not CA_CERT.is_file():
+        raise RuntimeError("Caddy readiness CA was not provided")
 
     context = ssl.create_default_context(cafile=str(CA_CERT))
     request = urllib.request.Request(f"{BASE_URL}/healthz")
