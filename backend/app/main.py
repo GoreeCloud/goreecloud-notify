@@ -136,9 +136,16 @@ def api_meta() -> dict[str, object]:
             "explicit offline realtime state",
             "last-received Delivery cursor offline recovery",
             "online recovery stream reconciliation",
+            "privacy-first browser notification opt-in",
+            "generic redacted system notification content",
+            "hidden-page browser notification delivery",
+            "foreground system-alert suppression",
+            "replay and backlog system-alert suppression",
+            "browser-local system-alert preference",
+            "realtime REST reconciliation race protection",
         ],
         "next_milestone": "Real-Time Delivery",
-        "next_slice": "Milestone 4 browser notification permission and privacy design",
+        "next_slice": "Milestone 4 manual realtime and browser notification acceptance",
     }
 
 
