@@ -8,13 +8,13 @@ from sqlalchemy import text
 
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
-from .database import Base, engine
-from .routers import admin, compatibility, notifications
+from .database import engine, verify_schema
+from .routers import admin, compatibility, notifications, session
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    verify_schema()
     yield
 
 
@@ -28,8 +28,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Accept", "Authorization", "Content-Type", "X-GoreeCloud-Admin-Token"],
 )
 
@@ -69,12 +69,15 @@ def api_meta() -> dict[str, object]:
             "scoped producer notification history",
             "source-isolated notification detail access",
             "ntfy-compatible simple topic publishing",
+            "administrator-provisioned human users",
+            "opaque server-side user sessions",
         ],
         "next_milestone": "Notification Engine",
-        "next_slice": "end-user authentication and delivery-state design",
+        "next_slice": "authenticated user inbox and Delivery state",
     }
 
 
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(session.router, prefix="/api/v1")
 app.include_router(compatibility.router)

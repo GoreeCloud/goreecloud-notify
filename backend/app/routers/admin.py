@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
-from ..models import AccessToken, Channel, ServiceIdentity, Source
+from ..models import AccessToken, Channel, ServiceIdentity, Source, User
 from ..schemas import (
     ChannelCreate,
     ChannelRead,
@@ -18,10 +18,35 @@ from ..schemas import (
     SourceRead,
     TokenCreate,
     TokenCreated,
+    UserCreate,
+    UserRead,
 )
 from ..security import issue_token, require_admin, scopes_to_string, token_digest
+from ..user_security import hash_password
 
 router = APIRouter(tags=["administration"], dependencies=[Depends(require_admin)])
+
+
+@router.post("/users", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+def create_user(payload: UserCreate, session: Annotated[Session, Depends(get_db)]) -> UserRead:
+    user = User(
+        username=payload.username.strip().lower(),
+        display_name=payload.display_name.strip(),
+        password_hash=hash_password(payload.password),
+    )
+    session.add(user)
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="user already exists") from exc
+    session.refresh(user)
+    return UserRead(
+        id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        is_active=user.is_active,
+    )
 
 
 @router.post("/service-identities", response_model=ServiceIdentityRead, status_code=status.HTTP_201_CREATED)
@@ -50,6 +75,7 @@ def create_token(payload: TokenCreate, session: Annotated[Session, Depends(get_d
     identity = session.get(ServiceIdentity, payload.service_identity_id)
     if identity is None or not identity.enabled:
         raise HTTPException(status_code=404, detail="service identity not found")
+
     raw_token = issue_token()
     record = AccessToken(
         service_identity_id=identity.id,
@@ -83,7 +109,12 @@ def revoke_token(token_id: int, session: Annotated[Session, Depends(get_db)]) ->
 def list_sources(session: Annotated[Session, Depends(get_db)]) -> list[SourceRead]:
     rows = session.scalars(select(Source).order_by(Source.slug)).all()
     return [
-        SourceRead(id=row.id, service_identity_id=row.service_identity_id, slug=row.slug, name=row.name)
+        SourceRead(
+            id=row.id,
+            service_identity_id=row.service_identity_id,
+            slug=row.slug,
+            name=row.name,
+        )
         for row in rows
         if row.service_identity_id is not None
     ]
@@ -94,7 +125,11 @@ def create_source(payload: SourceCreate, session: Annotated[Session, Depends(get
     identity = session.get(ServiceIdentity, payload.service_identity_id)
     if identity is None or not identity.enabled:
         raise HTTPException(status_code=404, detail="service identity not found")
-    source = Source(service_identity_id=identity.id, slug=payload.slug, name=payload.name.strip())
+    source = Source(
+        service_identity_id=identity.id,
+        slug=payload.slug,
+        name=payload.name.strip(),
+    )
     session.add(source)
     try:
         session.commit()
@@ -102,7 +137,12 @@ def create_source(payload: SourceCreate, session: Annotated[Session, Depends(get
         session.rollback()
         raise HTTPException(status_code=409, detail="source already exists") from exc
     session.refresh(source)
-    return SourceRead(id=source.id, service_identity_id=identity.id, slug=source.slug, name=source.name)
+    return SourceRead(
+        id=source.id,
+        service_identity_id=identity.id,
+        slug=source.slug,
+        name=source.name,
+    )
 
 
 @router.get("/channels", response_model=list[ChannelRead])
