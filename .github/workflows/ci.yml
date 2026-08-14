@@ -35,7 +35,6 @@ jobs:
           --disable-pip-version-check
           --only-binary=:all:
           -r requirements-dev.txt
-          -c constraints.txt
       - name: Verify backend dependency graph
         working-directory: backend
         run: python -m pip check
