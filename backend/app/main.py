@@ -16,6 +16,25 @@ from .database import engine, verify_schema
 from .routers import admin, compatibility, inbox, notifications, retention, session, subscriptions
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        "base-uri 'none'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "frame-src 'none'",
+        "form-action 'self'",
+        "script-src 'self'",
+        "style-src 'self'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "media-src 'none'",
+        "worker-src 'none'",
+        "manifest-src 'self'",
+    )
+)
+PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
 
 
 class ResponsePrivacyHeadersMiddleware:
@@ -38,6 +57,9 @@ class ResponsePrivacyHeadersMiddleware:
                     headers["Pragma"] = "no-cache"
                 headers["X-Content-Type-Options"] = "nosniff"
                 headers["Referrer-Policy"] = "no-referrer"
+                headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+                headers["X-Frame-Options"] = "DENY"
+                headers["Permissions-Policy"] = PERMISSIONS_POLICY
             await send(message)
 
         await self.app(scope, receive, send_with_privacy_headers)
