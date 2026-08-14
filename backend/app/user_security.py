@@ -63,6 +63,7 @@ class UserPrincipal:
     session_id: int
     username: str
     display_name: str
+    is_admin: bool = False
 
 
 def authenticate_user(session: Session, username: str, password: str) -> User | None:
@@ -113,9 +114,7 @@ def revoke_web_session(session: Session, raw_token: str | None) -> None:
 
 def require_user_session(
     session: Annotated[Session, Depends(get_db)],
-    raw_token: Annotated[
-        str | None, Cookie(alias=settings.session_cookie_name)
-    ] = None,
+    raw_token: Annotated[str | None, Cookie(alias=settings.session_cookie_name)] = None,
 ) -> UserPrincipal:
     if not raw_token or not raw_token.startswith(SESSION_PREFIX):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user session required")
@@ -150,6 +149,7 @@ def require_user_session(
         session_id=record.id,
         username=user.username,
         display_name=user.display_name,
+        is_admin=user.is_admin,
     )
 
 
@@ -172,3 +172,35 @@ def require_csrf_user_session(
     if not secrets.compare_digest(expected, csrf_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid CSRF token")
     return principal
+
+
+def require_administrator(
+    principal: Annotated[UserPrincipal, Depends(require_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+) -> UserPrincipal:
+    user = session.get(User, principal.user_id)
+    if user is None or not user.is_active or not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="administrator access required")
+    return UserPrincipal(
+        user_id=user.id,
+        session_id=principal.session_id,
+        username=user.username,
+        display_name=user.display_name,
+        is_admin=True,
+    )
+
+
+def require_csrf_administrator(
+    principal: Annotated[UserPrincipal, Depends(require_csrf_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+) -> UserPrincipal:
+    user = session.get(User, principal.user_id)
+    if user is None or not user.is_active or not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="administrator access required")
+    return UserPrincipal(
+        user_id=user.id,
+        session_id=principal.session_id,
+        username=user.username,
+        display_name=user.display_name,
+        is_admin=True,
+    )

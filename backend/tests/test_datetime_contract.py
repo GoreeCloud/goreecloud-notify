@@ -14,15 +14,31 @@ from app.models import AccessToken, Channel, Notification, ServiceIdentity, Sour
 from app.security import token_digest
 
 UTC = timezone.utc
-ADMIN_HEADER = {"X-GoreeCloud-Admin-Token": "admin-test-token"}
+ADMIN_PASSWORD = "correct horse battery staple"
 
 
-def configure_admin(monkeypatch) -> None:
+def establish_admin(client: TestClient, monkeypatch) -> str:
     monkeypatch.setattr(
         security,
         "settings",
         type("TestSettings", (), {"admin_token": "admin-test-token"})(),
     )
+    created = client.post(
+        "/api/v1/bootstrap/administrator",
+        headers={"X-GoreeCloud-Admin-Token": "admin-test-token"},
+        json={
+            "username": "datetime-admin",
+            "display_name": "Datetime Admin",
+            "password": ADMIN_PASSWORD,
+        },
+    )
+    assert created.status_code == 201
+    logged_in = client.post(
+        "/api/v1/session",
+        json={"username": "datetime-admin", "password": ADMIN_PASSWORD},
+    )
+    assert logged_in.status_code == 200
+    return logged_in.headers["X-CSRF-Token"]
 
 
 def seed_producer(*, scopes: str = "notifications:read notifications:write") -> str:
@@ -107,7 +123,6 @@ def test_native_notification_expiration_is_persisted_and_returned_in_utc() -> No
 
 
 def test_admin_token_expiration_requires_explicit_timezone(monkeypatch) -> None:
-    configure_admin(monkeypatch)
     with SessionLocal() as session:
         identity = ServiceIdentity(name="Token Datetime")
         session.add(identity)
@@ -115,9 +130,10 @@ def test_admin_token_expiration_requires_explicit_timezone(monkeypatch) -> None:
         identity_id = identity.id
 
     with TestClient(app) as client:
+        csrf = establish_admin(client, monkeypatch)
         response = client.post(
             "/api/v1/tokens",
-            headers=ADMIN_HEADER,
+            headers={"X-CSRF-Token": csrf},
             json={
                 "service_identity_id": identity_id,
                 "name": "naive-expiry",
@@ -131,7 +147,6 @@ def test_admin_token_expiration_requires_explicit_timezone(monkeypatch) -> None:
 
 
 def test_admin_token_expiration_is_persisted_and_returned_in_utc(monkeypatch) -> None:
-    configure_admin(monkeypatch)
     with SessionLocal() as session:
         identity = ServiceIdentity(name="Token Datetime")
         session.add(identity)
@@ -139,9 +154,10 @@ def test_admin_token_expiration_is_persisted_and_returned_in_utc(monkeypatch) ->
         identity_id = identity.id
 
     with TestClient(app) as client:
+        csrf = establish_admin(client, monkeypatch)
         response = client.post(
             "/api/v1/tokens",
-            headers=ADMIN_HEADER,
+            headers={"X-CSRF-Token": csrf},
             json={
                 "service_identity_id": identity_id,
                 "name": "offset-expiry",
@@ -184,7 +200,6 @@ def test_ntfy_epoch_conversion_does_not_depend_on_process_local_timezone(monkeyp
 
 
 def test_retention_expiry_count_uses_normalized_absolute_instant(monkeypatch) -> None:
-    configure_admin(monkeypatch)
     with SessionLocal() as session:
         payload_expiry = datetime.fromisoformat("2026-01-09T20:00:00-05:00").astimezone(UTC)
         session.add(
@@ -199,9 +214,9 @@ def test_retention_expiry_count_uses_normalized_absolute_instant(monkeypatch) ->
         session.commit()
 
     with TestClient(app) as client:
+        establish_admin(client, monkeypatch)
         response = client.get(
             "/api/v1/admin/retention/preview",
-            headers=ADMIN_HEADER,
             params={"cutoff": "2026-01-10T00:00:00Z"},
         )
 

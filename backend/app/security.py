@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .datetime_utils import as_utc
 from .deps import get_db
-from .models import AccessToken, ServiceIdentity
+from .models import AdminAuditEvent, AccessToken, ServiceIdentity
 
 
 TOKEN_PREFIX = "gcn_"
@@ -37,15 +37,27 @@ def scopes_to_string(scopes: list[str]) -> str:
 
 
 def require_admin(
+    session: Annotated[Session, Depends(get_db)],
     supplied_token: Annotated[str | None, Header(alias="X-GoreeCloud-Admin-Token")] = None,
 ) -> None:
     if not settings.admin_token:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="administrative API is not configured",
+            detail="administrative bootstrap is not configured",
         )
     if supplied_token is None or not hmac.compare_digest(supplied_token, settings.admin_token):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid admin token")
+
+    bootstrap_completed = session.scalar(
+        select(AdminAuditEvent.id)
+        .where(AdminAuditEvent.action == "administrator.bootstrap")
+        .limit(1)
+    )
+    if bootstrap_completed is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="administrator bootstrap already completed",
+        )
 
 
 @dataclass(frozen=True, slots=True)

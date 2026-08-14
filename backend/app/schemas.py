@@ -125,6 +125,7 @@ class UserCreate(BaseModel):
     username: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{2,119}$")
     display_name: str = Field(min_length=1, max_length=200)
     password: str = Field(min_length=12, max_length=256)
+    is_admin: bool = False
 
 
 class UserRead(BaseModel):
@@ -132,6 +133,7 @@ class UserRead(BaseModel):
     username: str
     display_name: str
     is_active: bool
+    is_admin: bool
 
 
 class SessionCreate(BaseModel):

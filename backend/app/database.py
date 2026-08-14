@@ -53,7 +53,6 @@ engine = build_engine(settings.database_url)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-
 def verify_schema() -> None:
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
@@ -69,6 +68,11 @@ def verify_schema() -> None:
     if "password_hash" not in user_columns:
         raise RuntimeError(
             "database schema is behind the authentication migration; "
+            "run `alembic -c alembic.ini upgrade head`"
+        )
+    if "is_admin" not in user_columns:
+        raise RuntimeError(
+            "database schema is behind the administrator-authorization migration; "
             "run `alembic -c alembic.ini upgrade head`"
         )
 

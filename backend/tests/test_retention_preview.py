@@ -11,19 +11,38 @@ from app.main import app
 from app.models import Delivery, Notification, User
 
 UTC = timezone.utc
-ADMIN_HEADER = {"X-GoreeCloud-Admin-Token": "admin-test-token"}
+ADMIN_PASSWORD = "correct horse battery staple"
 
 
 def utc(year: int, month: int, day: int) -> datetime:
     return datetime(year, month, day, tzinfo=UTC)
 
 
-def configure_admin(monkeypatch) -> None:
+def configure_bootstrap(monkeypatch) -> None:
     monkeypatch.setattr(
         security,
         "settings",
         type("TestSettings", (), {"admin_token": "admin-test-token"})(),
     )
+
+
+def establish_admin(client: TestClient, monkeypatch) -> None:
+    configure_bootstrap(monkeypatch)
+    created = client.post(
+        "/api/v1/bootstrap/administrator",
+        headers={"X-GoreeCloud-Admin-Token": "admin-test-token"},
+        json={
+            "username": "retention-admin",
+            "display_name": "Retention Admin",
+            "password": ADMIN_PASSWORD,
+        },
+    )
+    assert created.status_code == 201
+    logged_in = client.post(
+        "/api/v1/session",
+        json={"username": "retention-admin", "password": ADMIN_PASSWORD},
+    )
+    assert logged_in.status_code == 200
 
 
 def seed_retention_preview() -> None:
@@ -91,38 +110,25 @@ def table_counts() -> tuple[int, int, int]:
         )
 
 
-def test_retention_preview_requires_admin_authorization(monkeypatch) -> None:
-    configure_admin(monkeypatch)
+def test_retention_preview_requires_admin_authorization() -> None:
     with TestClient(app) as client:
-        missing = client.get(
+        response = client.get(
             "/api/v1/admin/retention/preview",
             params={"cutoff": "2026-01-10T00:00:00Z"},
         )
-        invalid = client.get(
-            "/api/v1/admin/retention/preview",
-            headers={"X-GoreeCloud-Admin-Token": "wrong"},
-            params={"cutoff": "2026-01-10T00:00:00Z"},
-        )
-
-    assert missing.status_code == 401
-    assert invalid.status_code == 401
+    assert response.status_code == 401
 
 
 def test_retention_preview_requires_explicit_utc_cutoff(monkeypatch) -> None:
-    configure_admin(monkeypatch)
     with TestClient(app) as client:
-        missing = client.get(
-            "/api/v1/admin/retention/preview",
-            headers=ADMIN_HEADER,
-        )
+        establish_admin(client, monkeypatch)
+        missing = client.get("/api/v1/admin/retention/preview")
         naive = client.get(
             "/api/v1/admin/retention/preview",
-            headers=ADMIN_HEADER,
             params={"cutoff": "2026-01-10T00:00:00"},
         )
         non_utc = client.get(
             "/api/v1/admin/retention/preview",
-            headers=ADMIN_HEADER,
             params={"cutoff": "2026-01-10T00:00:00-06:00"},
         )
 
@@ -132,14 +138,12 @@ def test_retention_preview_requires_explicit_utc_cutoff(monkeypatch) -> None:
 
 
 def test_retention_preview_reports_candidate_state_without_mutation(monkeypatch) -> None:
-    configure_admin(monkeypatch)
-    seed_retention_preview()
-    before = table_counts()
-
     with TestClient(app) as client:
+        establish_admin(client, monkeypatch)
+        seed_retention_preview()
+        before = table_counts()
         response = client.get(
             "/api/v1/admin/retention/preview",
-            headers=ADMIN_HEADER,
             params={"cutoff": "2026-01-10T00:00:00Z"},
         )
 
@@ -158,17 +162,16 @@ def test_retention_preview_reports_candidate_state_without_mutation(monkeypatch)
     assert payload["candidate_explicitly_expired_notifications"] == 1
     assert payload["oldest_candidate_created_at"].startswith("2026-01-01T00:00:00")
     assert payload["newest_candidate_created_at"].startswith("2026-01-02T00:00:00")
-    assert before == (4, 4, 2)
+    assert before == (4, 4, 3)
     assert after == before
 
 
 def test_retention_preview_cutoff_is_strictly_before(monkeypatch) -> None:
-    configure_admin(monkeypatch)
-    seed_retention_preview()
     with TestClient(app) as client:
+        establish_admin(client, monkeypatch)
+        seed_retention_preview()
         response = client.get(
             "/api/v1/admin/retention/preview",
-            headers=ADMIN_HEADER,
             params={"cutoff": "2026-01-02T00:00:00Z"},
         )
 

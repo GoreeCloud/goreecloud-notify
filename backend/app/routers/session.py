@@ -28,6 +28,7 @@ def _user_read(principal: UserPrincipal) -> UserRead:
         username=principal.username,
         display_name=principal.display_name,
         is_active=True,
+        is_admin=principal.is_admin,
     )
 
 
@@ -57,6 +58,7 @@ def login(
         username=user.username,
         display_name=user.display_name,
         is_active=user.is_active,
+        is_admin=user.is_admin,
     )
 
 
@@ -65,9 +67,7 @@ def logout(
     response: Response,
     _principal: Annotated[UserPrincipal, Depends(require_csrf_user_session)],
     session: Annotated[Session, Depends(get_db)],
-    raw_token: Annotated[
-        str | None, Cookie(alias=settings.session_cookie_name)
-    ] = None,
+    raw_token: Annotated[str | None, Cookie(alias=settings.session_cookie_name)] = None,
 ) -> None:
     revoke_web_session(session, raw_token)
     response.delete_cookie(

@@ -9,13 +9,9 @@ from sqlalchemy.orm import Session
 from ..deps import get_db
 from ..retention_service import build_retention_preview
 from ..schemas import RetentionPreviewRead
-from ..security import require_admin
+from ..user_security import UserPrincipal, require_administrator
 
-router = APIRouter(
-    prefix="/admin/retention",
-    tags=["administration"],
-    dependencies=[Depends(require_admin)],
-)
+router = APIRouter(prefix="/admin/retention", tags=["administration"])
 
 
 @router.get("/preview", response_model=RetentionPreviewRead)
@@ -24,6 +20,7 @@ def retention_preview(
         datetime,
         Query(description="Explicit UTC cutoff; candidates use notification.created_at < cutoff"),
     ],
+    _principal: Annotated[UserPrincipal, Depends(require_administrator)],
     session: Annotated[Session, Depends(get_db)],
 ) -> RetentionPreviewRead:
     if cutoff.tzinfo is None or cutoff.utcoffset() != timedelta(0):

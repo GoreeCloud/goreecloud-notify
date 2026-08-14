@@ -27,7 +27,10 @@ def test_fresh_database_reaches_authentication_head(tmp_path) -> None:
 
     inspector = inspect(create_engine(database_url))
     assert "web_sessions" in inspector.get_table_names()
-    assert "password_hash" in {column["name"] for column in inspector.get_columns("users")}
+    assert "admin_audit_events" in inspector.get_table_names()
+    user_columns = {column["name"] for column in inspector.get_columns("users")}
+    assert "password_hash" in user_columns
+    assert "is_admin" in user_columns
     assert "csrf_token" in {column["name"] for column in inspector.get_columns("web_sessions")}
 
 
@@ -44,7 +47,10 @@ def test_existing_baseline_database_upgrades_without_recreation(tmp_path) -> Non
     run_alembic(database_url, "head")
     after = inspect(create_engine(database_url))
     assert "web_sessions" in after.get_table_names()
-    assert "password_hash" in {column["name"] for column in after.get_columns("users")}
+    assert "admin_audit_events" in after.get_table_names()
+    user_columns = {column["name"] for column in after.get_columns("users")}
+    assert "password_hash" in user_columns
+    assert "is_admin" in user_columns
     assert "csrf_token" in {column["name"] for column in after.get_columns("web_sessions")}
 
 
@@ -101,3 +107,33 @@ def test_csrf_migration_revokes_existing_human_sessions(tmp_path) -> None:
         ).one()
         assert row.csrf_token
         assert row.revoked_at is not None
+        assert connection.execute(text("SELECT is_admin FROM users WHERE id=:id"), {"id": user_id}).scalar_one() == 0
+
+
+def test_administrator_migration_does_not_promote_existing_users(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'admin-upgrade.db'}"
+    run_alembic(database_url, "0003_csrf_delivery_mutations")
+    engine = create_engine(database_url)
+    now = datetime.now(timezone.utc)
+    insert_user = text(
+        "INSERT INTO users (username, display_name, password_hash, is_active, created_at) "
+        "VALUES (:username, :display_name, :password_hash, :is_active, :created_at)"
+    ).bindparams(bindparam("created_at", type_=DateTime(timezone=True)))
+    with engine.begin() as connection:
+        connection.execute(
+            insert_user,
+            {
+                "username": "existing",
+                "display_name": "Existing User",
+                "password_hash": "$argon2id$placeholder",
+                "is_active": True,
+                "created_at": now,
+            },
+        )
+    engine.dispose()
+
+    run_alembic(database_url, "head")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT is_admin FROM users WHERE username='existing'")).scalar_one() == 0
+        assert connection.execute(text("SELECT COUNT(*) FROM admin_audit_events")).scalar_one() == 0
