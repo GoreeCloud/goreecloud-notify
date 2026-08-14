@@ -1,39 +1,47 @@
 # GoreeCloud Notify
 
-GoreeCloud Notify is the planned GoreeCloud-native centralized notification-delivery service and long-term successor to ntfy.
+GoreeCloud Notify is the original GoreeCloud-owned centralized notification-delivery application being developed as the long-term successor to ntfy.
 
-> **Development status:** Milestone 2 development is stacked on the unmerged Milestone 1 foundation. GoreeCloud Notify is not deployed and does not replace the current ntfy service at `https://notify.goreecloud.com`. PRs #1–#12 have green exact-head CI evidence. PR #13 is currently blocked before runner start by the GitHub Actions account billing/spending-limit state and is not recorded as green.
+> **Development status:** Milestone 3 Glaze UI Inbox development is stacked on the unmerged Milestone 2 and production-readiness work. GoreeCloud Notify is not deployed and does not replace the current ntfy service at `https://notify.goreecloud.com`.
 
 ## Current development scope
 
-Milestone 1 establishes the FastAPI/React/SQLite/Docker/CI foundation.
+The repository now contains three major development layers:
 
-Milestone 2 is currently split into focused stacked changes:
+1. **Milestone 1 foundation** — FastAPI, React/TypeScript/Vite, SQLite/SQLAlchemy, Docker development topology, documentation, tests, and GitHub Actions.
+2. **Milestone 2 notification engine** — producer identities and scoped tokens, sources/channels, native and initial ntfy-compatible ingestion, persistence, producer history, administrator-provisioned human users, opaque web sessions, subscription fanout, user-owned inbox state, CSRF protection, subscription administration, and non-destructive retention analysis.
+3. **Milestone 3 Glaze UI Inbox** — authenticated web sign-in, session restoration, notification-center layout, inbox summary, search and filters, source/severity presentation, notification detail, read/unread and acknowledgement actions, responsive behavior, accessibility controls, and system/light/dark appearance selection.
 
-- PR #2: bootstrap admin authorization, service identities, scoped producer tokens, token revocation, sources, and channels.
-- PR #3: native `POST /api/v1/notifications` ingestion, persistence through the existing Notification model, producer source-ownership enforcement, and focused tests.
-- PR #4: producer-scoped notification history and detail access with `notifications:read`, source isolation, filters, and bounded cursor pagination.
-- PR #5: initial ntfy-compatible POST/PUT topic publishing for authenticated producers, including simple message/title/priority translation and explicit rejection of unsupported ntfy features.
-- PR #6: design-only human authentication and user-level Delivery read/unread/acknowledgement semantics.
-- PR #7: administrator-provisioned human accounts, Argon2id credential hashes, opaque server-side web sessions, Alembic schema migrations, login/logout, and `GET /api/v1/me`.
-- PR #8: subscription-based per-user `Delivery` fanout plus authenticated read-only `GET /api/v1/inbox` and delivery-detail access with strict user isolation and bounded filtering/pagination.
-- PR #9: server-side synchronizer CSRF tokens plus owned Delivery read, unread, acknowledgement, and CSRF-protected logout mutations.
-- PR #10: authenticated user-owned subscription listing plus CSRF-protected idempotent subscribe/unsubscribe behavior for approved channels.
-- PR #11: administrator-only, non-destructive retention preview using an explicit UTC cutoff; it reports candidate state but cannot delete or update retained data.
-- PR #12: inactive-user session revocation hardening so a session created while a user is active is persistently revoked if that user is later deactivated.
-- PR #13: metadata-driven Glaze UI development status; the landing page reads Milestone/roadmap state from `/api/v1/meta` instead of hard-coding Milestone 1 text and keeps metadata failure separate from backend-health status.
+The stacked hardening/readiness line also includes fail-closed session configuration, SQLite foreign-key enforcement, UTC datetime canonicalization, production administrator authorization, login abuse controls, administrator password reset, required-text normalization, backup/restore tooling and recovery validation, production runtime/private-publication readiness, and monitoring/outage-alert readiness.
 
-Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. The compatibility adapter preserves GoreeCloud authentication and the current 4 KiB ntfy message-size boundary. Human login/session runtime is implemented on the pre-production PR #7 stack. PR #8 adds subscription-based user-level Delivery fanout and a read-only authenticated inbox. PR #9 adds session-bound synchronizer CSRF protection and owned Delivery read/unread/acknowledgement mutations. PR #10 adds user-owned subscription administration; disabling a subscription affects future fanout only and never deletes existing Delivery history. PR #11 adds retention analysis only: the operator must supply an explicit UTC cutoff, and that cutoff is analysis input rather than an approved retention duration. PR #12 closes an inactive-account session-revocation persistence defect without changing the session API contract. PR #13 removes stale frontend development-status duplication, but its remote validation remains pending because GitHub Actions cannot currently start runners. Automatic purge, destructive retention APIs, real-time delivery, and production migration remain unimplemented.
+All of those changes remain draft and pre-production until intentionally integrated.
+
+## Milestone 3 web experience
+
+The Milestone 3 inbox uses the existing security contracts rather than creating a separate frontend authentication model.
+
+- `POST /api/v1/session` creates the HttpOnly human session and returns the session-bound CSRF token header.
+- `GET /api/v1/me` restores an existing authenticated browser session.
+- `GET /api/v1/csrf` restores the current CSRF token when a browser session already exists.
+- `GET /api/v1/inbox?limit=100` supplies the current bounded working set for the first Glaze UI inbox slice.
+- Search and the first source/severity/read filters operate locally over that bounded working set; server-side filtering and cursor pagination remain available in the API for later UI refinement.
+- Read, unread, acknowledgement, and logout mutations send the existing `X-CSRF-Token` protection.
+- Browser requests use `credentials: include`, which preserves the production same-origin model while allowing the separate local Vite origin to use the existing development CORS configuration.
+- Theme preference is presentation-only browser state stored in local storage; it is not an authentication or server preference record.
+
+The UI does not display producer tokens, session-cookie values, CSRF values, database configuration, or other reusable credentials.
 
 ## Repository structure
 
 ```text
 .
-├── backend/              FastAPI API and SQLite model
-├── frontend/             React + TypeScript + Vite web client
-├── docs/                 Architecture, development, security, migration
-├── docker-compose.yml    Isolated development topology
-└── .github/workflows/    Continuous integration
+├── backend/                    FastAPI API, SQLite model, migrations, recovery tooling
+├── frontend/                   React + TypeScript + Vite web client
+├── deploy/                     Proposed production/private-publication and monitoring contracts
+├── docs/                       Architecture, security, recovery, monitoring, migration
+├── docker-compose.yml          Isolated development topology
+├── Dockerfile.production       Production multi-stage frontend/backend image
+└── .github/workflows/          CI and source-controlled readiness gates
 ```
 
 ## Local backend
@@ -53,14 +61,14 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 ```bash
 cd frontend
-npm install --ignore-scripts
+npm ci --ignore-scripts
 npm run lint
 npm run check
 npm run build
 npm run dev -- --host 127.0.0.1
 ```
 
-Before Milestone 1 is merged, `frontend/package-lock.json` and reproducible `npm ci` remain an outstanding gate.
+`frontend/package-lock.json` is committed and release/CI installs use the reproducible lock with `npm ci`.
 
 ## Docker development
 
@@ -69,39 +77,53 @@ docker compose config
 docker compose up --build
 ```
 
-Development ports remain loopback-only: frontend `127.0.0.1:5173`, backend `127.0.0.1:8000`. This repository does not modify Caddy, AdGuard Home, NetBird, DNS, or the active ntfy deployment.
+Development host publications remain loopback-only. The production-readiness design does not publish the application backend directly to the host; central Caddy is intended to reach the application over the approved Docker proxy network after a separately controlled target deployment.
 
-## API status
+## Important API routes
 
-- `GET /healthz` — application/database health
-- `GET /api/v1/meta` — development milestone/status metadata used by the current landing page
-- Milestone 2 administration endpoints are under `/api/v1`
-- `POST /api/v1/notifications` — native scoped producer ingestion
-- `GET /api/v1/notifications` — producer-scoped history with optional source/channel/severity filters and `before_id` pagination
-- `GET /api/v1/notifications/{id}` — producer-scoped notification detail
-- `POST|PUT /{topic}` — initial ntfy-compatible simple topic publishing for scoped producers
-- `POST /api/v1/users` — administrator-provisioned human account creation
-- `POST /api/v1/session` — human login with an opaque `HttpOnly` web session cookie
-- `DELETE /api/v1/session` — CSRF-protected server-side session revocation/logout
-- `GET /api/v1/csrf` — recover the current session-bound synchronizer token for the authenticated SPA
+### System
+
+- `GET /healthz` — database-aware application health
+- `GET /api/v1/meta` — development milestone and capability metadata
+
+### Human sessions and inbox
+
+- `POST /api/v1/session` — human login
+- `DELETE /api/v1/session` — CSRF-protected logout
 - `GET /api/v1/me` — current authenticated human profile
-- `GET /api/v1/inbox` — authenticated user-owned Delivery history with read/acknowledgement/source/channel/severity filters and bounded pagination
-- `GET /api/v1/inbox/{delivery_id}` — authenticated user-owned Delivery detail; other users' delivery IDs are hidden as not found
-- `POST /api/v1/inbox/{delivery_id}/read` — CSRF-protected owned Delivery mark-read mutation
-- `DELETE /api/v1/inbox/{delivery_id}/read` — CSRF-protected owned Delivery mark-unread mutation; acknowledgement is preserved
-- `POST /api/v1/inbox/{delivery_id}/acknowledge` — CSRF-protected owned acknowledgement; acknowledgement also marks an unread Delivery read
-- `GET /api/v1/subscriptions` — authenticated view of the current user's state across approved channels
-- `PUT /api/v1/subscriptions/{channel_slug}` — CSRF-protected idempotent subscribe/enable for the current user
-- `DELETE /api/v1/subscriptions/{channel_slug}` — CSRF-protected idempotent unsubscribe/disable for the current user; existing Delivery history is preserved
-- `GET /api/v1/admin/retention/preview?cutoff=<UTC timestamp>` — bootstrap-admin-only, non-destructive candidate analysis using strict `notification.created_at < cutoff`; the endpoint never deletes or updates records
-- tags, actions, attachments, Markdown, delays, email, calls, and other advanced ntfy options are explicitly unsupported in the initial adapter rather than silently discarded
+- `GET /api/v1/csrf` — current session-bound CSRF token
+- `GET /api/v1/inbox` — user-owned Delivery history with filters and cursor pagination
+- `GET /api/v1/inbox/{delivery_id}` — user-owned Delivery detail
+- `POST /api/v1/inbox/{delivery_id}/read` — mark read
+- `DELETE /api/v1/inbox/{delivery_id}/read` — mark unread
+- `POST /api/v1/inbox/{delivery_id}/acknowledge` — acknowledge and mark read
+- `GET /api/v1/subscriptions` — current user's channel subscription state
+- `PUT|DELETE /api/v1/subscriptions/{channel_slug}` — CSRF-protected subscription changes
 
-See `docs/notification-engine.md` for the current Milestone 2 boundary and `docs/retention.md` for the preview-only retention safety contract.
+### Producers and compatibility
 
-## Validation boundary
+- `POST /api/v1/notifications` — native scoped producer ingestion
+- `GET /api/v1/notifications` — producer-scoped history
+- `GET /api/v1/notifications/{id}` — producer-scoped detail
+- `POST|PUT /{topic}` — initial authenticated ntfy-compatible publishing
 
-GitHub Actions remains the required exact-head validation gate for stacked development. A workflow that cannot start because of account billing/spending limits is not treated as a passing or failing code result. Local syntax or partial checks may help diagnose changes, but they do not replace the repository CI gate.
+Advanced ntfy features such as attachments, delayed delivery, email/calls, actions, and broader formatting semantics remain outside the implemented compatibility boundary unless separately approved.
+
+## Production and migration boundary
+
+ntfy v2.26.3 remains the active production notification service. Draft source-level readiness work does **not** constitute a production deployment.
+
+Before controlled cutover, GoreeCloud Notify still requires the applicable target-environment evidence for runtime/private publication, backup/restore, monitoring, independent Notify-down alert delivery, and producer/consumer migration. No draft PR by itself authorizes DNS, Caddy, AdGuard Home, NetBird, firewall, Uptime Kuma, producer, subscriber, database, or ntfy retirement changes.
+
+## Next roadmap
+
+- **Milestone 3:** continue Glaze UI inbox interaction/accessibility refinement and bounded pagination/subscription experience work.
+- **Milestone 4:** real-time WebSocket and/or SSE delivery, reconnect behavior, unread counters, and browser notification support where approved.
+- **Milestone 5:** Android client evaluation/implementation after web/API stability.
+- **Milestone 6:** controlled ntfy migration with producer-by-producer validation and rollback.
+- **Milestone 7:** GoreeCloud platform integrations.
+- **Milestone 8:** iOS client after platform/signing/transport requirements are verified.
 
 ## License
 
-The project license is intentionally **not selected yet** because the authoritative project specification records licensing as an open implementation decision. The repository should remain private until an approved open-source license is selected and recorded.
+The application license remains an open project decision. The repository remains private while the approved open-source license is selected and recorded.
