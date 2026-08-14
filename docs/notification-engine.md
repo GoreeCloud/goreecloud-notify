@@ -98,13 +98,30 @@ This slice still does not implement public registration, password recovery, prod
 
 Slices through PR #5 reuse the Milestone 1 database schema. PR #7 introduces the first reviewed schema evolution: an Alembic baseline plus a human-authentication migration that adds `users.password_hash` and `web_sessions`.
 
+## Slice 7 — Subscription fanout and read-only user inbox
+
+Implemented in PR #8:
+
+- notification persistence now creates missing `Delivery` rows for active users with enabled subscriptions to the notification Channel
+- fanout occurs inside the same transaction as notification persistence so the initial Notification and Delivery set commit together
+- fanout is idempotent for an existing notification and relies on the existing unique `(notification_id, user_id)` constraint as a database backstop
+- inactive users and disabled subscriptions do not receive Delivery rows
+- native and ntfy-compatible publishing share the same fanout path
+- `GET /api/v1/inbox` requires a validated human web session and filters by the authenticated user's ID
+- `GET /api/v1/inbox/{delivery_id}` requires ownership; another user's delivery ID returns `404`
+- inbox list filters support read/unread, acknowledged/unacknowledged, source, channel, and severity
+- descending Delivery-ID pagination uses bounded `before_id` and `limit` parameters
+- producer bearer tokens cannot authenticate to the human inbox
+
+This slice adds no schema migration. It deliberately does **not** add cookie-authenticated read/unread or acknowledgement mutations; those remain blocked until explicit CSRF protection is implemented and validated.
+
 ## Current boundary
 
 Native writes and producer history are enabled only in the pre-production development stack. Producer history is operational history for service identities; it is not the eventual end-user notification inbox and does not implement Delivery read/unread or acknowledgement state.
 
-The initial ntfy-compatible topic endpoint now exists for simple authenticated publishing, but advanced ntfy features remain unsupported and no production producer has been migrated to it. Human login and session validation now exist in the pre-production PR #7 stack, but there is still no authenticated end-user inbox fanout/read/acknowledgement API, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
+The initial ntfy-compatible topic endpoint now exists for simple authenticated publishing, but advanced ntfy features remain unsupported and no production producer has been migrated to it. Human login and session validation exist in the pre-production PR #7 stack. PR #8 adds subscription-based Delivery fanout and authenticated read-only inbox list/detail access, but read/unread and acknowledgement mutations remain blocked on explicit CSRF protection. WebSocket/SSE delivery, mobile push, attachment support, and production producer migration also remain unimplemented.
 
-The end-user authentication and Delivery-state design is recorded in PR #6, and PR #7 implements the selected human-session model plus schema migration. The next code slice is the authenticated user inbox/fanout foundation; cookie-authenticated mutations remain gated on explicit CSRF protection.
+The end-user authentication and Delivery-state design is recorded in PR #6, PR #7 implements the selected human-session model plus schema migration, and PR #8 implements the read-only inbox/fanout foundation. The next code slice is explicit CSRF protection followed by owned Delivery read/unread and acknowledgement mutations.
 
 ## Production boundary
 
