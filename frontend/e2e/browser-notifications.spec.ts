@@ -227,5 +227,5 @@ test('system alerts require explicit opt-in and redact Delivery details', async 
   await context.setOffline(false)
   await expect.poll(() => evidence.streamQueries.some((query) => query.includes('after_id=152'))).toBe(true)
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __notifySystemAlerts: unknown[] }).__notifySystemAlerts.length)).toBe(1)
-  await expect(page.getByText(evidence.visibleNew.title)).toBeVisible()
+  await expect(page.getByRole('heading', { name: evidence.visibleNew.title })).toBeVisible()
 })
