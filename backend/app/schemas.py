@@ -129,3 +129,19 @@ class SessionCreate(BaseModel):
 
 class CsrfTokenRead(BaseModel):
     csrf_token: str
+
+
+class RetentionPreviewRead(BaseModel):
+    mode: str
+    cutoff: datetime
+    cutoff_basis: str
+    destructive_action_enabled: bool
+    candidate_notifications: int
+    candidate_deliveries: int
+    candidate_read_deliveries: int
+    candidate_unread_deliveries: int
+    candidate_acknowledged_deliveries: int
+    candidate_unacknowledged_deliveries: int
+    candidate_explicitly_expired_notifications: int
+    oldest_candidate_created_at: datetime | None
+    newest_candidate_created_at: datetime | None

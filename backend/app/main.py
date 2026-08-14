@@ -9,7 +9,7 @@ from sqlalchemy import text
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
 from .database import engine, verify_schema
-from .routers import admin, compatibility, inbox, notifications, session, subscriptions
+from .routers import admin, compatibility, inbox, notifications, retention, session, subscriptions
 
 
 @asynccontextmanager
@@ -76,9 +76,10 @@ def api_meta() -> dict[str, object]:
             "authenticated user inbox",
             "CSRF-protected Delivery read and acknowledgement mutations",
             "user-owned subscription administration",
+            "non-destructive administrator retention preview",
         ],
         "next_milestone": "Notification Engine",
-        "next_slice": "retention policy and Milestone 2 hardening",
+        "next_slice": "retention policy decision and Milestone 2 hardening",
     }
 
 
@@ -87,4 +88,5 @@ app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(session.router, prefix="/api/v1")
 app.include_router(inbox.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
+app.include_router(retention.router, prefix="/api/v1")
 app.include_router(compatibility.router)
