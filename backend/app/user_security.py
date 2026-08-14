@@ -143,7 +143,7 @@ def require_user_session(
     user = session.get(User, record.user_id)
     if user is None or not user.is_active:
         record.revoked_at = now
-        session.comit()
+        session.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user session unavailable")
 
     if last_seen + timedelta(minutes=settings.session_touch_minutes) <= now:
