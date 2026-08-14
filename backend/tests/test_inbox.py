@@ -172,7 +172,7 @@ def test_inbox_lists_only_authenticated_users_deliveries_and_hides_other_detail(
         assert hidden.status_code == 404
 
 
-def test_inbox_filters_read_acknowledgement_source_channel_severity_and_cursor() -> None:
+def test_inbox_filters_read_acknowledgement_source_channel_severity_search_and_cursor() -> None:
     identity_id, first_user_id, _, _ = seed_inbox_fixture()
     first_notification = publish(identity_id, title="First", severity="info")
     second_notification = publish(identity_id, title="Second", severity="critical")
@@ -208,6 +208,19 @@ def test_inbox_filters_read_acknowledgement_source_channel_severity_and_cursor()
 
         critical = client.get("/api/v1/inbox?severity=critical&source=healthchecks&channel=goreecloud-healthchecks")
         assert [item["id"] for item in critical.json()] == [second_id]
+
+        search_title = client.get("/api/v1/inbox?q=second")
+        assert [item["id"] for item in search_title.json()] == [second_id]
+
+        search_source_name = client.get("/api/v1/inbox?q=HEALTHCHECKS")
+        assert [item["id"] for item in search_source_name.json()] == [second_id, first_id]
+
+        search_composed = client.get("/api/v1/inbox?q=second&severity=critical&read=false")
+        assert [item["id"] for item in search_composed.json()] == [second_id]
+
+        literal_wildcard = client.get("/api/v1/inbox?q=%25")
+        assert literal_wildcard.status_code == 200
+        assert literal_wildcard.json() == []
 
         older = client.get(f"/api/v1/inbox?before_id={second_id}&limit=1")
         assert [item["id"] for item in older.json()] == [first_id]
