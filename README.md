@@ -12,8 +12,9 @@ Milestone 2 is currently split into focused stacked changes:
 
 - PR #2: bootstrap admin authorization, service identities, scoped producer tokens, token revocation, sources, and channels.
 - PR #3: native `POST /api/v1/notifications` ingestion, persistence through the existing Notification model, producer source-ownership enforcement, and focused tests.
+- PR #4: producer-scoped notification history and detail access with `notifications:read`, source isolation, filters, and bounded cursor pagination.
 
-Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. ntfy-compatible ingestion, user delivery/read/acknowledgement state, and production migration remain unimplemented.
+Native notification writes are enabled only in the pre-production development API and require a producer token with the `notifications:write` scope. Producer history requires `notifications:read` and only exposes notifications belonging to that service identity's sources. End-user delivery/read/acknowledgement state and production migration remain unimplemented.
 
 ## Repository structure
 
@@ -65,7 +66,9 @@ Development ports remain loopback-only: frontend `127.0.0.1:5173`, backend `127.
 - `GET /healthz` — application/database health
 - `GET /api/v1/meta` — development milestone/status metadata
 - Milestone 2 administration endpoints are under `/api/v1`
-- `POST /api/v1/notifications` — native scoped producer ingestion on the PR #3 development stack
+- `POST /api/v1/notifications` — native scoped producer ingestion
+- `GET /api/v1/notifications` — producer-scoped history with optional source/channel/severity filters and `before_id` pagination
+- `GET /api/v1/notifications/{id}` — producer-scoped notification detail
 - ntfy-compatible topic ingestion is not implemented yet
 
 See `docs/notification-engine.md` for the current Milestone 2 boundary.

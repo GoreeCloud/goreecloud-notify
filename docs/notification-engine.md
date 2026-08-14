@@ -28,13 +28,28 @@ Implemented in PR #3:
 - response mapping to the resolved source and channel
 - automated tests for persistence, source impersonation rejection, and missing-channel rejection
 
-This slice reuses the Milestone 1 database schema and therefore does not require a schema migration.
+## Slice 3 — Producer notification history and detail access
+
+Implemented in PR #4:
+
+- `GET /api/v1/notifications` with required `notifications:read` scope
+- `GET /api/v1/notifications/{id}` with required `notifications:read` scope
+- history restricted to sources owned by the authenticated service identity
+- cross-identity detail access returns `404` instead of exposing another producer's records
+- optional source, channel, and severity filters
+- bounded page size from 1 to 100 records
+- stable descending integer-ID pagination through `before_id`
+- endpoint and service tests for scope enforcement, source isolation, filters, and cursor behavior
+
+These slices reuse the Milestone 1 database schema and therefore do not require a schema migration.
 
 ## Current boundary
 
-Native writes are enabled only in the pre-production PR #3 development API. There is no ntfy-compatible topic endpoint yet. There is also no authenticated end-user delivery/read/acknowledgement API, subscription fanout, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
+Native writes and producer history are enabled only in the pre-production development stack. Producer history is operational history for service identities; it is not the eventual end-user notification inbox and does not implement Delivery read/unread or acknowledgement state.
 
-The next notification-engine slice is administrative notification history/read access followed by a separately reviewed ntfy-compatible ingestion adapter.
+There is no ntfy-compatible topic endpoint yet. There is also no authenticated end-user delivery/read/acknowledgement API, subscription fanout, WebSocket/SSE delivery, mobile push, attachment support, or production producer migration.
+
+The next notification-engine slice is a separately reviewed ntfy-compatible ingestion adapter.
 
 ## Production boundary
 

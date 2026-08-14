@@ -21,7 +21,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="Milestone 2 notification-engine development for GoreeCloud Notify.",
+    description="Milestone 2 identity and routing foundation for GoreeCloud Notify.",
     lifespan=lifespan,
 )
 
@@ -66,9 +66,11 @@ def api_meta() -> dict[str, object]:
             "native notification ingestion",
             "notification persistence",
             "producer source ownership enforcement",
+            "scoped producer notification history",
+            "source-isolated notification detail access",
         ],
         "next_milestone": "Notification Engine",
-        "next_slice": "notification history and ntfy-compatible ingestion",
+        "next_slice": "ntfy-compatible ingestion",
     }
 
 
