@@ -6,26 +6,18 @@ import os
 import re
 import ssl
 import sys
-import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 BASE_URL = "https://notify.goreecloud.com"
-CA_CERT = Path("/caddy-data/caddy/pki/authorities/local/root.crt")
+CA_CERT = Path("/readiness/root.crt")
 USERNAME = "readiness-admin"
 
 
-def wait_for_ca() -> None:
-    for _ in range(60):
-        if CA_CERT.is_file():
-            return
-        time.sleep(0.5)
-    raise RuntimeError("Caddy readiness CA was not created")
-
-
 def build_opener() -> urllib.request.OpenerDirector:
-    wait_for_ca()
+    if not CA_CERT.is_file():
+        raise RuntimeError("Caddy readiness CA was not provided")
     context = ssl.create_default_context(cafile=str(CA_CERT))
     cookies = http.cookiejar.CookieJar()
     return urllib.request.build_opener(
