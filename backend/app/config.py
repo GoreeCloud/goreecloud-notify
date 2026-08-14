@@ -3,10 +3,12 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from ipaddress import ip_network
+from urllib.parse import urlsplit
 
 
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 _FALSE_VALUES = frozenset({"0", "false", "no", "off"})
+_ENVIRONMENTS = frozenset({"development", "test", "production"})
 
 
 def _split_csv(value: str) -> tuple[str, ...]:
@@ -38,10 +40,27 @@ def _env_int(name: str, default: int, *, minimum: int) -> int:
     return value
 
 
+def _validate_production_origin(origin: str) -> None:
+    parsed = urlsplit(origin)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise ValueError(
+            "GOREECLOUD_NOTIFY_CORS_ORIGINS must contain only absolute HTTPS origins in production"
+        )
+    if parsed.hostname in {"localhost", "127.0.0.1", "::1"}:
+        raise ValueError(
+            "GOREECLOUD_NOTIFY_CORS_ORIGINS cannot contain local development origins in production"
+        )
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username:
+        raise ValueError(
+            "GOREECLOUD_NOTIFY_CORS_ORIGINS must contain origins only, without paths, credentials, query strings, or fragments"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     app_name: str = "GoreeCloud Notify"
     version: str = "0.2.0-dev"
+    environment: str = os.getenv("GOREECLOUD_NOTIFY_ENVIRONMENT", "development").strip().lower()
     database_url: str = os.getenv(
         "GOREECLOUD_NOTIFY_DATABASE_URL",
         "sqlite:///./data/goreecloud_notify.db",
@@ -90,6 +109,9 @@ class Settings:
     )
 
     def __post_init__(self) -> None:
+        if self.environment not in _ENVIRONMENTS:
+            accepted = ", ".join(sorted(_ENVIRONMENTS))
+            raise ValueError(f"GOREECLOUD_NOTIFY_ENVIRONMENT must be one of: {accepted}")
         if "*" in self.cors_origins:
             raise ValueError(
                 "GOREECLOUD_NOTIFY_CORS_ORIGINS cannot contain '*' when credentialed web sessions are enabled"
@@ -99,13 +121,34 @@ class Settings:
                 "GOREECLOUD_NOTIFY_SESSION_TOUCH_MINUTES must be less than "
                 "GOREECLOUD_NOTIFY_SESSION_IDLE_MINUTES"
             )
+
+        proxy_networks = []
         for cidr in self.trusted_proxy_cidrs:
             try:
-                ip_network(cidr, strict=False)
+                network = ip_network(cidr, strict=False)
             except ValueError as exc:
                 raise ValueError(
                     f"GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS contains invalid network: {cidr}"
                 ) from exc
+            proxy_networks.append(network)
+
+        if self.environment == "production":
+            if not self.session_cookie_secure:
+                raise ValueError(
+                    "GOREECLOUD_NOTIFY_SESSION_COOKIE_SECURE must be true in production"
+                )
+            if not self.cors_origins:
+                raise ValueError("GOREECLOUD_NOTIFY_CORS_ORIGINS must not be empty in production")
+            for origin in self.cors_origins:
+                _validate_production_origin(origin)
+            if not proxy_networks:
+                raise ValueError(
+                    "GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS must identify the approved reverse-proxy network in production"
+                )
+            if any(network.prefixlen == 0 for network in proxy_networks):
+                raise ValueError(
+                    "GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS cannot trust an entire address family in production"
+                )
 
 
 settings = Settings()
