@@ -1,0 +1,106 @@
+name: goreecloud-notify-readiness
+
+x-app-runtime: &app-runtime
+  image: ${GOREECLOUD_NOTIFY_READINESS_IMAGE:-goreecloud-notify:readiness}
+  user: "10001:10001"
+  env_file:
+    - ${GOREECLOUD_NOTIFY_READINESS_ENV_FILE:?Set GOREECLOUD_NOTIFY_READINESS_ENV_FILE}
+  volumes:
+    - type: bind
+      source: ${GOREECLOUD_NOTIFY_READINESS_DATA_DIR:?Set GOREECLOUD_NOTIFY_READINESS_DATA_DIR}
+      target: /data
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  pids_limit: 256
+
+services:
+  migrate:
+    <<: *app-runtime
+    profiles: [maintenance]
+    network_mode: none
+    restart: "no"
+    command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+
+  app:
+    <<: *app-runtime
+    restart: "no"
+    networks:
+      proxy-test:
+        ipv4_address: 172.31.250.20
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s
+
+  caddy:
+    image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    restart: "no"
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      proxy-test:
+        ipv4_address: 172.31.250.5
+      approved-test:
+        ipv4_address: 100.64.250.5
+      unauthorized-test:
+        ipv4_address: 172.31.251.5
+
+  approved-client:
+    image: ${GOREECLOUD_NOTIFY_READINESS_IMAGE:-goreecloud-notify:readiness}
+    profiles: [checks]
+    env_file:
+      - ${GOREECLOUD_NOTIFY_READINESS_CLIENT_ENV_FILE:?Set GOREECLOUD_NOTIFY_READINESS_CLIENT_ENV_FILE}
+    volumes:
+      - ./check.py:/readiness/check.py:ro
+      - caddy-data:/caddy-data:ro
+    extra_hosts:
+      - "notify.goreecloud.com=100.64.250.5"
+    networks:
+      - approved-test
+    command: ["python", "/readiness/check.py", "bootstrap"]
+
+  unauthorized-client:
+    image: ${GOREECLOUD_NOTIFY_READINESS_IMAGE:-goreecloud-notify:readiness}
+    profiles: [checks]
+    volumes:
+      - ./check_unauthorized.py:/readiness/check_unauthorized.py:ro
+      - caddy-data:/caddy-data:ro
+    extra_hosts:
+      - "notify.goreecloud.com=172.31.251.5"
+    networks:
+      - unauthorized-test
+    command: ["python", "/readiness/check_unauthorized.py"]
+
+networks:
+  proxy-test:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
+  approved-test:
+    ipam:
+      config:
+        - subnet: 100.64.250.0/24
+  unauthorized-test:
+    ipam:
+      config:
+        - subnet: 172.31.251.0/24
+
+volumes:
+  caddy-data:
+  caddy-config:
