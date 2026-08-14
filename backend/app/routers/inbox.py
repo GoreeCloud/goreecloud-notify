@@ -1,23 +1,112 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal
+import asyncio
+import json
+import time
+from typing import Annotated, AsyncIterator, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from ..database import SessionLocal
 from ..delivery_service import (
     acknowledge_delivery,
     get_inbox_delivery,
+    latest_inbox_delivery_id,
     list_inbox,
+    list_inbox_after,
     mark_delivery_read,
     mark_delivery_unread,
 )
 from ..deps import get_db
 from ..schemas import InboxDeliveryRead
-from ..user_security import UserPrincipal, require_csrf_user_session, require_user_session
+from ..user_security import (
+    UserPrincipal,
+    principal_session_is_active,
+    require_csrf_user_session,
+    require_user_session,
+)
 
 router = APIRouter(tags=["inbox"])
 Severity = Literal["info", "normal", "warning", "error", "critical"]
+STREAM_POLL_SECONDS = 1.0
+STREAM_HEARTBEAT_SECONDS = 15.0
+STREAM_BATCH_LIMIT = 100
+
+
+def _stream_cursor(after_id: int | None, last_event_id: str | None) -> int | None:
+    if last_event_id is None:
+        return after_id
+    try:
+        parsed = int(last_event_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Last-Event-ID must be a non-negative integer",
+        ) from exc
+    if parsed < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Last-Event-ID must be a non-negative integer",
+        )
+    return parsed
+
+
+def _sse_event(*, event: str, data: dict[str, object], event_id: int | None = None) -> str:
+    lines: list[str] = []
+    if event_id is not None:
+        lines.append(f"id: {event_id}")
+    lines.append(f"event: {event}")
+    lines.append(f"data: {json.dumps(data, separators=(',', ':'), ensure_ascii=False)}")
+    return "\n".join(lines) + "\n\n"
+
+
+async def _inbox_event_stream(
+    request: Request,
+    principal: UserPrincipal,
+    initial_cursor: int | None,
+) -> AsyncIterator[str]:
+    with SessionLocal() as session:
+        if not principal_session_is_active(session, principal):
+            return
+        cursor = (
+            initial_cursor
+            if initial_cursor is not None
+            else latest_inbox_delivery_id(session, principal)
+        )
+
+    yield "retry: 3000\n" + _sse_event(event="ready", data={"cursor": cursor})
+    last_heartbeat = time.monotonic()
+
+    while True:
+        if await request.is_disconnected():
+            return
+
+        with SessionLocal() as session:
+            if not principal_session_is_active(session, principal):
+                return
+            deliveries = list_inbox_after(
+                session,
+                principal,
+                after_id=cursor,
+                limit=STREAM_BATCH_LIMIT,
+            )
+
+        if deliveries:
+            for delivery in deliveries:
+                cursor = delivery.id
+                yield _sse_event(
+                    event="inbox",
+                    event_id=delivery.id,
+                    data=delivery.model_dump(mode="json"),
+                )
+            last_heartbeat = time.monotonic()
+        elif time.monotonic() - last_heartbeat >= STREAM_HEARTBEAT_SECONDS:
+            yield ": keepalive\n\n"
+            last_heartbeat = time.monotonic()
+
+        await asyncio.sleep(STREAM_POLL_SECONDS)
 
 
 @router.get("/inbox", response_model=list[InboxDeliveryRead])
@@ -44,6 +133,24 @@ def inbox(
         search_text=q,
         before_id=before_id,
         limit=limit,
+    )
+
+
+@router.get("/inbox/stream")
+async def inbox_stream(
+    request: Request,
+    principal: Annotated[UserPrincipal, Depends(require_user_session)],
+    after_id: int | None = Query(default=None, ge=0),
+    last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
+) -> StreamingResponse:
+    cursor = _stream_cursor(after_id, last_event_id)
+    return StreamingResponse(
+        _inbox_event_stream(request, principal, cursor),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
