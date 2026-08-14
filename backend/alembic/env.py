@@ -7,7 +7,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app import models  # noqa: F401
 from app.config import settings
-from app.database import Base
+from app.database import Base, configure_sqlite_engine
 
 config = context.config
 if config.config_file_name is not None:
@@ -30,10 +30,12 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+    connectable = configure_sqlite_engine(
+        engine_from_config(
+            config.get_section(config.config_ini_section, {}),
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
+        )
     )
     with connectable.connect() as connection:
         context.configure(

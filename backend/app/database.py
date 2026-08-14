@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -28,10 +28,25 @@ def _ensure_sqlite_parent(database_url: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
+def _enable_sqlite_foreign_keys(dbapi_connection: object, _connection_record: object) -> None:
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys=ON")
+    finally:
+        cursor.close()
+
+
+def configure_sqlite_engine(built_engine: Engine) -> Engine:
+    if built_engine.dialect.name == "sqlite":
+        event.listen(built_engine, "connect", _enable_sqlite_foreign_keys)
+    return built_engine
+
+
 def build_engine(database_url: str) -> Engine:
     _ensure_sqlite_parent(database_url)
-    connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-    return create_engine(database_url, connect_args=connect_args)
+    is_sqlite = database_url.startswith("sqlite")
+    connect_args = {"check_same_thread": False} if is_sqlite else {}
+    return configure_sqlite_engine(create_engine(database_url, connect_args=connect_args))
 
 
 engine = build_engine(settings.database_url)
