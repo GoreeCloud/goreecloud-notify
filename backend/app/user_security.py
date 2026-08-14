@@ -153,6 +153,46 @@ def require_user_session(
     )
 
 
+def principal_session_is_active(
+    session: Session,
+    principal: UserPrincipal,
+) -> bool:
+    """Revalidate a principal backing a long-lived connection.
+
+    A principal is initially issued only after normal cookie authentication. Long-lived
+    transports must continue checking the backing WebSession so logout, administrator
+    reset, user deactivation, absolute expiry, and idle expiry terminate authorization.
+    """
+    record = session.get(WebSession, principal.session_id)
+    if (
+        record is None
+        or record.user_id != principal.user_id
+        or record.revoked_at is not None
+    ):
+        return False
+
+    now = utc_now()
+    last_seen = as_utc(record.last_seen_at)
+    if as_utc(record.expires_at) <= now or last_seen + timedelta(
+        minutes=settings.session_idle_minutes
+    ) <= now:
+        record.revoked_at = now
+        session.commit()
+        return False
+
+    user = session.get(User, principal.user_id)
+    if user is None or not user.is_active:
+        record.revoked_at = now
+        session.commit()
+        return False
+
+    if last_seen + timedelta(minutes=settings.session_touch_minutes) <= now:
+        record.last_seen_at = now
+        session.commit()
+
+    return True
+
+
 def csrf_token_for_principal(session: Session, principal: UserPrincipal) -> str:
     record = session.get(WebSession, principal.session_id)
     if record is None or record.revoked_at is not None:
