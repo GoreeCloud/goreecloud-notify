@@ -2,22 +2,13 @@
 
 GoreeCloud Notify is the planned GoreeCloud-native centralized notification-delivery service and long-term successor to ntfy.
 
-> **Development status:** Milestone 1 foundation. GoreeCloud Notify is not deployed and does not replace the current ntfy service at `https://notify.goreecloud.com`.
+> **Development status:** Milestone 2 identity/routing development is stacked on the unmerged Milestone 1 foundation. GoreeCloud Notify is not deployed and does not replace the current ntfy service at `https://notify.goreecloud.com`.
 
-## Milestone 1 scope
+## Current development scope
 
-This foundation establishes:
+Milestone 1 establishes the FastAPI/React/SQLite/Docker/CI foundation. The first Milestone 2 slice adds the identity and routing control plane: bootstrap admin authorization, service identities, scoped producer tokens, token revocation, sources, and channels.
 
-- FastAPI backend skeleton
-- React + TypeScript + Vite frontend skeleton
-- SQLite/SQLAlchemy first-class data model
-- health and metadata endpoints
-- Docker Compose development environment
-- backend tests and frontend type/build validation
-- GitHub Actions CI
-- security, architecture, migration, and development documentation
-
-Notification publishing, scoped service tokens, ntfy-compatible ingestion, real-time delivery, mobile clients, and production migration belong to later milestones.
+Notification writes remain disabled until the next separately validated Milestone 2 slice.
 
 ## Repository structure
 
@@ -53,7 +44,7 @@ npm run build
 npm run dev -- --host 127.0.0.1
 ```
 
-Before Milestone 1 is merged, generate and commit `frontend/package-lock.json` with `npm install --package-lock-only`, then change CI and the frontend Dockerfile to `npm ci`. The scaffold keeps exact direct dependency versions while that lockfile is pending.
+Before Milestone 1 is merged, `frontend/package-lock.json` and reproducible `npm ci` remain an outstanding gate.
 
 ## Docker development
 
@@ -62,19 +53,16 @@ docker compose config
 docker compose up --build
 ```
 
-The development Compose file publishes only loopback ports:
+Development ports remain loopback-only: frontend `127.0.0.1:5173`, backend `127.0.0.1:8000`. This repository does not modify Caddy, AdGuard Home, NetBird, DNS, or the active ntfy deployment.
 
-- frontend: `127.0.0.1:5173`
-- backend: `127.0.0.1:8000`
-
-It does not modify Caddy, AdGuard Home, NetBird, DNS, or the active ntfy deployment.
-
-## API foundation
+## API status
 
 - `GET /healthz` — application/database health
-- `GET /api/v1/meta` — Milestone 1 API metadata and entity inventory
+- `GET /api/v1/meta` — API milestone/status metadata
+- Milestone 2 control-plane administration is under `/api/v1`
+- notification writes remain disabled
 
-The notification write API is intentionally not implemented in Milestone 1.
+See `docs/notification-engine.md` for the current Milestone 2 boundary.
 
 ## License
 
