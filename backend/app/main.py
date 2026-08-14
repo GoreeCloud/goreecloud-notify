@@ -112,13 +112,14 @@ def api_meta() -> dict[str, object]:
             "authenticated Glaze UI inbox",
             "server-backed notification search and filtering",
             "cursor-based inbox pagination",
+            "Glaze UI channel subscription management",
             "source and severity presentation",
             "read and acknowledgement controls",
             "fail-visible logout behavior",
             "responsive layout and appearance controls",
         ],
         "next_milestone": "Glaze UI Inbox",
-        "next_slice": "Milestone 3 subscription experience and browser validation",
+        "next_slice": "Milestone 3 browser and accessibility validation",
     }
 
 
