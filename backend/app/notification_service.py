@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
+from .datetime_utils import as_utc
 from .delivery_service import fanout_notification
 from .models import Channel, Notification, Source
 from .schemas import NotificationCreate, NotificationRead
@@ -70,8 +71,8 @@ def to_read(notification: Notification, route: ResolvedRoute) -> NotificationRea
         title=notification.title,
         body=notification.body,
         severity=notification.severity,
-        created_at=notification.created_at,
-        expires_at=notification.expires_at,
+        created_at=as_utc(notification.created_at),
+        expires_at=as_utc(notification.expires_at) if notification.expires_at is not None else None,
     )
 
 

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..datetime_utils import as_utc
 from ..deps import get_db
 from ..models import AccessToken, Channel, ServiceIdentity, Source, User
 from ..schemas import (
@@ -92,7 +93,7 @@ def create_token(payload: TokenCreate, session: Annotated[Session, Depends(get_d
         name=record.name,
         token=raw_token,
         scopes=sorted(payload.scopes),
-        expires_at=record.expires_at,
+        expires_at=as_utc(record.expires_at) if record.expires_at is not None else None,
     )
 
 

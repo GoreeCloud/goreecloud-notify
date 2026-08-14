@@ -4,9 +4,10 @@ from fastapi import HTTPException, status
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
+from .datetime_utils import as_utc
 from .models import Channel, Delivery, Notification, Source, Subscription, User, utc_now
 from .schemas import InboxDeliveryRead
-from .user_security import UserPrincipal, as_utc
+from .user_security import UserPrincipal
 
 
 def fanout_notification(session: Session, notification: Notification) -> int:

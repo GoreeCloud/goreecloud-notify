@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
@@ -8,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..datetime_utils import as_utc
 from ..deps import get_db
 from ..models import Channel, Source
 from ..notification_service import ResolvedRoute, persist_notification, to_read
@@ -198,7 +198,7 @@ async def publish_ntfy_compatible(
     notification = persist_notification(session, route, payload)
     result = to_read(notification, route)
 
-    created_at: datetime = result.created_at
+    created_at = as_utc(result.created_at)
     return NtfyCompatibilityResponse(
         id=f"gcn-{result.id}",
         time=int(created_at.timestamp()),

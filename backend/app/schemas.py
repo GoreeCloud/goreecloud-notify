@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
+from .datetime_utils import require_explicit_timezone_utc
+
 
 class ServiceIdentityCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
@@ -30,6 +32,11 @@ class TokenCreate(BaseModel):
         if not normalized:
             raise ValueError("at least one scope is required")
         return normalized
+
+    @field_validator("expires_at")
+    @classmethod
+    def normalize_expires_at(cls, value: datetime | None) -> datetime | None:
+        return require_explicit_timezone_utc(value)
 
 
 class TokenCreated(BaseModel):
@@ -81,6 +88,11 @@ class NotificationCreate(BaseModel):
     body: str = Field(min_length=1, max_length=20000)
     severity: str = Field(default="normal", pattern=r"^(info|normal|warning|error|critical)$")
     expires_at: datetime | None = None
+
+    @field_validator("expires_at")
+    @classmethod
+    def normalize_expires_at(cls, value: datetime | None) -> datetime | None:
+        return require_explicit_timezone_utc(value)
 
 
 class NotificationRead(BaseModel):

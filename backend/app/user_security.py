@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import settings
+from .datetime_utils import as_utc
 from .deps import get_db
 from .models import User, WebSession
 
@@ -24,12 +25,6 @@ DUMMY_PASSWORD_HASH = PASSWORD_HASHER.hash("goreecloud-notify-dummy-password")
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def as_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
 
 
 def hash_password(password: str) -> str:

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .datetime_utils import as_utc
 from .models import Delivery, Notification
 
 
@@ -24,14 +25,6 @@ class RetentionPreview:
 
 def _count(session: Session, statement) -> int:
     return int(session.scalar(statement) or 0)
-
-
-def _as_utc(value: datetime | None) -> datetime | None:
-    if value is None:
-        return None
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
 
 
 def build_retention_preview(session: Session, cutoff: datetime) -> RetentionPreview:
@@ -96,6 +89,6 @@ def build_retention_preview(session: Session, cutoff: datetime) -> RetentionPrev
         candidate_acknowledged_deliveries=candidate_acknowledged_deliveries,
         candidate_unacknowledged_deliveries=candidate_unacknowledged_deliveries,
         candidate_explicitly_expired_notifications=candidate_explicitly_expired_notifications,
-        oldest_candidate_created_at=_as_utc(oldest_created_at),
-        newest_candidate_created_at=_as_utc(newest_created_at),
+        oldest_candidate_created_at=as_utc(oldest_created_at) if oldest_created_at is not None else None,
+        newest_candidate_created_at=as_utc(newest_created_at) if newest_created_at is not None else None,
     )
