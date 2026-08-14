@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import HTTPException, status
-from sqlalchemy import Select, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import Session
 
 from .datetime_utils import as_utc
@@ -101,6 +101,10 @@ def _owned_inbox_row(
     return row
 
 
+def _escaped_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def list_inbox(
     session: Session,
     principal: UserPrincipal,
@@ -110,6 +114,7 @@ def list_inbox(
     source_slug: str | None = None,
     channel_slug: str | None = None,
     severity: str | None = None,
+    search_text: str | None = None,
     before_id: int | None = None,
     limit: int = 50,
 ) -> list[InboxDeliveryRead]:
@@ -128,6 +133,20 @@ def list_inbox(
         statement = statement.where(Channel.slug == channel_slug)
     if severity is not None:
         statement = statement.where(Notification.severity == severity)
+    if search_text is not None:
+        normalized_search = search_text.strip()
+        if normalized_search:
+            pattern = f"%{_escaped_like(normalized_search)}%"
+            statement = statement.where(
+                or_(
+                    Notification.title.ilike(pattern, escape="\\"),
+                    Notification.body.ilike(pattern, escape="\\"),
+                    Source.slug.ilike(pattern, escape="\\"),
+                    Source.name.ilike(pattern, escape="\\"),
+                    Channel.slug.ilike(pattern, escape="\\"),
+                    Channel.name.ilike(pattern, escape="\\"),
+                )
+            )
     if before_id is not None:
         statement = statement.where(Delivery.id < before_id)
 
