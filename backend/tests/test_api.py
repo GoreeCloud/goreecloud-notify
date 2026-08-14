@@ -23,7 +23,7 @@ def test_meta_tracks_realtime_delivery_development() -> None:
     assert payload["notification_writes_enabled"] is True
     assert payload["development_milestone"] == 4
     assert payload["next_milestone"] == "Real-Time Delivery"
-    assert payload["next_slice"] == "Milestone 4 browser notification permission and privacy design"
+    assert payload["next_slice"] == "Milestone 4 manual realtime and browser notification acceptance"
     assert len(payload["entities"]) == 10
     assert "opaque server-side user sessions" in payload["implemented_engine"]
     assert "user-owned subscription administration" in payload["implemented_engine"]
@@ -53,3 +53,10 @@ def test_meta_tracks_realtime_delivery_development() -> None:
     assert "explicit offline realtime state" in payload["implemented_experience"]
     assert "last-received Delivery cursor offline recovery" in payload["implemented_experience"]
     assert "online recovery stream reconciliation" in payload["implemented_experience"]
+    assert "privacy-first browser notification opt-in" in payload["implemented_experience"]
+    assert "generic redacted system notification content" in payload["implemented_experience"]
+    assert "hidden-page browser notification delivery" in payload["implemented_experience"]
+    assert "foreground system-alert suppression" in payload["implemented_experience"]
+    assert "replay and backlog system-alert suppression" in payload["implemented_experience"]
+    assert "browser-local system-alert preference" in payload["implemented_experience"]
+    assert "realtime REST reconciliation race protection" in payload["implemented_experience"]
