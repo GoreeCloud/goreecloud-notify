@@ -84,15 +84,16 @@ export default function useBrowserNotifications() {
   }, [])
 
   const notifyDelivery = useCallback((delivery: RealtimeDelivery) => {
+    const previousBaseline = baselineRef.current
+    const isNew = previousBaseline !== null && delivery.id > previousBaseline
+    baselineRef.current = Math.max(previousBaseline ?? delivery.id, delivery.id)
+
+    if (!isNew) return
     if (!isSupported() || !enabled || Notification.permission !== 'granted') {
       synchronizePermission()
       return
     }
     if (document.visibilityState !== 'hidden') return
-
-    const baseline = baselineRef.current
-    if (baseline === null || delivery.id <= baseline) return
-    baselineRef.current = delivery.id
 
     try {
       const notification = new Notification(privateTitle, { body: privateBody })
