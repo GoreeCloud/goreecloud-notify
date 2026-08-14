@@ -12,7 +12,7 @@ def test_healthz() -> None:
     assert response.json()["service"] == "GoreeCloud Notify"
 
 
-def test_meta_tracks_native_ingestion_development() -> None:
+def test_meta_tracks_glaze_ui_inbox_development() -> None:
     with TestClient(app) as client:
         response = client.get("/api/v1/meta")
 
@@ -21,9 +21,13 @@ def test_meta_tracks_native_ingestion_development() -> None:
     assert payload["milestone"] == 1
     assert payload["production"] is False
     assert payload["notification_writes_enabled"] is True
-    assert payload["development_milestone"] == 2
-    assert payload["next_slice"] == "retention policy decision and Milestone 2 hardening"
+    assert payload["development_milestone"] == 3
+    assert payload["next_milestone"] == "Glaze UI Inbox"
+    assert payload["next_slice"] == "Milestone 3 inbox interaction and accessibility refinement"
     assert len(payload["entities"]) == 10
     assert "opaque server-side user sessions" in payload["implemented_engine"]
     assert "user-owned subscription administration" in payload["implemented_engine"]
     assert "non-destructive administrator retention preview" in payload["implemented_engine"]
+    assert "authenticated Glaze UI inbox" in payload["implemented_experience"]
+    assert "notification search and filtering" in payload["implemented_experience"]
+    assert "responsive layout and appearance controls" in payload["implemented_experience"]
