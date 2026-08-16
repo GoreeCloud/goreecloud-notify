@@ -4,6 +4,7 @@
 
 notify.goreecloud.com {
     tls internal
+    header Strict-Transport-Security "max-age=31536000"
 
     @netbird_client remote_ip 100.64.0.0/10
     handle @netbird_client {
