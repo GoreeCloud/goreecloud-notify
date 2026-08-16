@@ -1,0 +1,95 @@
+.notification-preferences-stack {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.notification-preferences-stack .subscriptions-panel,
+.notification-preferences-stack .browser-notification-panel {
+  margin-bottom: 0;
+}
+
+.browser-notification-panel {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  overflow: hidden;
+}
+
+.browser-notification-panel summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.browser-notification-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.browser-notification-panel summary > span:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.browser-notification-panel summary small,
+.browser-notification-content p,
+.browser-notification-privacy-note span,
+.browser-notification-state {
+  color: var(--muted);
+}
+
+.browser-notification-summary-action {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.browser-notification-content {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1.1rem 1.1rem;
+  border-top: 1px solid var(--line);
+}
+
+.browser-notification-content > p {
+  margin: 1rem 0 0;
+  line-height: 1.55;
+}
+
+.browser-notification-privacy-note {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-soft);
+}
+
+.browser-notification-privacy-note span {
+  line-height: 1.5;
+}
+
+.browser-notification-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.browser-notification-state {
+  font-size: 0.84rem;
+}
+
+@media (max-width: 640px) {
+  .browser-notification-panel summary,
+  .browser-notification-actions {
+    align-items: flex-start;
+  }
+
+  .browser-notification-actions {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,218 @@
+name: Production readiness
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-private-publication:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build production image
+        run: |
+          docker build \
+            --build-arg GOREECLOUD_NOTIFY_BUILD_REVISION="$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION" \
+            -f Dockerfile.production \
+            -t goreecloud-notify:readiness \
+            .
+
+      - name: Verify final image identity and source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity="$(docker run --rm --entrypoint id goreecloud-notify:readiness)"
+          case "$identity" in
+            *"uid=10001(goreecloud)"*"gid=10001(goreecloud)"*) ;;
+            *) echo "Unexpected production image identity" >&2; exit 1 ;;
+          esac
+
+          label_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' goreecloud-notify:readiness)"
+          file_revision="$(docker run --rm --entrypoint cat goreecloud-notify:readiness /app/BUILD_REVISION)"
+          test "$label_revision" = "$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"
+          test "$file_revision" = "$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"
+
+      - name: Create disposable runtime state
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/goreecloud-notify-readiness"
+          data_dir="$root/data"
+          app_env="$root/app.env"
+          client_env="$root/client.env"
+          ca_file="$root/root.crt"
+
+          mkdir -p "$data_dir"
+          sudo chmod 0750 "$data_dir"
+          sudo chown 10001:10001 "$data_dir"
+          : > "$ca_file"
+          chmod 0644 "$ca_file"
+
+          bootstrap_token="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          admin_password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$bootstrap_token"
+          echo "::add-mask::$admin_password"
+
+          cat > "$app_env" <<EOF
+          GOREECLOUD_NOTIFY_ENVIRONMENT=production
+          GOREECLOUD_NOTIFY_DATABASE_URL=sqlite:////data/goreecloud_notify.db
+          GOREECLOUD_NOTIFY_CORS_ORIGINS=https://notify.goreecloud.com
+          GOREECLOUD_NOTIFY_SESSION_COOKIE_SECURE=true
+          GOREECLOUD_NOTIFY_SESSION_LIFETIME_MINUTES=720
+          GOREECLOUD_NOTIFY_SESSION_IDLE_MINUTES=60
+          GOREECLOUD_NOTIFY_SESSION_TOUCH_MINUTES=5
+          GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS=172.31.250.0/24
+          GOREECLOUD_NOTIFY_LOGIN_RATE_WINDOW_MINUTES=5
+          GOREECLOUD_NOTIFY_LOGIN_RATE_ACCOUNT_ATTEMPTS=5
+          GOREECLOUD_NOTIFY_LOGIN_RATE_SOURCE_ATTEMPTS=20
+          GOREECLOUD_NOTIFY_LOGIN_RATE_COOLDOWN_MINUTES=5
+          GOREECLOUD_NOTIFY_LOGIN_RATE_STATE_TTL_HOURS=24
+          GOREECLOUD_NOTIFY_LOGIN_SECURITY_EVENT_RETENTION_DAYS=30
+          GOREECLOUD_NOTIFY_ADMIN_TOKEN=$bootstrap_token
+          EOF
+          cat > "$client_env" <<EOF
+          GOREECLOUD_NOTIFY_READINESS_BOOTSTRAP_TOKEN=$bootstrap_token
+          GOREECLOUD_NOTIFY_READINESS_ADMIN_PASSWORD=$admin_password
+          GOREECLOUD_NOTIFY_READINESS_EXPECTED_BUILD_REVISION=$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION
+          EOF
+          chmod 0600 "$app_env" "$client_env"
+
+          {
+            echo "GOREECLOUD_NOTIFY_READINESS_IMAGE=goreecloud-notify:readiness"
+            echo "GOREECLOUD_NOTIFY_READINESS_ENV_FILE=$app_env"
+            echo "GOREECLOUD_NOTIFY_READINESS_CLIENT_ENV_FILE=$client_env"
+            echo "GOREECLOUD_NOTIFY_READINESS_DATA_DIR=$data_dir"
+            echo "GOREECLOUD_NOTIFY_READINESS_CA_FILE=$ca_file"
+            echo "GOREECLOUD_NOTIFY_READINESS_ROOT=$root"
+          } >> "$GITHUB_ENV"
+
+      - name: Validate production and readiness Compose contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOREECLOUD_NOTIFY_IMAGE_TAG=readiness \
+          GOREECLOUD_NOTIFY_ENV_FILE="$GITHUB_WORKSPACE/deploy/production/runtime.env.example" \
+          GOREECLOUD_NOTIFY_DATA_DIR="$GOREECLOUD_NOTIFY_READINESS_DATA_DIR" \
+            docker compose --profile maintenance -f docker-compose.production.yml config --format json \
+            > "$GOREECLOUD_NOTIFY_READINESS_ROOT/production-compose.json"
+
+          docker compose -f deploy/readiness/docker-compose.yml config --quiet
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["GOREECLOUD_NOTIFY_READINESS_ROOT"]) / "production-compose.json"
+          config = json.loads(path.read_text())
+          app = config["services"]["app"]
+          migrate = config["services"]["migrate"]
+          assert not app.get("ports")
+          assert app["read_only"] is True
+          assert app["user"] == "10001:10001"
+          assert app["pids_limit"] == 256
+          assert "ALL" in app["cap_drop"]
+          assert any(item.startswith("no-new-privileges") for item in app["security_opt"])
+          assert set(app["networks"]) == {"proxy"}
+          assert migrate["network_mode"] == "none"
+          assert "depends_on" not in app or "migrate" not in app.get("depends_on", {})
+          PY
+
+      - name: Initialize disposable database with explicit migration step
+        run: docker compose -f deploy/readiness/docker-compose.yml --profile maintenance run --rm migrate
+
+      - name: Start production-pattern disposable topology
+        run: docker compose -f deploy/readiness/docker-compose.yml up -d --wait --wait-timeout 90 app caddy
+
+      - name: Extract disposable Caddy trust root
+        shell: bash
+        run: |
+          set -euo pipefail
+          caddy_id="$(docker compose -f deploy/readiness/docker-compose.yml ps -q caddy)"
+          test -n "$caddy_id"
+          docker cp "$caddy_id:/data/caddy/pki/authorities/local/root.crt" "$GOREECLOUD_NOTIFY_READINESS_CA_FILE"
+          chmod 0644 "$GOREECLOUD_NOTIFY_READINESS_CA_FILE"
+
+      - name: Inspect runtime least-privilege controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_id="$(docker compose -f deploy/readiness/docker-compose.yml ps -q app)"
+          caddy_id="$(docker compose -f deploy/readiness/docker-compose.yml ps -q caddy)"
+          test -n "$app_id"
+          test -n "$caddy_id"
+          docker inspect "$app_id" > "$GOREECLOUD_NOTIFY_READINESS_ROOT/app-inspect.json"
+          docker inspect "$caddy_id" > "$GOREECLOUD_NOTIFY_READINESS_ROOT/caddy-inspect.json"
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["GOREECLOUD_NOTIFY_READINESS_ROOT"])
+          app = json.loads((root / "app-inspect.json").read_text())[0]
+          caddy = json.loads((root / "caddy-inspect.json").read_text())[0]
+          host = app["HostConfig"]
+          assert app["Config"]["User"] == "10001:10001"
+          assert host["ReadonlyRootfs"] is True
+          assert host["PidsLimit"] == 256
+          assert "ALL" in (host.get("CapDrop") or [])
+          assert any(item.startswith("no-new-privileges") for item in (host.get("SecurityOpt") or []))
+          assert not host.get("Privileged")
+          assert host.get("NetworkMode") != "host"
+          assert not host.get("PortBindings")
+          assert len(app["NetworkSettings"]["Networks"]) == 1
+          network_name, network = next(iter(app["NetworkSettings"]["Networks"].items()))
+          assert network_name.endswith("_proxy-test")
+          assert network["IPAddress"] == "172.31.250.20"
+          data_mount = next(item for item in app["Mounts"] if item["Destination"] == "/data")
+          assert data_mount["Type"] == "bind" and data_mount["RW"] is True
+          assert "/tmp" in (host.get("Tmpfs") or {})
+          assert not caddy["HostConfig"].get("PortBindings")
+          PY
+
+      - name: Validate approved and unauthorized private HTTPS paths
+        run: |
+          docker compose -f deploy/readiness/docker-compose.yml --profile checks run --rm approved-client python /readiness/check.py bootstrap
+          docker compose -f deploy/readiness/docker-compose.yml --profile checks run --rm unauthorized-client python /readiness/check_unauthorized.py
+
+      - name: Prove SQLite persistence across application replacement
+        run: |
+          docker compose -f deploy/readiness/docker-compose.yml rm -sf app
+          docker compose -f deploy/readiness/docker-compose.yml up -d --wait --wait-timeout 90 app
+          docker compose -f deploy/readiness/docker-compose.yml --profile checks run --rm approved-client python /readiness/check.py persisted
+
+      - name: Check runtime logs and image history for synthetic secret leakage
+        shell: bash
+        run: |
+          set -euo pipefail
+          bootstrap_token="$(sed -n 's/^GOREECLOUD_NOTIFY_READINESS_BOOTSTRAP_TOKEN=//p' "$GOREECLOUD_NOTIFY_READINESS_CLIENT_ENV_FILE")"
+          admin_password="$(sed -n 's/^GOREECLOUD_NOTIFY_READINESS_ADMIN_PASSWORD=//p' "$GOREECLOUD_NOTIFY_READINESS_CLIENT_ENV_FILE")"
+          docker compose -f deploy/readiness/docker-compose.yml logs --no-color app caddy > "$GOREECLOUD_NOTIFY_READINESS_ROOT/runtime.log"
+          docker history --no-trunc goreecloud-notify:readiness > "$GOREECLOUD_NOTIFY_READINESS_ROOT/image-history.log"
+          for secret in "$bootstrap_token" "$admin_password"; do
+            if grep -Fq "$secret" "$GOREECLOUD_NOTIFY_READINESS_ROOT/runtime.log"; then
+              echo "Synthetic credential leaked into runtime logs" >&2
+              exit 1
+            fi
+            if grep -Fq "$secret" "$GOREECLOUD_NOTIFY_READINESS_ROOT/image-history.log"; then
+              echo "Synthetic credential leaked into image history" >&2
+              exit 1
+            fi
+          done
+
+      - name: Tear down disposable readiness state
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${GOREECLOUD_NOTIFY_READINESS_ROOT:-}" ]; then
+            docker compose -f deploy/readiness/docker-compose.yml --profile maintenance --profile checks down -v --remove-orphans || true
+            sudo rm -rf "$GOREECLOUD_NOTIFY_READINESS_ROOT"
+          fi

@@ -1,0 +1,202 @@
+import { useEffect, useRef, useState } from 'react'
+import { useBrowserNotificationsContext } from './BrowserNotificationsContext'
+
+export type RealtimeDelivery = {
+  id: number
+  notification_id: number
+  source: string
+  channel: string
+  title: string
+  body: string
+  severity: 'info' | 'normal' | 'warning' | 'error' | 'critical'
+  notification_created_at: string
+  delivered_at: string
+  expires_at: string | null
+  read_at: string | null
+  acknowledged_at: string | null
+}
+
+export type RealtimeInboxState = {
+  latest_delivery_id: number
+  total_count: number
+  unread_count: number
+  acknowledged_count: number
+}
+
+export type InboxStreamState = 'idle' | 'connecting' | 'live' | 'reconnecting' | 'offline'
+
+type InboxStreamOptions = {
+  enabled: boolean
+  initialCursor: number | null
+  onReady: (state: RealtimeInboxState) => void
+  onState: (state: RealtimeInboxState) => void
+  onDelivery: (delivery: RealtimeDelivery) => void
+}
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
+
+function parseDelivery(event: MessageEvent<string>): RealtimeDelivery | null {
+  try {
+    const value = JSON.parse(event.data) as Partial<RealtimeDelivery>
+    if (
+      typeof value.id !== 'number'
+      || typeof value.notification_id !== 'number'
+      || typeof value.source !== 'string'
+      || typeof value.channel !== 'string'
+      || typeof value.title !== 'string'
+      || typeof value.body !== 'string'
+      || typeof value.severity !== 'string'
+      || typeof value.notification_created_at !== 'string'
+      || typeof value.delivered_at !== 'string'
+    ) {
+      return null
+    }
+    return value as RealtimeDelivery
+  } catch {
+    return null
+  }
+}
+
+function parseInboxState(event: Event): RealtimeInboxState | null {
+  if (!(event instanceof MessageEvent)) return null
+  try {
+    const value = JSON.parse(event.data) as Partial<RealtimeInboxState>
+    if (
+      typeof value.latest_delivery_id !== 'number'
+      || typeof value.total_count !== 'number'
+      || typeof value.unread_count !== 'number'
+      || typeof value.acknowledged_count !== 'number'
+    ) {
+      return null
+    }
+    if (
+      value.latest_delivery_id < 0
+      || value.total_count < 0
+      || value.unread_count < 0
+      || value.acknowledged_count < 0
+      || value.unread_count > value.total_count
+      || value.acknowledged_count > value.total_count
+    ) {
+      return null
+    }
+    return value as RealtimeInboxState
+  } catch {
+    return null
+  }
+}
+
+export default function useInboxStream({
+  enabled,
+  initialCursor,
+  onReady,
+  onState,
+  onDelivery,
+}: InboxStreamOptions): InboxStreamState {
+  const [state, setState] = useState<InboxStreamState>('idle')
+  const [networkOnline, setNetworkOnline] = useState(() => navigator.onLine)
+  const onReadyRef = useRef(onReady)
+  const onStateRef = useRef(onState)
+  const onDeliveryRef = useRef(onDelivery)
+  const replayCursorRef = useRef<number | null>(initialCursor)
+  const { synchronizeRealtimeBaseline, notifyDelivery } = useBrowserNotificationsContext()
+
+  useEffect(() => {
+    onReadyRef.current = onReady
+  }, [onReady])
+
+  useEffect(() => {
+    onStateRef.current = onState
+  }, [onState])
+
+  useEffect(() => {
+    onDeliveryRef.current = onDelivery
+  }, [onDelivery])
+
+  useEffect(() => {
+    const handleOnline = () => setNetworkOnline(true)
+    const handleOffline = () => setNetworkOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!enabled) {
+      replayCursorRef.current = initialCursor
+    } else if (replayCursorRef.current === null && initialCursor !== null) {
+      replayCursorRef.current = initialCursor
+    }
+  }, [enabled, initialCursor])
+
+  useEffect(() => {
+    if (!enabled || initialCursor === null) {
+      setState('idle')
+      return
+    }
+    if (!networkOnline) {
+      setState('offline')
+      return
+    }
+
+    let closed = false
+    let synchronized = false
+    setState('connecting')
+    const replayCursor = replayCursorRef.current ?? initialCursor
+    const streamUrl = new URL(`${apiBaseUrl}/api/v1/inbox/stream`, window.location.origin)
+    streamUrl.searchParams.set('after_id', String(replayCursor))
+    const source = new EventSource(streamUrl.toString(), { withCredentials: true })
+
+    const handleReady = (event: Event) => {
+      if (closed) return
+      const inboxState = parseInboxState(event)
+      if (!inboxState) {
+        synchronized = false
+        setState('reconnecting')
+        return
+      }
+      synchronizeRealtimeBaseline(inboxState.latest_delivery_id)
+      synchronized = true
+      setState('live')
+      onReadyRef.current(inboxState)
+    }
+
+    const handleState = (event: Event) => {
+      if (closed || !synchronized) return
+      const inboxState = parseInboxState(event)
+      if (!inboxState) return
+      setState('live')
+      onStateRef.current(inboxState)
+    }
+
+    const handleDelivery = (event: Event) => {
+      if (closed || !synchronized || !(event instanceof MessageEvent)) return
+      const delivery = parseDelivery(event as MessageEvent<string>)
+      if (!delivery) return
+      replayCursorRef.current = Math.max(replayCursorRef.current ?? 0, delivery.id)
+      notifyDelivery(delivery)
+      setState('live')
+      onDeliveryRef.current(delivery)
+    }
+
+    source.addEventListener('ready', handleReady)
+    source.addEventListener('state', handleState)
+    source.addEventListener('inbox', handleDelivery)
+    source.onerror = () => {
+      if (!closed) {
+        synchronized = false
+        setState(navigator.onLine ? 'reconnecting' : 'offline')
+      }
+    }
+
+    return () => {
+      closed = true
+      synchronized = false
+      source.close()
+    }
+  }, [enabled, initialCursor, networkOnline, notifyDelivery, synchronizeRealtimeBaseline])
+
+  return state
+}

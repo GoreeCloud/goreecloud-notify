@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+backend/data/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Target acceptance evidence (internal, review before permanent storage)
+goreecloud-notify-target-preflight*.json
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log

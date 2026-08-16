@@ -1,0 +1,62 @@
+FROM node:24.13.0-bookworm-slim@sha256:4660b1ca8b28d6d1906fd644abe34b2ed81d15434d26d845ef0aced307cf4b6f AS frontend-build
+
+WORKDIR /frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+
+COPY frontend/ ./
+RUN npm run build
+
+
+FROM python:3.14.6-slim-bookworm@sha256:86f975aca15cf04a40b399eebede9aea7c82eae084d1f1a0a6ef6bcaae871a30
+
+ARG GOREECLOUD_NOTIFY_BUILD_REVISION=development
+
+LABEL org.opencontainers.image.title="GoreeCloud Notify" \
+      org.opencontainers.image.version="0.2.0" \
+      org.opencontainers.image.revision="${GOREECLOUD_NOTIFY_BUILD_REVISION}" \
+      org.opencontainers.image.source="https://github.com/GoreeCloud/goreecloud-notify" \
+      org.opencontainers.image.licenses="MIT"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN case "$GOREECLOUD_NOTIFY_BUILD_REVISION" in \
+        development) ;; \
+        *) printf '%s\n' "$GOREECLOUD_NOTIFY_BUILD_REVISION" | grep -Eq '^[0-9a-f]{40}$' ;; \
+    esac \
+    && printf '%s\n' "$GOREECLOUD_NOTIFY_BUILD_REVISION" > /app/BUILD_REVISION
+
+RUN groupadd --system --gid 10001 goreecloud \
+    && useradd --system --uid 10001 --gid goreecloud --home-dir /app goreecloud
+
+COPY LICENSE ./LICENSE
+COPY backend/requirements.txt ./requirements.txt
+COPY backend/constraints.txt ./constraints.txt
+RUN python -m pip install \
+        --disable-pip-version-check \
+        --root-user-action=ignore \
+        --no-cache-dir \
+        --only-binary=:all: \
+        -r requirements.txt \
+    && python -m pip check
+
+COPY backend/alembic.ini ./alembic.ini
+COPY backend/alembic ./alembic
+COPY backend/app ./app
+COPY --from=frontend-build /frontend/dist ./app/static
+
+RUN mkdir -p /data \
+    && chown -R goreecloud:goreecloud /app /data
+
+USER goreecloud
+
+EXPOSE 8000
+
+# Forwarded headers are interpreted only by the application after it verifies that the
+# immediate peer belongs to GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS. Uvicorn therefore
+# retains the actual Docker peer address instead of trusting caller-supplied forwarding data.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]

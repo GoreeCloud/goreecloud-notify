@@ -1,0 +1,50 @@
+:root[data-theme="system"] body {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 255, 255, .9), transparent 24%),
+    radial-gradient(circle at 84% 8%, rgba(160, 197, 244, .42), transparent 30%),
+    linear-gradient(145deg, var(--bg), var(--bg-strong));
+}
+
+.loading-card,
+.auth-layout,
+.sidebar,
+.inbox-column {
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] body {
+    background:
+      radial-gradient(circle at 8% 0%, rgba(67, 90, 123, .42), transparent 26%),
+      radial-gradient(circle at 84% 8%, rgba(39, 75, 120, .36), transparent 30%),
+      linear-gradient(145deg, var(--bg), var(--bg-strong));
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .loading-card,
+  .auth-layout,
+  .sidebar,
+  .inbox-column {
+    background: var(--panel-solid);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .loading-card,
+  .auth-layout,
+  .sidebar,
+  .inbox-column {
+    background: var(--panel-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .login-card,
+  .summary-grid article,
+  .notification-list,
+  .detail-panel,
+  .segmented-control {
+    background: var(--panel-solid);
+  }
+}
