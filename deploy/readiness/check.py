@@ -32,6 +32,7 @@ CONTENT_SECURITY_POLICY = "; ".join(
     )
 )
 PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+STRICT_TRANSPORT_SECURITY = "max-age=31536000"
 
 
 def build_opener() -> urllib.request.OpenerDirector:
@@ -83,6 +84,7 @@ def assert_browser_security_headers(headers: object) -> None:
     assert headers.get("Content-Security-Policy") == CONTENT_SECURITY_POLICY
     assert headers.get("X-Frame-Options") == "DENY"
     assert headers.get("Permissions-Policy") == PERMISSIONS_POLICY
+    assert headers.get("Strict-Transport-Security") == STRICT_TRANSPORT_SECURITY
 
 
 def assert_private_response_headers(headers: object) -> None:
