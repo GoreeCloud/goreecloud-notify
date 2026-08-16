@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { readLocalPreference, removeLocalPreference, writeLocalPreference } from './browserStorage'
 import type { RealtimeDelivery } from './useInboxStream'
 
 export type BrowserNotificationPermission = NotificationPermission | 'unsupported'
@@ -12,7 +13,7 @@ function isSupported(): boolean {
 }
 
 function savedOptIn(): boolean {
-  return window.localStorage.getItem(preferenceKey) === 'enabled'
+  return readLocalPreference(preferenceKey) === 'enabled'
 }
 
 export default function useBrowserNotifications() {
@@ -24,12 +25,14 @@ export default function useBrowserNotifications() {
   ))
   const [busy, setBusy] = useState(false)
   const baselineRef = useRef<number | null>(null)
+  const volatileOptInRef = useRef(false)
 
   const synchronizePermission = useCallback(() => {
     if (!isSupported()) {
       setPermission('unsupported')
       setEnabled(false)
-      window.localStorage.removeItem(preferenceKey)
+      volatileOptInRef.current = false
+      removeLocalPreference(preferenceKey)
       return
     }
 
@@ -37,10 +40,11 @@ export default function useBrowserNotifications() {
     setPermission(nextPermission)
     if (nextPermission !== 'granted') {
       setEnabled(false)
-      window.localStorage.removeItem(preferenceKey)
+      volatileOptInRef.current = false
+      removeLocalPreference(preferenceKey)
       return
     }
-    setEnabled(savedOptIn())
+    setEnabled(volatileOptInRef.current || savedOptIn())
   }, [])
 
   useEffect(() => {
@@ -62,10 +66,12 @@ export default function useBrowserNotifications() {
         : Notification.permission
       setPermission(nextPermission)
       if (nextPermission === 'granted') {
-        window.localStorage.setItem(preferenceKey, 'enabled')
+        const persisted = writeLocalPreference(preferenceKey, 'enabled')
+        volatileOptInRef.current = !persisted
         setEnabled(true)
       } else {
-        window.localStorage.removeItem(preferenceKey)
+        volatileOptInRef.current = false
+        removeLocalPreference(preferenceKey)
         setEnabled(false)
       }
     } finally {
@@ -74,7 +80,8 @@ export default function useBrowserNotifications() {
   }, [])
 
   const disable = useCallback(() => {
-    window.localStorage.removeItem(preferenceKey)
+    volatileOptInRef.current = false
+    removeLocalPreference(preferenceKey)
     setEnabled(false)
     synchronizePermission()
   }, [synchronizePermission])
