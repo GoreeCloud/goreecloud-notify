@@ -19,9 +19,9 @@ This checklist distinguishes source-release readiness from production activation
 - [x] Browser preference/storage resilience and stream-stable system-alert state.
 - [x] MIT license applied and included in the production image.
 - [x] Release README, changelog, deployment runbook, and dependency-license review.
-- [ ] Final integration PR exact-head CI/browser/Production readiness/Monitoring alert readiness green.
-- [ ] Main-branch post-merge validation green.
-- [ ] Version tag/release created from the accepted main commit.
+- [x] Final integration PR exact-head CI/browser/Production readiness/Monitoring alert readiness green — PR #61 head `b96b23eea57fc6bcb69147ac28671b749b72e38b`.
+- [x] Main-branch post-merge validation green — authoritative merge commit `34aa4625c00254cf185d74ba8b366daf734813ef`, CI run `31964946420`, Browser accessibility run `31964946419`.
+- [ ] Version tag/release created from the accepted main commit. The connected GitHub tool surface does not currently expose a create-tag/GitHub-Release action; do not claim a tag exists until one is intentionally created and verified.
 
 ## Manual browser/OS acceptance
 
