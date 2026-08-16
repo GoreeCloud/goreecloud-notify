@@ -24,24 +24,27 @@ def test_healthz() -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["service"] == "GoreeCloud Notify"
+    assert response.json()["version"] == "0.2.0"
     assert "build_revision" not in response.json()
     assert_private_response_headers(response)
 
 
-def test_meta_tracks_realtime_delivery_development() -> None:
+def test_meta_tracks_release_candidate_and_production_acceptance() -> None:
     with TestClient(app) as client:
         response = client.get("/api/v1/meta")
 
     assert response.status_code == 200
     assert_private_response_headers(response)
     payload = response.json()
+    assert payload["version"] == "0.2.0"
     assert payload["build_revision"] == "development"
     assert payload["milestone"] == 1
     assert payload["production"] is False
+    assert payload["release_stage"] == "release_candidate"
     assert payload["notification_writes_enabled"] is True
     assert payload["development_milestone"] == 4
-    assert payload["next_milestone"] == "Real-Time Delivery"
-    assert payload["next_slice"] == "Milestone 4 manual realtime and browser notification acceptance"
+    assert payload["next_milestone"] == "Production Acceptance"
+    assert payload["next_slice"] == "Target deployment, manual browser/OS acceptance, migration, and rollback validation"
     assert len(payload["entities"]) == 10
     assert "opaque server-side user sessions" in payload["implemented_engine"]
     assert "user-owned subscription administration" in payload["implemented_engine"]
