@@ -98,6 +98,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          if env -u GOREECLOUD_NOTIFY_BUILD_REVISION \
+            GOREECLOUD_NOTIFY_IMAGE_TAG=readiness \
+            GOREECLOUD_NOTIFY_ENV_FILE="$GITHUB_WORKSPACE/deploy/production/runtime.env.example" \
+            GOREECLOUD_NOTIFY_DATA_DIR="$GOREECLOUD_NOTIFY_READINESS_DATA_DIR" \
+            docker compose --profile maintenance -f docker-compose.production.yml config --quiet \
+            >/dev/null 2>&1; then
+            echo "Production Compose accepted a missing immutable build revision" >&2
+            exit 1
+          fi
+
           GOREECLOUD_NOTIFY_IMAGE_TAG=readiness \
           GOREECLOUD_NOTIFY_BUILD_REVISION="$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION" \
           GOREECLOUD_NOTIFY_ENV_FILE="$GITHUB_WORKSPACE/deploy/production/runtime.env.example" \
