@@ -82,7 +82,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="Milestone 4 real-time delivery development for GoreeCloud Notify.",
+    description="GoreeCloud-native centralized notification delivery service.",
     lifespan=lifespan,
 )
 
@@ -130,6 +130,7 @@ def api_meta() -> dict[str, object]:
         "milestone": 1,
         "development_milestone": 4,
         "production": settings.environment == "production",
+        "release_stage": "production" if settings.environment == "production" else "release_candidate",
         "notification_writes_enabled": True,
         "entities": [
             "User", "Device", "ServiceIdentity", "Source", "Channel",
@@ -194,8 +195,8 @@ def api_meta() -> dict[str, object]:
             "browser-local system-alert preference",
             "realtime REST reconciliation race protection",
         ],
-        "next_milestone": "Real-Time Delivery",
-        "next_slice": "Milestone 4 manual realtime and browser notification acceptance",
+        "next_milestone": "Production Acceptance",
+        "next_slice": "Target deployment, manual browser/OS acceptance, migration, and rollback validation",
     }
 
 
