@@ -76,7 +76,7 @@ def _validate_production_origin(origin: str) -> None:
 @dataclass(frozen=True, slots=True)
 class Settings:
     app_name: str = "GoreeCloud Notify"
-    version: str = "0.2.0-dev"
+    version: str = "0.2.0"
     build_revision: str = _load_build_revision()
     environment: str = os.getenv("GOREECLOUD_NOTIFY_ENVIRONMENT", "development").strip().lower()
     database_url: str = os.getenv(
