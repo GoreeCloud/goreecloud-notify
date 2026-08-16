@@ -67,6 +67,14 @@ The production runtime applies these cache boundaries:
 
 I will not weaken host filesystem permissions merely to make the container start. Before target deployment I will create or approve the persistent data directory, assign the ownership required by UID/GID 10001, apply restrictive permissions, and record the exact target path and resulting database-file permissions as target-environment evidence.
 
+## Immutable build identity
+
+The production image identity is tied to an exact Git commit SHA.
+
+`docker-compose.production.yml` requires `GOREECLOUD_NOTIFY_BUILD_REVISION` and passes it directly to the `Dockerfile.production` build argument. Compose therefore fails before rendering the production contract if the revision is omitted. This prevents an operator from assigning an approved-looking image tag while accidentally building an image whose embedded `BUILD_REVISION` and OCI revision label still contain the `development` fallback.
+
+For an approved build I set both `GOREECLOUD_NOTIFY_IMAGE_TAG` and `GOREECLOUD_NOTIFY_BUILD_REVISION` to the exact accepted 40-character Git SHA. The application independently rejects `development` as a build revision when `GOREECLOUD_NOTIFY_ENVIRONMENT=production`.
+
 ## Production configuration boundary
 
 Production runtime configuration is separate from development defaults.
@@ -77,7 +85,8 @@ Production runtime configuration is separate from development defaults.
 - one or more approved absolute HTTPS CORS origins;
 - no localhost development CORS origins;
 - an explicit narrow `GOREECLOUD_NOTIFY_TRUSTED_PROXY_CIDRS` value for the approved Caddy-side Docker network;
-- no whole-address-family proxy trust such as `0.0.0.0/0`.
+- no whole-address-family proxy trust such as `0.0.0.0/0`;
+- an immutable build revision rather than the `development` fallback.
 
 The source-controlled template is `deploy/production/runtime.env.example`. It deliberately omits the final proxy CIDR so a copied template cannot silently become a valid production configuration before the target network is inspected and approved.
 
@@ -129,7 +138,10 @@ The fragment:
 - retains Porkbun DNS-01 credential placeholders rather than literal values;
 - restricts the application route to the NetBird address space `100.64.0.0/10`;
 - proxies to `goreecloud-notify:8000` over Docker networking;
-- returns `403 Forbidden` to sources outside the approved address range.
+- returns `403 Forbidden` to sources outside the approved address range;
+- adds `Strict-Transport-Security: max-age=31536000` to HTTPS responses.
+
+I intentionally do not add HSTS `includeSubDomains` or `preload` directives in this service fragment. Either directive expands policy beyond the single service boundary and requires a separate domain-level decision and validation.
 
 I will **not** install this fragment while `notify.goreecloud.com` still serves ntfy. The actual production Caddyfile must be backed up and validated as a complete configuration before any controlled cutover.
 
@@ -141,10 +153,14 @@ The workflow uses only synthetic credentials and disposable Docker state. It ver
 
 - production image build from the committed npm lock;
 - final image UID/GID;
+- immutable build revision in the image label and `/app/BUILD_REVISION`;
+- production Compose refusal when the required build revision is absent;
+- rendered production Compose propagation of the exact revision to both app and migration builds;
 - production Compose structure and explicit maintenance migration separation;
 - application read-only filesystem, capabilities, `no-new-privileges`, PID limit, writable paths, networks, and host-port absence;
 - production configuration fail-closed behavior through the normal backend tests;
 - private HTTPS through a pinned disposable Caddy image;
+- HSTS on the approved HTTPS path;
 - same-origin CORS behavior;
 - `Secure`, `HttpOnly`, and `SameSite=strict` session cookies;
 - application authentication after network authorization;
@@ -166,7 +182,7 @@ Source-controlled readiness is necessary but not sufficient for deployment. Befo
 - final persistent-data path and owner/group/mode;
 - final protected environment-file owner/group/mode;
 - final Docker network membership and absence of unnecessary host ports;
-- final Caddy configuration validation and trusted certificate for `notify.goreecloud.com`;
+- final Caddy configuration validation, HSTS response, and trusted certificate for `notify.goreecloud.com`;
 - private AdGuard Home resolution;
 - approved and denied NetBird access tests;
 - application authentication and session behavior through final HTTPS;
