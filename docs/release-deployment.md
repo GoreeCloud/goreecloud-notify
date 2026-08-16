@@ -15,7 +15,7 @@ Every deployment must record:
 - the target host and persistent data path;
 - the production environment-file path without recording its secret values.
 
-Use the exact Git SHA as `GOREECLOUD_NOTIFY_IMAGE_TAG` and as `GOREECLOUD_NOTIFY_BUILD_REVISION` when building the release image.
+Use the exact Git SHA as both `GOREECLOUD_NOTIFY_IMAGE_TAG` and `GOREECLOUD_NOTIFY_BUILD_REVISION`. The production Compose contract requires the build revision explicitly and refuses to render when it is omitted, preventing an operator from accidentally building a production-tagged image that still carries the `development` revision fallback.
 
 ## Preconditions
 
@@ -36,14 +36,16 @@ From the exact release checkout:
 
 ```bash
 export GOREECLOUD_NOTIFY_IMAGE_TAG="$(git rev-parse HEAD)"
+export GOREECLOUD_NOTIFY_BUILD_REVISION="$GOREECLOUD_NOTIFY_IMAGE_TAG"
 export GOREECLOUD_NOTIFY_ENV_FILE=/approved/protected/goreecloud-notify.env
 export GOREECLOUD_NOTIFY_DATA_DIR=/approved/persistent/goreecloud-notify
 
 docker compose -f docker-compose.production.yml config
 
-docker compose -f docker-compose.production.yml build \
-  --build-arg GOREECLOUD_NOTIFY_BUILD_REVISION="$GOREECLOUD_NOTIFY_IMAGE_TAG" app
+docker compose -f docker-compose.production.yml build app
 ```
+
+The Compose build passes `GOREECLOUD_NOTIFY_BUILD_REVISION` into `Dockerfile.production`; no additional ad hoc `--build-arg` is required when the required environment variable is set correctly.
 
 Verify the image labels before deployment:
 
@@ -104,6 +106,8 @@ approved NetBird client
   -> Docker proxy network
   -> goreecloud-notify:8000
 ```
+
+The approved Caddy path must add `Strict-Transport-Security: max-age=31536000` to HTTPS responses. Do not add `includeSubDomains` or `preload` without a separate domain-wide decision because those directives expand the HSTS policy beyond this service boundary.
 
 Validate the full Caddy configuration before a reload/recreate. Preserve the prior ntfy site/routing configuration as the rollback source.
 
