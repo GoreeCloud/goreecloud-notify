@@ -25,12 +25,18 @@ export default function useBrowserNotifications() {
   ))
   const [busy, setBusy] = useState(false)
   const baselineRef = useRef<number | null>(null)
+  const enabledRef = useRef(enabled)
   const volatileOptInRef = useRef(false)
+
+  const updateEnabled = useCallback((nextEnabled: boolean) => {
+    enabledRef.current = nextEnabled
+    setEnabled(nextEnabled)
+  }, [])
 
   const synchronizePermission = useCallback(() => {
     if (!isSupported()) {
       setPermission('unsupported')
-      setEnabled(false)
+      updateEnabled(false)
       volatileOptInRef.current = false
       removeLocalPreference(preferenceKey)
       return
@@ -39,13 +45,13 @@ export default function useBrowserNotifications() {
     const nextPermission = Notification.permission
     setPermission(nextPermission)
     if (nextPermission !== 'granted') {
-      setEnabled(false)
+      updateEnabled(false)
       volatileOptInRef.current = false
       removeLocalPreference(preferenceKey)
       return
     }
-    setEnabled(volatileOptInRef.current || savedOptIn())
-  }, [])
+    updateEnabled(volatileOptInRef.current || savedOptIn())
+  }, [updateEnabled])
 
   useEffect(() => {
     synchronizePermission()
@@ -68,23 +74,23 @@ export default function useBrowserNotifications() {
       if (nextPermission === 'granted') {
         const persisted = writeLocalPreference(preferenceKey, 'enabled')
         volatileOptInRef.current = !persisted
-        setEnabled(true)
+        updateEnabled(true)
       } else {
         volatileOptInRef.current = false
         removeLocalPreference(preferenceKey)
-        setEnabled(false)
+        updateEnabled(false)
       }
     } finally {
       setBusy(false)
     }
-  }, [])
+  }, [updateEnabled])
 
   const disable = useCallback(() => {
     volatileOptInRef.current = false
     removeLocalPreference(preferenceKey)
-    setEnabled(false)
+    updateEnabled(false)
     synchronizePermission()
-  }, [synchronizePermission])
+  }, [synchronizePermission, updateEnabled])
 
   const synchronizeRealtimeBaseline = useCallback((latestDeliveryId: number) => {
     baselineRef.current = latestDeliveryId
@@ -96,7 +102,7 @@ export default function useBrowserNotifications() {
     baselineRef.current = Math.max(previousBaseline ?? delivery.id, delivery.id)
 
     if (!isNew) return
-    if (!isSupported() || !enabled || Notification.permission !== 'granted') {
+    if (!isSupported() || !enabledRef.current || Notification.permission !== 'granted') {
       synchronizePermission()
       return
     }
@@ -111,7 +117,7 @@ export default function useBrowserNotifications() {
     } catch {
       synchronizePermission()
     }
-  }, [enabled, synchronizePermission])
+  }, [synchronizePermission])
 
   return {
     permission,
