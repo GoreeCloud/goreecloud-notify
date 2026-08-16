@@ -13,15 +13,19 @@ This checklist distinguishes source-release readiness from production activation
 - [x] Monitoring source contract and disposable DOWN/RECOVERED readiness gate.
 - [x] Application-specific SQLite backup/restore tooling and synthetic alternate-location restore validation.
 - [x] Immutable Git build-revision identity.
+- [x] Production Compose fails closed without the exact immutable build revision and propagates that revision into application and migration builds.
 - [x] Response privacy and browser-isolation security headers.
+- [x] HSTS is present in the proposed production Caddy contract and verified by disposable readiness plus target preflight tooling.
 - [x] Browser/accessibility automation.
 - [x] Glaze UI system/light/dark appearance resilience.
 - [x] Browser preference/storage resilience and stream-stable system-alert state.
 - [x] MIT license applied and included in the production image.
 - [x] Release README, changelog, deployment runbook, and dependency-license review.
 - [x] Final integration PR exact-head CI/browser/Production readiness/Monitoring alert readiness green — PR #61 head `b96b23eea57fc6bcb69147ac28671b749b72e38b`.
-- [x] Main-branch post-merge validation green — authoritative merge commit `34aa4625c00254cf185d74ba8b366daf734813ef`, CI run `31964946420`, Browser accessibility run `31964946419`.
-- [ ] Version tag/release created from the accepted main commit. The connected GitHub tool surface does not currently expose a create-tag/GitHub-Release action; do not claim a tag exists until one is intentionally created and verified.
+- [x] Production-contract stabilization PR #64 exact-head validation green — head `10496ffd961086f46740aec292962c206b743ade`; CI run `31967591068`, Production readiness run `31967591067`, Monitoring alert readiness run `31967591082`.
+- [x] PR #64 merged as `235bbb7f08c5e18fdf116c1acfa75e86a6d06abd`; post-merge main CI run `31967680856` is green.
+- [x] Guarded manual `Publish source release` workflow is available and requires `v0.2.0` to target the exact current `main` SHA; it publishes the current release-candidate line as a GitHub prerelease and verifies tag/release metadata.
+- [ ] `v0.2.0` tag and GitHub prerelease created from the final accepted `main` commit and independently verified. Tracked by issue #63; do not claim publication until the workflow has actually completed successfully.
 
 ## Manual browser/OS acceptance
 
@@ -40,6 +44,7 @@ Tracked by issue #55.
 - [ ] Candidate deployed on approved target host.
 - [ ] Target runtime/filesystem/secret-file evidence passes.
 - [ ] Private DNS/TLS/Caddy/NetBird approved-source behavior passes.
+- [ ] Final Caddy HTTPS path returns the approved HSTS policy.
 - [ ] Unauthorized-source behavior passes.
 - [ ] Long-lived SSE/session revocation/expiry through final Caddy path passes.
 - [ ] Prolonged real-network interruption/recovery passes.
