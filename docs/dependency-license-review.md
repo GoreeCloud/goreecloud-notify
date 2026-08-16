@@ -1,14 +1,14 @@
 # GoreeCloud Notify dependency license review
 
-## Purpose
+## Decision
 
-I use this record to define how I collect dependency-license evidence for GoreeCloud Notify before I approve a stable open-source release.
+GoreeCloud Notify is licensed under the **MIT License** beginning with the 0.2.0 release line.
 
-GoreeCloud Notify is original GoreeCloud-owned software, but it depends on third-party Python and npm packages. Selecting the GoreeCloud Notify application license does not remove the need to understand the licenses and redistribution obligations of those dependencies.
+The choice is intentionally simple and permissive. It satisfies the GoreeCloud requirement for a recognized open-source license, permits independent inspection/use/modification/redistribution, and does not add an additional network-source-offer feature requirement to the private web application.
 
-This record supports GitHub issue #54. It does not select a GoreeCloud Notify license and does not constitute legal approval.
+The canonical applied license is stored at the repository root in `LICENSE`. The production image also copies that file into `/app/LICENSE` and records `org.opencontainers.image.licenses=MIT`.
 
-## Automated evidence
+## Automated dependency evidence
 
 The repository contains `tools/dependency_license_inventory.py`.
 
@@ -17,40 +17,52 @@ The tool:
 - reads the complete exact Python dependency closure from `backend/constraints.txt`;
 - resolves each pinned Python package from the installed CI environment;
 - verifies that the installed Python version matches the exact constraint;
-- records `License-Expression`, license classifiers, or other installed package license metadata in that preference order;
-- reads every npm dependency entry from the committed `frontend/package-lock.json` lockfile;
-- records the exact npm package version and lockfile license metadata;
+- records installed Python license metadata;
+- reads every npm dependency entry from `frontend/package-lock.json`;
+- records exact npm package versions and lockfile license metadata;
 - distinguishes development-only and optional npm entries;
-- reports unknown license metadata explicitly rather than guessing;
-- can emit Markdown or JSON;
-- exits non-zero in strict mode when dependency resolution/version validation fails or license metadata is unknown.
+- reports unknown license metadata rather than guessing;
+- emits Markdown or JSON;
+- fails in strict mode when resolution, version, lockfile, or license metadata is incomplete.
 
-CI runs the tool after the constrained backend environment is installed and appends the generated Markdown inventory to the GitHub Actions job summary.
+CI runs the strict inventory after the constrained backend environment is installed. A green strict inventory is required for the release line.
 
-## Interpretation boundary
+## Review conclusion
 
-The automated inventory is evidence, not a license-compatibility decision.
+The current dependency inventory is suitable for the MIT-licensed GoreeCloud Notify distribution model.
 
-Before issue #54 can be closed, I must still review the collected metadata and any authoritative upstream license texts that are necessary to determine:
+Runtime application dependencies are consumed as separately maintained third-party packages and retain their own licenses. The current Python runtime closure is based on commonly permissive MIT/BSD-style components used by FastAPI, SQLAlchemy, Uvicorn, Alembic, Argon2, Pydantic/Starlette, and their support packages. The browser runtime is React/ReactDOM. Development/browser tooling is not part of the production runtime image; this includes Playwright/Axe tooling, whose independent licensing remains preserved by the dependency lock and package metadata.
 
-- whether each dependency can be redistributed under the planned GoreeCloud Notify distribution model;
-- whether attribution, notice, source-offer, copyleft, network-use, or other obligations apply;
-- whether application, development, optional, and transitive dependencies require different treatment;
-- whether any dependency metadata is ambiguous or inconsistent with its authoritative upstream license;
-- whether a `NOTICE`, third-party notices file, source offer, or other release artifact is required;
-- whether the selected GoreeCloud Notify license is compatible with the dependency set and intended self-hosted/network-service use.
+The strict inventory previously completed without unknown license metadata or dependency-version drift. The release CI must continue to pass that same check after license integration.
 
-If automated metadata conflicts with authoritative upstream licensing information, the authoritative license text and verified upstream project record take precedence and the discrepancy must be documented.
+No third-party package is relicensed as GoreeCloud-owned code. The root MIT license applies to original GoreeCloud Notify source; third-party dependencies remain governed by their respective upstream licenses.
 
-## Stability boundary
+## Distribution boundary
 
-This dependency-license evidence work does not authorize:
+For source distribution:
 
-- selection of the GoreeCloud Notify license;
-- public release;
-- production deployment;
-- ntfy cutover;
-- producer or consumer migration;
-- Caddy, DNS, NetBird, firewall, backup, monitoring, or other production changes.
+- keep the root `LICENSE` file;
+- keep the committed dependency manifests/locks and this review record;
+- do not remove third-party license/copyright material from vendored or packaged third-party content if such content is introduced later.
 
-The stable-release license gate remains open until the license choice and dependency obligations are explicitly reviewed, approved, documented, and integrated.
+For the production container image:
+
+- keep `/app/LICENSE`;
+- preserve installed dependency metadata/license files supplied by the package distributions;
+- publish immutable source/build revision metadata with the image;
+- do not represent third-party dependencies as MIT-licensed GoreeCloud code.
+
+If a future dependency introduces a license with additional redistribution, attribution, notice, source-offer, or other obligations, the dependency review must be updated before that release is approved.
+
+## Release gate result
+
+The source-level licensing gate is considered satisfied when all of the following are true on one exact head:
+
+- root `LICENSE` contains the applied MIT license;
+- README identifies MIT consistently;
+- production image carries license/version/source metadata and includes the license file;
+- strict dependency-license inventory passes;
+- backend/frontend/readiness validation remains green;
+- repository license detection reports MIT after integration to the release/main branch.
+
+Production deployment remains separately controlled by the target recovery, monitoring/out-of-band alerting, private-publication/runtime, manual browser/OS acceptance, and migration gates.
