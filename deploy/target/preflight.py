@@ -24,6 +24,7 @@ CSP = "; ".join((
     "worker-src 'none'", "manifest-src 'self'",
 ))
 PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+STRICT_TRANSPORT_SECURITY = "max-age=31536000"
 NETBIRD = ipaddress.ip_network("100.64.0.0/10")
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 LOG_MARKERS = {
@@ -59,6 +60,7 @@ def browser_headers(headers) -> None:
         "Content-Security-Policy": CSP,
         "X-Frame-Options": "DENY",
         "Permissions-Policy": PERMISSIONS_POLICY,
+        "Strict-Transport-Security": STRICT_TRANSPORT_SECURITY,
     }
     for name, value in expected.items():
         if headers.get(name) != value:
@@ -164,7 +166,7 @@ def network_checks(args, checks: list[dict[str, str]]) -> None:
         body, headers = request(args.base_url, "/healthz"); private_headers(headers)
         health = json.loads(body)
         if health.get("status") != "ok" or "build_revision" in health: raise AssertionError("unexpected health payload")
-        add(checks, "https_health", True, "verified-TLS /healthz and private headers passed", "")
+        add(checks, "https_health", True, "verified-TLS /healthz, HSTS, and private headers passed", "")
 
         body, headers = request(args.base_url, "/api/v1/meta"); private_headers(headers)
         meta = json.loads(body)
@@ -197,7 +199,7 @@ def self_test() -> None:
     assert REVISION_RE.fullmatch("a" * 40) and not REVISION_RE.fullmatch("development")
     assert ipaddress.ip_address("100.71.27.119") in NETBIRD
     assert ipaddress.ip_address("135.148.45.22") not in NETBIRD
-    private_headers({"Cache-Control":"no-store","Pragma":"no-cache","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":CSP,"X-Frame-Options":"DENY","Permissions-Policy":PERMISSIONS_POLICY})
+    private_headers({"Cache-Control":"no-store","Pragma":"no-cache","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":CSP,"X-Frame-Options":"DENY","Permissions-Policy":PERMISSIONS_POLICY,"Strict-Transport-Security":STRICT_TRANSPORT_SECURITY})
     assert not any(rx.search("INFO startup complete") for rx in LOG_MARKERS.values())
     assert LOG_MARKERS["bearer_token"].search("Authorization: Bearer synthetic-secret-value")
     print("target preflight self-test passed")
