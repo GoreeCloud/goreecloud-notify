@@ -17,6 +17,7 @@ TOPIC = "goreecloud-uptime"
 CA_FILE = "/readiness/root.crt"
 PUBLISHER_TOKEN_FILE = "/run/secrets/ntfy_publisher_token"
 SUBSCRIBER_TOKEN_FILE = "/run/secrets/ntfy_subscriber_token"
+EXPECTED_NOTIFY_VERSION = "0.2.0"
 
 DOWN_TITLE = "GoreeCloud Notify DOWN"
 DOWN_MESSAGE = (
@@ -49,7 +50,7 @@ def require_up() -> None:
     expected = {
         "status": "ok",
         "service": "GoreeCloud Notify",
-        "version": "0.2.0-dev",
+        "version": EXPECTED_NOTIFY_VERSION,
     }
     if status != 200 or payload != expected:
         raise SystemExit(
