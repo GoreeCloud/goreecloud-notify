@@ -61,17 +61,18 @@ jobs:
 
           echo "Validated release target $TARGET_SHA for $RELEASE_TAG"
 
-      - name: Publish GitHub source release
+      - name: Publish GitHub source prerelease
         shell: bash
         run: |
           set -euo pipefail
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$TARGET_SHA" \
-            --title "GoreeCloud Notify 0.2.0" \
-            --notes-file CHANGELOG.md
+            --title "GoreeCloud Notify 0.2.0 Release Candidate" \
+            --notes-file CHANGELOG.md \
+            --prerelease
 
-      - name: Verify published tag and release
+      - name: Verify published tag and prerelease
         shell: bash
         run: |
           set -euo pipefail
@@ -89,5 +90,6 @@ jobs:
           assert release["tagName"] == tag
           assert release["targetCommitish"] == target
           assert release["isDraft"] is False
-          print(f"verified GitHub Release {tag} at {target}")
+          assert release["isPrerelease"] is True
+          print(f"verified GitHub prerelease {tag} at {target}")
           PY
