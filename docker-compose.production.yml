@@ -5,6 +5,8 @@ x-runtime: &runtime
   build:
     context: .
     dockerfile: Dockerfile.production
+    args:
+      GOREECLOUD_NOTIFY_BUILD_REVISION: ${GOREECLOUD_NOTIFY_BUILD_REVISION:?Set GOREECLOUD_NOTIFY_BUILD_REVISION to the exact approved 40-character Git commit SHA}
   user: "10001:10001"
   env_file:
     - ${GOREECLOUD_NOTIFY_ENV_FILE:?Set GOREECLOUD_NOTIFY_ENV_FILE to the protected production environment file}

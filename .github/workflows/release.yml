@@ -1,0 +1,95 @@
+name: Publish source release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to create
+        required: true
+        default: v0.2.0
+        type: string
+      target_sha:
+        description: Exact 40-character main commit SHA to release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: goreecloud-notify-source-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      TARGET_SHA: ${{ inputs.target_sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Validate immutable release target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test "$RELEASE_TAG" = "v0.2.0"
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          git fetch --force origin main --tags
+          main_sha="$(git rev-parse origin/main)"
+          test "$TARGET_SHA" = "$main_sha"
+
+          grep -Fq 'version: str = "0.2.0"' backend/app/config.py
+          grep -Fq '## 0.2.0 — Release candidate' CHANGELOG.md
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub Release already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          echo "Validated release target $TARGET_SHA for $RELEASE_TAG"
+
+      - name: Publish GitHub source prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --title "GoreeCloud Notify 0.2.0 Release Candidate" \
+            --notes-file CHANGELOG.md \
+            --prerelease
+
+      - name: Verify published tag and prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          remote_tag_sha="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+          test "$remote_tag_sha" = "$TARGET_SHA"
+
+          release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,targetCommitish,isDraft,isPrerelease)"
+          python - "$RELEASE_TAG" "$TARGET_SHA" "$release_json" <<'PY'
+          import json
+          import sys
+
+          tag, target, raw = sys.argv[1:]
+          release = json.loads(raw)
+          assert release["tagName"] == tag
+          assert release["targetCommitish"] == target
+          assert release["isDraft"] is False
+          assert release["isPrerelease"] is True
+          print(f"verified GitHub prerelease {tag} at {target}")
+          PY

@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 20
     env:
       GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION: ${{ github.event.pull_request.head.sha }}
+      GOREECLOUD_NOTIFY_BUILD_REVISION: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,7 +98,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          if env -u GOREECLOUD_NOTIFY_BUILD_REVISION \
+            GOREECLOUD_NOTIFY_IMAGE_TAG=readiness \
+            GOREECLOUD_NOTIFY_ENV_FILE="$GITHUB_WORKSPACE/deploy/production/runtime.env.example" \
+            GOREECLOUD_NOTIFY_DATA_DIR="$GOREECLOUD_NOTIFY_READINESS_DATA_DIR" \
+            docker compose --profile maintenance -f docker-compose.production.yml config --quiet \
+            >/dev/null 2>&1; then
+            echo "Production Compose accepted a missing immutable build revision" >&2
+            exit 1
+          fi
+
           GOREECLOUD_NOTIFY_IMAGE_TAG=readiness \
+          GOREECLOUD_NOTIFY_BUILD_REVISION="$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION" \
           GOREECLOUD_NOTIFY_ENV_FILE="$GITHUB_WORKSPACE/deploy/production/runtime.env.example" \
           GOREECLOUD_NOTIFY_DATA_DIR="$GOREECLOUD_NOTIFY_READINESS_DATA_DIR" \
             docker compose --profile maintenance -f docker-compose.production.yml config --format json \
@@ -114,6 +127,7 @@ jobs:
           config = json.loads(path.read_text())
           app = config["services"]["app"]
           migrate = config["services"]["migrate"]
+          expected_revision = os.environ["GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"]
           assert not app.get("ports")
           assert app["read_only"] is True
           assert app["user"] == "10001:10001"
@@ -121,6 +135,8 @@ jobs:
           assert "ALL" in app["cap_drop"]
           assert any(item.startswith("no-new-privileges") for item in app["security_opt"])
           assert set(app["networks"]) == {"proxy"}
+          assert app["build"]["args"]["GOREECLOUD_NOTIFY_BUILD_REVISION"] == expected_revision
+          assert migrate["build"]["args"]["GOREECLOUD_NOTIFY_BUILD_REVISION"] == expected_revision
           assert migrate["network_mode"] == "none"
           assert "depends_on" not in app or "migrate" not in app.get("depends_on", {})
           PY
