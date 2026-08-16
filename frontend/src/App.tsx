@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import SubscriptionsPanel from './SubscriptionsPanel'
+import { readLocalPreference, writeLocalPreference } from './browserStorage'
 import useInboxStream, {
   type RealtimeDelivery,
   type RealtimeInboxState,
@@ -44,6 +45,7 @@ type CsrfToken = {
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 const csrfHeader = 'X-CSRF-Token'
 const inboxPageSize = 50
+const themePreferenceKey = 'goreecloud-notify-theme'
 
 class ApiError extends Error {
   status: number
@@ -94,7 +96,7 @@ function severityLabel(severity: Severity): string {
 }
 
 function initialTheme(): ThemeMode {
-  const saved = window.localStorage.getItem('goreecloud-notify-theme')
+  const saved = readLocalPreference(themePreferenceKey)
   return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
 }
 
@@ -272,7 +274,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    window.localStorage.setItem('goreecloud-notify-theme', theme)
+    writeLocalPreference(themePreferenceKey, theme)
   }, [theme])
 
   useEffect(() => {
