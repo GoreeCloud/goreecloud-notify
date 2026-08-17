@@ -25,7 +25,7 @@ This checklist distinguishes source-release readiness from production activation
 - [x] Production-contract stabilization PR #64 exact-head validation green — head `10496ffd961086f46740aec292962c206b743ade`; CI run `31967591068`, Production readiness run `31967591067`, Monitoring alert readiness run `31967591082`.
 - [x] PR #64 merged as `235bbb7f08c5e18fdf116c1acfa75e86a6d06abd`; post-merge main CI run `31967680856` is green.
 - [x] Guarded manual `Publish source release` workflow is available and requires `v0.2.0` to target the exact current `main` SHA; it publishes the current release-candidate line as a GitHub prerelease and verifies tag/release metadata.
-- [ ] `v0.2.0` tag and GitHub prerelease created from the final accepted `main` commit and independently verified. Tracked by issue #63; do not claim publication until the workflow has actually completed successfully.
+- [x] `v0.2.0` tag and GitHub prerelease created from source-freeze commit `dd22a7ad0765c8ca62b401749265594bb0a06e23` and independently verified. Manual `Publish source release` run `31991914921` completed successfully; the tag resolves exactly to the frozen commit and the release is non-draft and marked prerelease. Tracked by issue #63.
 
 ## Manual browser/OS acceptance
 
