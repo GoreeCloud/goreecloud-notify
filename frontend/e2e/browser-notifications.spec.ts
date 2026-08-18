@@ -269,7 +269,8 @@ test('browser denial remains fail-closed and does not persist local opt-in', asy
   await page.getByRole('button', { name: 'Enable system alerts' }).click()
 
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __notifyPermissionRequests: number }).__notifyPermissionRequests)).toBe(1)
-  await expect(page.getByText('Blocked by browser')).toBeVisible()
+  await expect(page.getByText('Blocked by browser', { exact: true })).toBeVisible()
+  await expect(page.getByText('Permission blocked', { exact: true })).toBeVisible()
   await expect(page.getByText(/This browser has blocked system alerts/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Enable system alerts' })).toBeDisabled()
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('goreecloud-notify-system-alerts'))).toBeNull()
@@ -295,8 +296,8 @@ test('external permission revocation is reconciled from the Permissions API chan
     ;(window as typeof window & { __notifyPermissionStatus: EventTarget }).__notifyPermissionStatus.dispatchEvent(new Event('change'))
   })
 
-  await expect(page.getByText('Blocked by browser')).toBeVisible()
-  await expect(page.getByText('Blocked by browser', { exact: true })).toHaveCount(2)
+  await expect(page.getByText('Blocked by browser', { exact: true })).toBeVisible()
+  await expect(page.getByText('Permission blocked', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Enable system alerts' })).toBeDisabled()
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('goreecloud-notify-system-alerts'))).toBeNull()
 })
