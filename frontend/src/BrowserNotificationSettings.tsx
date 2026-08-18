@@ -80,7 +80,7 @@ export default function BrowserNotificationSettings({
             {permission === 'unsupported'
               ? 'Unsupported'
               : permission === 'denied'
-                ? 'Blocked by browser'
+                ? 'Permission blocked'
                 : enabled
                   ? 'Enabled locally'
                   : permission === 'granted' ? 'Permission granted · app alerts off' : 'Permission not requested'}
