@@ -44,6 +44,14 @@ The browser gate now exercises the following acceptance behavior with synthetic,
 
 The ordinary CI gate separately verifies backend regression tests and locked frontend lint, TypeScript, and build checks. Production-readiness and monitoring-readiness workflows continue to verify the disposable source-controlled deployment and outage-alert contracts. Production readiness also verifies that a production-configured runtime still identifies the current product as a release candidate with production acceptance pending and the exact immutable build revision intact.
 
+## Manual evidence integrity workflow
+
+The repository defines the issue #55 manual acceptance contract in `deploy/acceptance/manual_browser_os_acceptance.json` and validates completed sanitized evidence with `deploy/acceptance/validate_manual_browser_evidence.py`. The validator does not simulate or replace a human acceptance session. It verifies that the recorded evidence is complete, bound to one exact HTTPS candidate and Git revision, tied to real browser/OS/viewport session metadata, contains all required issue #55 checks, links failures to dedicated defects, and preserves the synthetic-data/privacy boundary.
+
+The permanent GoreeCloud Notify records contain a substantial August 18, 2026 Firefox/Zorin OS candidate session against the frozen `v0.2.0` source. I treat that as historical acceptance evidence, not as a reconstructed passing bundle for the current source line. The record explicitly identifies remaining gaps in that capture, including enabled-alert replay/backlog no-alert-storm proof, exact viewport evidence, explicit Auto/Light/Dark confirmation, logout/login round-trip evidence, and separate sidebar Unread/Read filter confirmation. Later post-`v0.2.0` source hardening also changed the current `main` revision and visible application identity.
+
+I therefore require a fresh explicit final evidence bundle against the exact candidate revision I intentionally want to accept. I do not backfill missing evidence from memory or infer a pass from older narrative records.
+
 ## Evidence that remains manual
 
 I still need to perform and record manual acceptance for behavior that the automated browser gate cannot prove adequately:
@@ -78,7 +86,7 @@ I will consider the current Notify web implementation ready to advance from acce
 
 1. The intended exact repository head is green across CI, browser/accessibility, production-readiness, and monitoring-readiness gates.
 2. No unexplained browser, backend, production-readiness, or monitoring failure remains open.
-3. Manual keyboard, screen-reader, reflow, visual, and browser-notification acceptance is recorded.
+3. Manual keyboard, screen-reader, reflow, visual, and browser-notification acceptance is recorded and the source-controlled issue #55 evidence validator passes against the exact accepted candidate revision.
 4. Target Caddy/SSE and long-lived-session behavior is validated.
 5. Backup and restore evidence is current and demonstrates recovery rather than backup creation alone.
 6. Monitoring includes independent evidence for detecting a complete Notify outage.
