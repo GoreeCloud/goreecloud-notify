@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "contract_kind": "goreecloud-notify-pre-cutover-acceptance-contract",
+  "state": "evidence-required",
+  "candidate_contract": {
+    "release_stage": "release_candidate",
+    "production_accepted": false,
+    "acceptance_status": "pending",
+    "exact_build_revision_required": true,
+    "https_required": true
+  },
+  "required_evidence": {
+    "backup_restore": {
+      "issue": 23,
+      "validator": "deploy/recovery/validate_target_evidence.py",
+      "evidence_kind": "goreecloud-notify-target-backup-restore-acceptance"
+    },
+    "monitoring": {
+      "issue": 24,
+      "validator": "deploy/monitoring/validate_target_evidence.py",
+      "schema_version": 2,
+      "evidence_kind": "goreecloud-notify-monitoring-target-acceptance"
+    },
+    "target_preflight": {
+      "issue": 25,
+      "schema": "goreecloud-notify-target-preflight-v2",
+      "scope": "all",
+      "result": "pass"
+    },
+    "manual_browser_os": {
+      "issue": 55,
+      "validator": "deploy/acceptance/validate_manual_browser_evidence.py",
+      "evidence_kind": "goreecloud-notify-manual-browser-os-acceptance"
+    }
+  },
+  "migration_rollback_contract": {
+    "phase": "pre_cutover_ready",
+    "ntfy_active_required": true,
+    "ntfy_retired": false,
+    "parallel_producer_validation_required": true,
+    "parallel_consumer_validation_required": true,
+    "authorization_validation_required": true,
+    "rollback_exercise_required": true,
+    "rollback_procedure_recorded_required": true,
+    "cutover_performed": false
+  },
+  "privacy_contract": {
+    "sanitized": true,
+    "raw_notification_content_recorded": false,
+    "reusable_secrets_recorded": false,
+    "embedded_evidence_files": false
+  }
+}
