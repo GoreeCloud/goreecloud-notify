@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "GoreeCloud Notify",
+  "short_name": "Notify",
+  "description": "Private GoreeCloud notification center.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#edf3fa",
+  "theme_color": "#376df6",
+  "icons": [
+    {
+      "src": "/brand/goreecloud-notify-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

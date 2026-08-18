@@ -12,6 +12,8 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Updated product metadata and browser theme-color metadata for the private Notify application experience.
 - Integrated Wardveil Security presentation metadata without changing the authority of the application's underlying security controls.
 - Added privacy-minimized structured HTTP observability with bounded `X-Request-ID` correlation, route-template/status/duration events, generic correlated unexpected-error responses, and deliberate exclusion of request secrets and personal network/browser metadata.
+- Added a unique canonical GoreeCloud Notify application icon and made the in-application product marks, web favicon, installable-web manifest, Linux AppImage identity contract, and Android APK identity contract converge on the same source artwork.
+- Added a source-controlled application-identity contract so platform-specific launcher assets may adapt required padding, masking, monochrome behavior, or rasterization without creating a separate Notify identity.
 
 ### Fixed and hardened
 
@@ -22,11 +24,13 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Invalid caller-supplied request identifiers are replaced instead of being trusted as log correlation input.
 - Unexpected server errors no longer require exposing raw exception text to the client; the generic response carries only a sanitized correlation identifier.
 - Response hardening now additionally declares same-origin opener/resource isolation, origin-agent clustering, and denial of legacy cross-domain policy files.
+- Replaced the visible generic `G` product placeholder treatment with the canonical Notify mark without adding a remote image, font, script, analytics, or tracking dependency.
 
 ### Validation
 
 - Expanded Playwright coverage records the Glaze UI target, core semantic contract values, minimum actionable target size, release-candidate presentation, and Permissions API revocation reconciliation.
 - Added backend regression coverage for Wardveil response metadata, generated and preserved request IDs, unsafe request-ID replacement, privacy-minimized structured log events, stronger browser-isolation headers, and secret-safe correlated unexpected-error handling.
+- Added regression coverage for canonical icon safety, browser/installable-web metadata, visible product-mark usage, and cross-platform web/AppImage/APK icon-source consistency.
 - Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
 
 ## 0.2.0 — Release candidate
