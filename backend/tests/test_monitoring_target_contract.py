@@ -15,8 +15,10 @@ def test_target_acceptance_contract_is_bound_to_fail_closed_validator() -> None:
     assert VALIDATOR_PATH.is_file()
     assert target == {
         "validator": "deploy/monitoring/validate_target_evidence.py",
+        "evidence_schema_version": 2,
         "evidence_kind": "goreecloud-notify-monitoring-target-acceptance",
         "sanitized_evidence_only": True,
+        "exact_candidate_revision_required": True,
         "concrete_retry_timeout_values_required": True,
         "notification_assignment_required": True,
         "observed_caddy_source_required": True,
