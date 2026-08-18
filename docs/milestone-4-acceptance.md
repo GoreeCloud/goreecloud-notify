@@ -10,7 +10,7 @@ This record does not approve production deployment or ntfy replacement. The sour
 
 I am treating the current source line as an acceptance and stabilization checkpoint rather than a feature-development checkpoint.
 
-I will not classify the current web implementation as stable merely because automated tests pass or because a runtime uses production-mode security configuration. I require source-controlled validation, manual browser/accessibility acceptance, target-environment evidence, recovery evidence, monitoring evidence, and controlled migration evidence appropriate to the change being approved.
+I will not classify the current web implementation as stable merely because automated tests pass or because a runtime uses production-mode security configuration. I require source-controlled validation, manual browser/accessibility acceptance, target-environment evidence, recovery evidence, monitoring evidence, coherent same-candidate acceptance, and controlled migration evidence appropriate to the change being approved.
 
 The runtime environment and product release state are separate concepts. `GOREECLOUD_NOTIFY_ENVIRONMENT=production` means the process is using the fail-closed production configuration contract; it does not mean production acceptance has completed. `/api/v1/meta` therefore reports the runtime environment/configuration independently from the immutable source release stage and production-acceptance state.
 
@@ -80,6 +80,16 @@ I still need target-environment validation before production migration can be co
 - final private DNS, NetBird, Caddy, and monitoring evidence without changing the existing ntfy production route prematurely;
 - controlled producer and consumer migration evidence with ntfy retained until rollback is no longer required.
 
+## Coherent pre-cutover evidence gate
+
+Individual acceptance gates are necessary but are not sufficient when their evidence describes different source revisions.
+
+Before I authorize cutover, I require one aggregate pre-cutover manifest validated by `deploy/acceptance/validate_pre_cutover_acceptance.py`. The aggregate validator SHA-256 pins the issue #23 backup/restore evidence, issue #24 monitoring evidence, issue #25 all-scope target-preflight report, and issue #55 manual browser/OS evidence. It requires all four artifacts to describe the same exact HTTPS candidate and 40-character Git revision and invokes the real source validators for the subordinate gates.
+
+The same aggregate record also requires parallel producer and consumer validation, authentication/authorization validation, an exercised rollback, and a recorded rollback procedure while ntfy is still active. ntfy must not already be retired, and cutover must remain unperformed for the pre-cutover manifest to pass.
+
+A passing aggregate manifest proves evidence convergence and pre-cutover readiness. It does not promote Stable, set production acceptance to true, perform cutover, or retire ntfy. Final cutover and post-cutover verification remain a separate deliberate administrative operation.
+
 ## Stable-version gate
 
 I will consider the current Notify web implementation ready to advance from acceptance/stabilization only when all applicable conditions below are satisfied:
@@ -91,10 +101,11 @@ I will consider the current Notify web implementation ready to advance from acce
 5. Backup and restore evidence is current and demonstrates recovery rather than backup creation alone.
 6. Monitoring includes independent evidence for detecting a complete Notify outage.
 7. Security and privacy boundaries remain fail-closed and no reusable secret is introduced into source, test fixtures, logs, or documentation.
-8. The migration plan preserves ntfy as a tested rollback path until controlled cutover is explicitly approved.
-9. Project metadata, README guidance, change records, and relevant infrastructure records accurately describe the state that was actually validated.
-10. Source release metadata is intentionally advanced only after the required target/manual acceptance evidence exists; production-mode configuration alone is never treated as acceptance evidence.
+8. Issues #23, #24, #25, and #55 converge in one passing coherent pre-cutover manifest for the same candidate revision.
+9. Parallel producer/consumer migration and authorization behavior are validated and rollback is exercised while ntfy remains active.
+10. Project metadata, README guidance, change records, and relevant infrastructure records accurately describe the state that was actually validated.
+11. Source release metadata is intentionally advanced only after the required target/manual acceptance evidence and controlled cutover/post-cutover validation exist; production-mode configuration or aggregate pre-cutover PASS alone is never treated as final production acceptance.
 
 ## Current conclusion
 
-The repository has strong source-controlled evidence for the Milestone 4 web implementation, but I do not yet classify GoreeCloud Notify as a stable production version. The remaining work is acceptance, target-environment validation, recovery and monitoring evidence, and controlled migration—not additional Milestone 4 feature expansion.
+The repository has strong source-controlled evidence for the Milestone 4 web implementation, but I do not yet classify GoreeCloud Notify as a stable production version. The remaining work is real acceptance evidence, target-environment validation, coherent same-candidate convergence, and controlled migration—not additional Milestone 4 feature expansion.

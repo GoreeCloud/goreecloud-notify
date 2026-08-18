@@ -18,6 +18,8 @@ frontend/dist/
 goreecloud-notify-target-preflight*.json
 goreecloud-notify-manual-browser-acceptance*.json
 goreecloud-notify-target-recovery-evidence*.json
+goreecloud-notify-monitoring-target-evidence*.json
+goreecloud-notify-pre-cutover-acceptance*.json
 
 # Editors / OS
 .vscode/
