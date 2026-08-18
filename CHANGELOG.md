@@ -19,6 +19,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added explicit pending acceptance-gate metadata for backup/restore, independent monitoring, target runtime/private publication, and manual browser/OS validation while preserving the existing `production` field as the production-configuration compatibility indicator.
 - Added a source-bound, read-only target monitoring evidence validator that requires concrete live Uptime Kuma retry/timeout values, notification assignment, observed Caddy source authorization, final private-HTTPS DOWN/RECOVERED evidence, administrator receipt, ntfy rollback preservation, and a tested independent Notify-down path without inventing target-specific defaults.
 - Separated SQLAlchemy declarative metadata from runtime engine initialization so recovery verification can load the current table contract without creating or opening the configured application database.
+- Updated the read-only target production preflight to schema v2 so the real target path must satisfy the current Wardveil Security, request-correlation, browser-isolation, canonical application-identity, exact build-revision, release-candidate, and explicit pending production-acceptance contract rather than the older production-configuration-only check.
 
 ### Fixed and hardened
 
@@ -36,6 +37,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Fixed `/api/v1/meta` incorrectly reporting `release_stage: production` solely because `GOREECLOUD_NOTIFY_ENVIRONMENT=production`; the current source line now remains explicitly `release_candidate` with production acceptance pending until a future accepted release intentionally changes source metadata.
 - Hardened monitoring acceptance so placeholder values, disabled TLS, backend-only probing, unassigned notifications, unauthorized observed monitor sources, missing administrator receipt, missing ntfy preservation, and same-failure-domain/self-dependent outage alerting fail closed instead of being accepted as production evidence.
 - Removed recovery-verifier coupling to normal database-engine startup, eliminating the need for an unrelated writable placeholder application database when verifying a restored artifact in a restricted read-only recovery environment.
+- Fixed target preflight drift that could accept a production-configured candidate without verifying the newer release/acceptance boundary, Wardveil response identity, `X-Request-ID`, same-origin opener/resource isolation, origin-agent clustering, legacy cross-domain-policy denial, or canonical manifest/icon delivery through the final HTTPS path.
 
 ### Validation
 
@@ -47,6 +49,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added backend and production-readiness regression assertions that production-mode configuration remains distinct from release stage, acceptance state, and the four outstanding production-acceptance gates.
 - Added target-monitor evidence regression coverage for safe passing evidence, TLS and notification-assignment failures, concrete retry/timeout enforcement, Caddy allowlist/source matching, ntfy baseline preservation, administrator receipt, independent failure-domain proof, placeholder rejection, and sensitive-field rejection.
 - Added a standalone backup-verifier regression that points the configured application database at a deliberately non-creatable `/proc` path and requires recovery-artifact verification to succeed solely from the supplied backup path.
+- Added target-preflight regression coverage that requires current Wardveil/correlation/isolation headers and rejects release-state promotion, accepted production status, altered acceptance-gate state, or inconsistent Wardveil/observability metadata before real target evidence can pass.
 - Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
 
 ## 0.2.0 — Release candidate
