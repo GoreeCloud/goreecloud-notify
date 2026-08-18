@@ -16,6 +16,8 @@ REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 OCTAL_MODE_RE = re.compile(r"^0[0-7]{3}$")
 SAFE_SENSITIVE_ASSERTION_KEYS = {
+    "password_reset_state_reviewed",
+    "producer_authorization_passed",
     "repository_secret_values_recorded",
     "reusable_secrets_recorded",
 }
