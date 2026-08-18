@@ -24,6 +24,19 @@ The web application uses the canonical SVG directly as its browser favicon. `fro
 
 Vite copies `frontend/public/` into the immutable production frontend artifact, so the favicon, manifest, and canonical source artwork are included in the existing production build rather than loaded from a third party.
 
+### Production serving contract
+
+The production FastAPI runtime explicitly serves only the two root-level identity resources required by the current application:
+
+- `/brand/goreecloud-notify-icon.svg`
+- `/manifest.webmanifest`
+
+This is deliberate. The application does not expose a general-purpose `/brand/*` directory or arbitrary root-level frontend files merely because Vite copied them into the build artifact.
+
+The canonical icon is served as `image/svg+xml` with a bounded public cache that must revalidate. The manifest is served as `application/manifest+json` with a shorter revalidating public cache. Both resources retain the application browser-security headers, including same-origin resource isolation. Missing identity artifacts fail with an ordinary private `404` response using `Cache-Control: no-store` rather than producing a cacheable public error.
+
+The production-readiness topology validates both resources through the approved private HTTPS/Caddy path from the synthetic approved client. The validation checks status, media type, cache policy, browser-security headers, manifest identity fields, and the manifest-to-canonical-icon reference. A successful source build is therefore not accepted as sufficient evidence that the installed production runtime can actually deliver the icon and manifest.
+
 ## Linux AppImage contract
 
 Linux desktop/AppImage packaging must derive its launcher and package icon assets from `frontend/public/brand/goreecloud-notify-icon.svg`.
@@ -46,6 +59,8 @@ Application identity assets are presentation resources only. They do not weaken 
 
 The repository regression suite must reject canonical icon changes that introduce executable SVG content, embedded external images, remote resource references, data URLs, or cross-platform source divergence.
 
+Production serving must not widen the static-file surface beyond the resources the current application actually requires. Public caching is permitted only for successful non-sensitive identity/build assets with explicit cache policy; API responses, authenticated responses, error responses, and other non-immutable application surfaces remain private and non-cacheable.
+
 ## Change control
 
-Any future change to the canonical icon must be reviewed as an application-wide identity change. The web favicon, web manifest, Linux packaging contract, Android packaging contract, repository documentation, release metadata, and any implemented platform derivatives must be updated or regenerated together from the same canonical source.
+Any future change to the canonical icon must be reviewed as an application-wide identity change. The web favicon, web manifest, Linux packaging contract, Android packaging contract, repository documentation, release metadata, production serving contract, runtime readiness validation, and any implemented platform derivatives must be updated or regenerated together from the same canonical source.
