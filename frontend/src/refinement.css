@@ -1,3 +1,8 @@
+.brand-mark {
+  font-size: 0;
+  background: url('/brand/goreecloud-notify-icon.svg') center / cover no-repeat !important;
+}
+
 .result-status {
   min-height: 1.25rem;
   margin: -4px 2px 10px;
