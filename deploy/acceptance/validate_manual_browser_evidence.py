@@ -25,6 +25,7 @@ SENSITIVE_KEY_FRAGMENTS = (
     "secret",
     "token",
 )
+SAFE_SENSITIVE_ASSERTION_KEYS = {"reusable_secrets_recorded"}
 PLACEHOLDER_VALUES = {
     "change-me",
     "example",
@@ -132,7 +133,10 @@ def _reject_sensitive_keys(value: Any, path: str = "evidence") -> None:
     if isinstance(value, dict):
         for key, nested in value.items():
             lowered = str(key).lower()
-            if any(fragment in lowered for fragment in SENSITIVE_KEY_FRAGMENTS):
+            if (
+                lowered not in SAFE_SENSITIVE_ASSERTION_KEYS
+                and any(fragment in lowered for fragment in SENSITIVE_KEY_FRAGMENTS)
+            ):
                 raise EvidenceValidationError(f"{path}.{key} is a prohibited sensitive-data field")
             _reject_sensitive_keys(nested, f"{path}.{key}")
     elif isinstance(value, list):
