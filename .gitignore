@@ -16,6 +16,7 @@ frontend/dist/
 
 # Target acceptance evidence (internal, review before permanent storage)
 goreecloud-notify-target-preflight*.json
+goreecloud-notify-manual-browser-acceptance*.json
 
 # Editors / OS
 .vscode/
