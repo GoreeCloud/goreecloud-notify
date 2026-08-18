@@ -23,6 +23,8 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added a source-controlled issue #55 manual browser/OS acceptance contract and dependency-free evidence validator that requires exact browser, operating-system, viewport, HTTPS candidate, and Git-revision session metadata while preserving the distinction between human observation and automated evidence validation.
 - Bound the final manual gate to explicit keyboard/focus, screen-reader, 200% zoom/reflow, Auto/Light/Dark, sidebar Read/Unread, two-tab realtime, permission lifecycle, redacted OS-alert, foreground-suppression, and alerts-enabled replay/backlog no-storm checks.
 - Ignored generated manual acceptance JSON by default so real Internal acceptance evidence is reviewed and sanitized before any permanent storage decision.
+- Added a source-controlled issue #23 target backup/restore evidence contract and read-only validator that binds the target database, backup repository, RPO/retention, independent failed/missed-backup monitoring, verified SQLite snapshot, alternate-location restore, observed recovery time, and security-state reconciliation to one exact candidate revision.
+- Added a target recovery evidence procedure and ignored generated target recovery JSON by default so real recovery evidence is sanitized and reviewed before permanent storage.
 
 ### Fixed and hardened
 
@@ -42,6 +44,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Removed recovery-verifier coupling to normal database-engine startup, eliminating the need for an unrelated writable placeholder application database when verifying a restored artifact in a restricted read-only recovery environment.
 - Fixed target preflight drift that could accept a production-configured candidate without verifying the newer release/acceptance boundary, Wardveil response identity, `X-Request-ID`, same-origin opener/resource isolation, origin-agent clustering, legacy cross-domain-policy denial, or canonical manifest/icon delivery through the final HTTPS path.
 - Hardened manual acceptance evidence so missing/duplicated checks, placeholder session metadata, revision drift, non-HTTPS or query-bearing candidate URLs, screen-reader claims without a real reader/version, failed checks without dedicated defects, failed final checks, sensitive-data fields, or privacy-contract violations cannot be accepted as issue #55 completion evidence.
+- Hardened target recovery acceptance so stale candidate revisions, permissive database modes, same-host/same-storage backup dependence, missing repository recoverability, invalid RPO/retention, self-dependent backup alerts, unverifiable snapshot identity, destructive restore testing, missing observed recovery time, incomplete application validation, unreconciled restored security state, or secret-bearing evidence cannot satisfy issue #23.
 
 ### Validation
 
@@ -55,6 +58,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added a standalone backup-verifier regression that points the configured application database at a deliberately non-creatable `/proc` path and requires recovery-artifact verification to succeed solely from the supplied backup path.
 - Added target-preflight regression coverage that requires current Wardveil/correlation/isolation headers and rejects release-state promotion, accepted production status, altered acceptance-gate state, or inconsistent Wardveil/observability metadata before real target evidence can pass.
 - Added regression coverage for the issue #55 contract, complete passing evidence, exact revision/session binding, required-check completeness, defect linkage, screen-reader session integrity, HTTPS candidate identity, privacy assertions, placeholder rejection, and sensitive-field rejection.
+- Added regression coverage for the issue #23 target recovery contract, exact candidate/snapshot/restore revision binding, backup independence and recoverability, RPO/retention enforcement, independent backup monitoring, SQLite snapshot identity/integrity, non-destructive hash-bound alternate restore, restrictive database permissions, security reconciliation, privacy assertions, and sensitive-field rejection.
 - Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
 
 ## 0.2.0 — Release candidate
