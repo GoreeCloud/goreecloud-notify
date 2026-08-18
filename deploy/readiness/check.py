@@ -13,6 +13,10 @@ from pathlib import Path
 BASE_URL = "https://notify.goreecloud.com"
 CA_CERT = Path("/readiness/root.crt")
 USERNAME = "readiness-admin"
+APP_ICON_PATH = "/brand/goreecloud-notify-icon.svg"
+MANIFEST_PATH = "/manifest.webmanifest"
+APP_ICON_CACHE_CONTROL = "public, max-age=86400, must-revalidate"
+MANIFEST_CACHE_CONTROL = "public, max-age=3600, must-revalidate"
 CONTENT_SECURITY_POLICY = "; ".join(
     (
         "default-src 'self'",
@@ -93,6 +97,25 @@ def assert_private_response_headers(headers: object) -> None:
     assert_browser_security_headers(headers)
 
 
+def assert_public_identity_surface(opener: urllib.request.OpenerDirector) -> None:
+    manifest_body, manifest_headers = request(opener, MANIFEST_PATH)
+    assert manifest_headers.get("Cache-Control") == MANIFEST_CACHE_CONTROL
+    assert manifest_headers.get("Pragma") is None
+    assert manifest_headers.get("Content-Type", "").startswith("application/manifest+json")
+    assert_browser_security_headers(manifest_headers)
+    manifest = json.loads(manifest_body)
+    assert manifest["id"] == "/"
+    assert manifest["name"] == "GoreeCloud Notify"
+    assert manifest["icons"][0]["src"] == APP_ICON_PATH
+
+    icon_body, icon_headers = request(opener, APP_ICON_PATH)
+    assert icon_headers.get("Cache-Control") == APP_ICON_CACHE_CONTROL
+    assert icon_headers.get("Pragma") is None
+    assert icon_headers.get("Content-Type", "").startswith("image/svg+xml")
+    assert_browser_security_headers(icon_headers)
+    assert icon_body.lstrip().startswith(b"<svg")
+
+
 def assert_public_surface(opener: urllib.request.OpenerDirector) -> None:
     health_body, health_headers = request(opener, "/healthz")
     assert_private_response_headers(health_headers)
@@ -107,6 +130,8 @@ def assert_public_surface(opener: urllib.request.OpenerDirector) -> None:
     assert meta["build_revision"] == os.environ[
         "GOREECLOUD_NOTIFY_READINESS_EXPECTED_BUILD_REVISION"
     ]
+    assert "canonical cross-platform application identity" in meta["implemented_experience"]
+    assert "installable-web identity manifest" in meta["implemented_experience"]
 
     _, unauthorized_headers = request(opener, "/api/v1/me", expected=401)
     assert_private_response_headers(unauthorized_headers)
@@ -121,6 +146,8 @@ def assert_public_surface(opener: urllib.request.OpenerDirector) -> None:
     assert "immutable" in cache_control and "max-age=31536000" in cache_control
     assert asset_headers.get("Pragma") is None
     assert_browser_security_headers(asset_headers)
+
+    assert_public_identity_surface(opener)
 
     _, cors_headers = request(
         opener,
