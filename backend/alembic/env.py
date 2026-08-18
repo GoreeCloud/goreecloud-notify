@@ -7,7 +7,8 @@ from sqlalchemy import engine_from_config, pool
 
 from app import models  # noqa: F401
 from app.config import settings
-from app.database import Base, configure_sqlite_engine
+from app.database import configure_sqlite_engine
+from app.orm import Base
 
 config = context.config
 if config.config_file_name is not None:

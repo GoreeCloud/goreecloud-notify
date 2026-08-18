@@ -53,6 +53,10 @@ python -m app.backup verify \
 
 Verification is read-only and fails when integrity, foreign-key consistency, required tables, or Alembic revision evidence is missing.
 
+The verification path is intentionally isolated from the configured application runtime database. Loading model metadata for `verify` no longer initializes the normal SQLAlchemy engine, creates the configured runtime database parent directory, or requires the configured production database path to be writable or even available. This allows an extracted recovery artifact to be verified in a restricted recovery container or alternate host without introducing an unrelated placeholder application database merely to import the verifier.
+
+Only `create` needs a live database URL. Its configuration lookup remains lazy so `verify` and `revoke-restored-sessions` operate solely on their explicitly supplied recovery artifact paths.
+
 A successful verification is necessary but is not by itself sufficient recovery evidence. Application-level restore validation is also required.
 
 ## Backup scope outside the SQLite file
@@ -97,6 +101,8 @@ A recovery validation sequence is:
 12. Record the observed recovery result and dispose of the alternate test environment according to the approved validation procedure.
 
 The automated backend regression suite performs this pattern with synthetic data: it creates an Alembic-managed database, exercises administrator/user/producer application behavior, creates an Online Backup API snapshot, restores it to an alternate path, revokes historical web sessions, re-runs Alembic to head, and verifies health, authentication, sources, channels, subscriptions, inbox Delivery state, and producer notification history against the restored database.
+
+The suite also runs the standalone `verify` CLI while `GOREECLOUD_NOTIFY_DATABASE_URL` points at an intentionally non-creatable `/proc` location. That regression proves verification depends on the supplied backup artifact rather than normal runtime-engine initialization or a writable application data directory.
 
 ## Security-state reconciliation after restore
 

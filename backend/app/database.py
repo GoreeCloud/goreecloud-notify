@@ -4,13 +4,10 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from .config import settings
-
-
-class Base(DeclarativeBase):
-    pass
+from .orm import Base
 
 
 def _ensure_sqlite_parent(database_url: str) -> None:
