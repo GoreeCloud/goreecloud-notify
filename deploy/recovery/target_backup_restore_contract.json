@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "contract_kind": "goreecloud-notify-target-backup-restore-contract",
+  "state": "target-evidence-required",
+  "issue": 23,
+  "candidate_contract": {
+    "release_stage": "release_candidate",
+    "production_accepted": false,
+    "acceptance_status": "pending",
+    "https_required": true,
+    "exact_build_revision_required": true
+  },
+  "snapshot_contract": {
+    "method": "sqlite_online_backup_api",
+    "integrity_check_required": true,
+    "foreign_key_check_required": true,
+    "manifest_sanitized_required": true
+  },
+  "restore_contract": {
+    "alternate_location_required": true,
+    "production_overwrite_for_routine_test": false,
+    "restored_web_sessions_must_be_revoked": true
+  },
+  "privacy_contract": {
+    "raw_notification_content_recorded": false,
+    "reusable_secrets_recorded": false,
+    "repository_secret_values_recorded": false,
+    "evidence_sanitized": true
+  }
+}
