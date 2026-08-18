@@ -29,6 +29,15 @@ MANIFEST_URL = "/manifest.webmanifest"
 APP_ICON_CACHE_CONTROL = "public, max-age=86400, must-revalidate"
 MANIFEST_CACHE_CONTROL = "public, max-age=3600, must-revalidate"
 CACHEABLE_PUBLIC_PATHS = frozenset({APP_ICON_URL, MANIFEST_URL})
+RELEASE_STAGE = "release_candidate"
+PRODUCTION_ACCEPTED = False
+ACCEPTANCE_STATUS = "pending"
+ACCEPTANCE_GATES = {
+    "backup_restore": "pending",
+    "independent_monitoring": "pending",
+    "target_runtime_publication": "pending",
+    "manual_browser_os": "pending",
+}
 CONTENT_SECURITY_POLICY = "; ".join(
     (
         "default-src 'self'",
@@ -183,14 +192,20 @@ def health() -> dict[str, str]:
 
 @app.get("/api/v1/meta", tags=["system"])
 def api_meta() -> dict[str, object]:
+    production_configuration = settings.environment == "production"
     return {
         "service": settings.app_name,
         "version": settings.version,
         "build_revision": settings.build_revision,
         "milestone": 1,
         "development_milestone": 4,
-        "production": settings.environment == "production",
-        "release_stage": "production" if settings.environment == "production" else "release_candidate",
+        "runtime_environment": settings.environment,
+        "production": production_configuration,
+        "production_configuration": production_configuration,
+        "release_stage": RELEASE_STAGE,
+        "production_accepted": PRODUCTION_ACCEPTED,
+        "acceptance_status": ACCEPTANCE_STATUS,
+        "acceptance_gates": dict(ACCEPTANCE_GATES),
         "notification_writes_enabled": True,
         "security_identity": {
             "name": "Wardveil Security",
