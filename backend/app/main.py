@@ -13,6 +13,12 @@ from starlette.datastructures import MutableHeaders
 from . import models  # noqa: F401 - registers SQLAlchemy metadata
 from .config import settings
 from .database import engine, verify_schema
+from .observability import (
+    REQUEST_ID_HEADER,
+    WARDVEIL_HEADER,
+    WARDVEIL_STATUS,
+    RequestObservabilityMiddleware,
+)
 from .routers import admin, compatibility, inbox, notifications, retention, session, subscriptions
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
@@ -60,6 +66,10 @@ class ResponsePrivacyHeadersMiddleware:
                 headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
                 headers["X-Frame-Options"] = "DENY"
                 headers["Permissions-Policy"] = PERMISSIONS_POLICY
+                headers["Cross-Origin-Opener-Policy"] = "same-origin"
+                headers["Cross-Origin-Resource-Policy"] = "same-origin"
+                headers["Origin-Agent-Cluster"] = "?1"
+                headers["X-Permitted-Cross-Domain-Policies"] = "none"
             await send(message)
 
         await self.app(scope, receive, send_with_privacy_headers)
@@ -86,13 +96,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RequestObservabilityMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-GoreeCloud-Admin-Token"],
-    expose_headers=["X-CSRF-Token"],
+    expose_headers=["X-CSRF-Token", REQUEST_ID_HEADER, WARDVEIL_HEADER],
 )
 app.add_middleware(ResponsePrivacyHeadersMiddleware)
 
@@ -132,6 +143,17 @@ def api_meta() -> dict[str, object]:
         "production": settings.environment == "production",
         "release_stage": "production" if settings.environment == "production" else "release_candidate",
         "notification_writes_enabled": True,
+        "security_identity": {
+            "name": "Wardveil Security",
+            "full_presentation": "Wardveil Security by GoreeCloud",
+            "protection_status": WARDVEIL_STATUS,
+            "authority": "GoreeCloud Notify application security controls remain authoritative",
+        },
+        "observability": {
+            "request_correlation_header": REQUEST_ID_HEADER,
+            "structured_http_events": True,
+            "sensitive_request_data_logged": False,
+        },
         "entities": [
             "User", "Device", "ServiceIdentity", "Source", "Channel",
             "Subscription", "Notification", "Delivery", "AccessToken", "Preference",
