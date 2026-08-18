@@ -26,11 +26,14 @@ def test_canonical_icon_is_local_scalable_and_script_free() -> None:
             assert "data:" not in lowered
 
 
-def test_web_metadata_uses_canonical_icon() -> None:
+def test_web_metadata_and_product_marks_use_canonical_icon() -> None:
     index_html = (ROOT / "frontend/index.html").read_text(encoding="utf-8")
     assert f'<link rel="icon" type="image/svg+xml" href="{ICON_URL}" />' in index_html
     assert '<link rel="manifest" href="/manifest.webmanifest" />' in index_html
     assert '<meta name="application-name" content="GoreeCloud Notify" />' in index_html
+
+    refinement_css = (ROOT / "frontend/src/refinement.css").read_text(encoding="utf-8")
+    assert f"url('{ICON_URL}')" in refinement_css
 
     manifest = json.loads((ROOT / "frontend/public/manifest.webmanifest").read_text(encoding="utf-8"))
     assert manifest["id"] == "/"
