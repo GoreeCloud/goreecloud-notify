@@ -34,6 +34,7 @@ type InboxState = {
 }
 
 const timestamp = '2026-08-14T16:00:00Z'
+const buildRevision = 'dd22a7ad0765c8ca62b401749265594bb0a06e23'
 
 function delivery(id: number, overrides: Partial<Delivery> = {}): Delivery {
   return {
@@ -66,7 +67,7 @@ async function mockHealthAndMeta(page: Page) {
   await page.route('**/healthz', (route) => json(route, {
     status: 'ok',
     service: 'GoreeCloud Notify',
-    version: '0.1.0-dev',
+    version: '0.2.0',
   }))
 }
 
@@ -142,13 +143,15 @@ async function mockAuthenticatedApi(page: Page) {
     if (path === '/api/v1/meta') {
       return json(route, {
         service: 'GoreeCloud Notify',
-        version: '0.1.0-dev',
+        version: '0.2.0',
+        build_revision: buildRevision,
         milestone: 1,
         development_milestone: 4,
         production: false,
+        release_stage: 'release_candidate',
         implemented_engine: ['authenticated SSE inbox stream', 'authoritative inbox state snapshot'],
-        next_milestone: 'Real-Time Delivery',
-        next_slice: 'Milestone 4 browser notification permission and privacy design',
+        next_milestone: 'Production Acceptance',
+        next_slice: 'Target deployment and controlled acceptance',
       })
     }
 
@@ -288,6 +291,7 @@ test('authenticated Glaze inbox synchronizes, survives offline recovery, and pre
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Good day, Browser' })).toBeVisible()
+  await expect(page.getByText('0.2.0 · Release candidate')).toBeVisible()
   const inboxNavigation = page.getByRole('navigation', { name: 'Inbox views' })
   await expect(inboxNavigation).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
@@ -352,19 +356,22 @@ test('sign-in screen has labeled controls and no automated WCAG A/AA violations'
   await mockHealthAndMeta(page)
   await page.route('**/api/v1/meta', (route) => json(route, {
     service: 'GoreeCloud Notify',
-    version: '0.1.0-dev',
+    version: '0.2.0',
+    build_revision: buildRevision,
     milestone: 1,
     development_milestone: 4,
     production: false,
+    release_stage: 'release_candidate',
     implemented_engine: ['authenticated SSE inbox stream', 'authoritative inbox state snapshot'],
-    next_milestone: 'Real-Time Delivery',
-    next_slice: 'Milestone 4 browser notification permission and privacy design',
+    next_milestone: 'Production Acceptance',
+    next_slice: 'Target deployment and controlled acceptance',
   }))
   await page.route('**/api/v1/me', (route) => json(route, { detail: 'authentication required' }, 401))
 
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByText('GoreeCloud Notify 0.2.0 available')).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Username' })).toBeVisible()
   await expect(page.getByLabel('Password')).toHaveAttribute('type', 'password')
   await expect(page.getByRole('button', { name: 'Sign in to Notify' })).toBeVisible()
