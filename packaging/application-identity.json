@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "product": "GoreeCloud Notify",
+  "canonical_icon": "frontend/public/brand/goreecloud-notify-icon.svg",
+  "web": {
+    "favicon": "frontend/public/brand/goreecloud-notify-icon.svg",
+    "manifest": "frontend/public/manifest.webmanifest"
+  },
+  "linux": {
+    "target": "AppImage",
+    "icon_source": "frontend/public/brand/goreecloud-notify-icon.svg"
+  },
+  "android": {
+    "target": "APK",
+    "icon_source": "frontend/public/brand/goreecloud-notify-icon.svg"
+  }
+}
