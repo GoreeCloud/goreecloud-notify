@@ -14,6 +14,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added privacy-minimized structured HTTP observability with bounded `X-Request-ID` correlation, route-template/status/duration events, generic correlated unexpected-error responses, and deliberate exclusion of request secrets and personal network/browser metadata.
 - Added a unique canonical GoreeCloud Notify application icon and made the in-application product marks, web favicon, installable-web manifest, Linux AppImage identity contract, and Android APK identity contract converge on the same source artwork.
 - Added a source-controlled application-identity contract so platform-specific launcher assets may adapt required padding, masking, monochrome behavior, or rasterization without creating a separate Notify identity.
+- Added an explicit production serving contract for the canonical icon and installable-web manifest with bounded revalidating public cache policies and exact media types.
 
 ### Fixed and hardened
 
@@ -25,12 +26,17 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Unexpected server errors no longer require exposing raw exception text to the client; the generic response carries only a sanitized correlation identifier.
 - Response hardening now additionally declares same-origin opener/resource isolation, origin-agent clustering, and denial of legacy cross-domain policy files.
 - Replaced the visible generic `G` product placeholder treatment with the canonical Notify mark without adding a remote image, font, script, analytics, or tracking dependency.
+- Fixed the production-runtime gap where Vite copied the canonical icon and `manifest.webmanifest` into the image but FastAPI exposed only `/assets/*` and `/`, causing the favicon and installable-web identity resources to be unavailable through the final application server.
+- Restricted production identity delivery to the exact canonical icon and manifest routes rather than widening the runtime into a general-purpose public static-file tree; missing identity artifacts remain private, non-cacheable failures.
+- Tightened cache classification so only successful immutable build assets or approved identity resources retain public caching while static-resource errors fall back to `no-store`/`no-cache` protection.
 
 ### Validation
 
 - Expanded Playwright coverage records the Glaze UI target, core semantic contract values, minimum actionable target size, release-candidate presentation, and Permissions API revocation reconciliation.
 - Added backend regression coverage for Wardveil response metadata, generated and preserved request IDs, unsafe request-ID replacement, privacy-minimized structured log events, stronger browser-isolation headers, and secret-safe correlated unexpected-error handling.
 - Added regression coverage for canonical icon safety, browser/installable-web metadata, visible product-mark usage, and cross-platform web/AppImage/APK icon-source consistency.
+- Added runtime regression coverage for canonical icon/manifest status, media type, cache behavior, browser-security headers, private failure behavior, and denial of arbitrary `/brand/*` files.
+- Extended the disposable production-readiness HTTPS client to prove the final Caddy/application topology can actually serve the manifest and canonical icon with the expected identity reference and cache/security contract.
 - Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
 
 ## 0.2.0 — Release candidate

@@ -22,6 +22,13 @@ from .observability import (
 from .routers import admin, compatibility, inbox, notifications, retention, session, subscriptions
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
+APP_ICON_RELATIVE_PATH = Path("brand") / "goreecloud-notify-icon.svg"
+MANIFEST_RELATIVE_PATH = Path("manifest.webmanifest")
+APP_ICON_URL = "/brand/goreecloud-notify-icon.svg"
+MANIFEST_URL = "/manifest.webmanifest"
+APP_ICON_CACHE_CONTROL = "public, max-age=86400, must-revalidate"
+MANIFEST_CACHE_CONTROL = "public, max-age=3600, must-revalidate"
+CACHEABLE_PUBLIC_PATHS = frozenset({APP_ICON_URL, MANIFEST_URL})
 CONTENT_SECURITY_POLICY = "; ".join(
     (
         "default-src 'self'",
@@ -53,12 +60,17 @@ class ResponsePrivacyHeadersMiddleware:
             return
 
         path = scope.get("path", "")
-        is_immutable_asset = path.startswith("/assets/")
+        is_immutable_asset_path = path.startswith("/assets/")
+        is_public_identity_path = path in CACHEABLE_PUBLIC_PATHS
 
         async def send_with_privacy_headers(message) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                if not is_immutable_asset:
+                status_code = int(message.get("status", 500))
+                is_cacheable_success = status_code in {status.HTTP_200_OK, status.HTTP_304_NOT_MODIFIED} and (
+                    is_immutable_asset_path or is_public_identity_path
+                )
+                if not is_cacheable_success:
                     headers["Cache-Control"] = "no-store"
                     headers["Pragma"] = "no-cache"
                 headers["X-Content-Type-Options"] = "nosniff"
@@ -112,6 +124,43 @@ app.mount(
     ImmutableStaticFiles(directory=STATIC_ROOT / "assets", check_dir=False),
     name="frontend-assets",
 )
+
+
+def _frontend_public_file(
+    relative_path: Path,
+    *,
+    media_type: str,
+    cache_control: str,
+) -> FileResponse:
+    target = STATIC_ROOT / relative_path
+    if not target.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="frontend public artifact is not installed in this runtime",
+        )
+    return FileResponse(
+        target,
+        media_type=media_type,
+        headers={"Cache-Control": cache_control},
+    )
+
+
+@app.get(APP_ICON_URL, include_in_schema=False)
+def frontend_app_icon() -> FileResponse:
+    return _frontend_public_file(
+        APP_ICON_RELATIVE_PATH,
+        media_type="image/svg+xml",
+        cache_control=APP_ICON_CACHE_CONTROL,
+    )
+
+
+@app.get(MANIFEST_URL, include_in_schema=False)
+def frontend_manifest() -> FileResponse:
+    return _frontend_public_file(
+        MANIFEST_RELATIVE_PATH,
+        media_type="application/manifest+json",
+        cache_control=MANIFEST_CACHE_CONTROL,
+    )
 
 
 @app.get("/", include_in_schema=False)
@@ -216,6 +265,8 @@ def api_meta() -> dict[str, object]:
             "replay and backlog system-alert suppression",
             "browser-local system-alert preference",
             "realtime REST reconciliation race protection",
+            "canonical cross-platform application identity",
+            "installable-web identity manifest",
         ],
         "next_milestone": "Production Acceptance",
         "next_slice": "Target deployment, manual browser/OS acceptance, migration, and rollback validation",
