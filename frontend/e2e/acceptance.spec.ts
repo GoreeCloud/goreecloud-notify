@@ -16,6 +16,7 @@ type Delivery = {
 }
 
 const timestamp = '2026-08-14T18:00:00Z'
+const buildRevision = 'dd22a7ad0765c8ca62b401749265594bb0a06e23'
 
 function delivery(id: number, title: string): Delivery {
   return {
@@ -46,7 +47,7 @@ async function mockCommon(page: Page) {
   await page.route('**/healthz', (route) => json(route, {
     status: 'ok',
     service: 'GoreeCloud Notify',
-    version: '0.1.0-dev',
+    version: '0.2.0',
   }))
 }
 
@@ -64,13 +65,15 @@ async function mockMultiTabApi(page: Page, streamQueries: string[]) {
     if (path === '/api/v1/meta') {
       return json(route, {
         service: 'GoreeCloud Notify',
-        version: '0.1.0-dev',
+        version: '0.2.0',
+        build_revision: buildRevision,
         milestone: 1,
         development_milestone: 4,
         production: false,
+        release_stage: 'release_candidate',
         implemented_engine: ['authenticated SSE inbox stream', 'acceptance stability validation'],
-        next_milestone: 'Real-Time Delivery',
-        next_slice: 'Milestone 4 acceptance and stabilization',
+        next_milestone: 'Production Acceptance',
+        next_slice: 'Target deployment and controlled acceptance',
       })
     }
     if (path === '/api/v1/me') {
@@ -135,13 +138,15 @@ async function mockRevokedSessionApi(page: Page) {
     if (path === '/api/v1/meta') {
       return json(route, {
         service: 'GoreeCloud Notify',
-        version: '0.1.0-dev',
+        version: '0.2.0',
+        build_revision: buildRevision,
         milestone: 1,
         development_milestone: 4,
         production: false,
+        release_stage: 'release_candidate',
         implemented_engine: ['authenticated SSE inbox stream'],
-        next_milestone: 'Real-Time Delivery',
-        next_slice: 'Milestone 4 acceptance and stabilization',
+        next_milestone: 'Production Acceptance',
+        next_slice: 'Target deployment and controlled acceptance',
       })
     }
     if (path === '/api/v1/me') {

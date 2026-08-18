@@ -25,6 +25,14 @@ function permissionCopy(permission: BrowserNotificationPermission, enabled: bool
   return 'Off by default. Notify will ask for browser permission only after you choose to enable system alerts.'
 }
 
+function permissionSummary(permission: BrowserNotificationPermission, enabled: boolean): string {
+  if (permission === 'unsupported') return 'Unavailable in this browser'
+  if (permission === 'denied') return 'Blocked by browser'
+  if (enabled) return 'Enabled with privacy-preserving content'
+  if (permission === 'granted') return 'Browser permission granted · alerts off'
+  return 'Off by default'
+}
+
 export default function BrowserNotificationSettings({
   permission,
   enabled,
@@ -39,7 +47,7 @@ export default function BrowserNotificationSettings({
       <summary>
         <span>
           <strong>System alerts</strong>
-          <small>{enabled ? 'Enabled with privacy-preserving content' : 'Off by default'}</small>
+          <small>{permissionSummary(permission, enabled)}</small>
         </span>
         <span className="browser-notification-summary-action">Manage</span>
       </summary>
@@ -72,7 +80,7 @@ export default function BrowserNotificationSettings({
             {permission === 'unsupported'
               ? 'Unsupported'
               : permission === 'denied'
-                ? 'Blocked by browser'
+                ? 'Permission blocked'
                 : enabled
                   ? 'Enabled locally'
                   : permission === 'granted' ? 'Permission granted · app alerts off' : 'Permission not requested'}

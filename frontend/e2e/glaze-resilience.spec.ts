@@ -12,7 +12,7 @@ async function mockSignedOut(page: Page) {
   await page.route('**/healthz', (route) => json(route, {
     status: 'ok',
     service: 'GoreeCloud Notify',
-    version: '0.1.0-dev',
+    version: '0.2.0',
   }))
 
   await page.route('**/api/v1/**', (route) => {
@@ -20,13 +20,15 @@ async function mockSignedOut(page: Page) {
     if (path === '/api/v1/meta') {
       return json(route, {
         service: 'GoreeCloud Notify',
-        version: '0.1.0-dev',
+        version: '0.2.0',
+        build_revision: 'dd22a7ad0765c8ca62b401749265594bb0a06e23',
         milestone: 1,
         development_milestone: 4,
         production: false,
+        release_stage: 'release_candidate',
         implemented_engine: ['Glaze UI appearance resilience'],
-        next_milestone: 'Real-Time Delivery',
-        next_slice: 'Acceptance and stabilization',
+        next_milestone: 'Production Acceptance',
+        next_slice: 'Target deployment and controlled acceptance',
       })
     }
     if (path === '/api/v1/me') return json(route, { detail: 'not authenticated' }, 401)
@@ -85,4 +87,27 @@ test('blocked browser preference storage does not prevent Notify from opening', 
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'system')
   await expect(page.getByText('One calm place for operational and GoreeCloud application notifications')).toBeVisible()
+})
+
+test('Notify records and enforces its Glaze UI 1.0 application contract', async ({ page }) => {
+  await mockSignedOut(page)
+  await page.goto('/')
+
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui', '1.0')
+
+  const contract = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement)
+    const button = document.querySelector<HTMLButtonElement>('button.primary-button')
+    return {
+      targetMin: root.getPropertyValue('--glaze-target-min').trim(),
+      motionStandard: root.getPropertyValue('--glaze-motion-standard').trim(),
+      radiusControl: root.getPropertyValue('--glaze-radius-control').trim(),
+      buttonHeight: button?.getBoundingClientRect().height ?? 0,
+    }
+  })
+
+  expect(contract.targetMin).toBe('44px')
+  expect(['220ms', '.22s']).toContain(contract.motionStandard)
+  expect(contract.radiusControl).toBe('16px')
+  expect(contract.buttonHeight).toBeGreaterThanOrEqual(44)
 })

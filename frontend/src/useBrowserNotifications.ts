@@ -54,11 +54,34 @@ export default function useBrowserNotifications() {
   }, [updateEnabled])
 
   useEffect(() => {
+    let disposed = false
+    let permissionStatus: PermissionStatus | null = null
+
+    const attachPermissionObserver = async () => {
+      if (!('permissions' in navigator)) return
+      try {
+        const status = await navigator.permissions.query(
+          { name: 'notifications' } as PermissionDescriptor,
+        )
+        if (disposed) return
+        permissionStatus = status
+        permissionStatus.addEventListener('change', synchronizePermission)
+      } catch {
+        // Some browsers expose Notifications without a queryable Permissions API entry.
+        // Focus, visibility, and pageshow reconciliation below remain the fallback.
+      }
+    }
+
     synchronizePermission()
+    void attachPermissionObserver()
     window.addEventListener('focus', synchronizePermission)
+    window.addEventListener('pageshow', synchronizePermission)
     document.addEventListener('visibilitychange', synchronizePermission)
     return () => {
+      disposed = true
+      permissionStatus?.removeEventListener('change', synchronizePermission)
       window.removeEventListener('focus', synchronizePermission)
+      window.removeEventListener('pageshow', synchronizePermission)
       document.removeEventListener('visibilitychange', synchronizePermission)
     }
   }, [synchronizePermission])

@@ -2,6 +2,27 @@
 
 All notable source releases of GoreeCloud Notify are recorded here. Detailed operational history remains in the authoritative GoreeCloud change-log records.
 
+## Unreleased
+
+### Changed
+
+- Recorded Glaze UI 1.0.0 as the web application's explicit design-system target and added an application-level semantic contract for shared target sizing, focus, motion, radii, semantic roles, and adaptive ranges.
+- Aligned the primary responsive transformations with Glaze UI Compact, Medium, Expanded, and Wide ranges while preserving Notify's established notification-focused composition.
+- Replaced stale development-milestone presentation with release-aware version, stage, immutable build-revision, and production-acceptance status from `/api/v1/meta`.
+- Updated product metadata and browser theme-color metadata for the private Notify application experience.
+
+### Fixed and hardened
+
+- Browser system-alert permission state now observes supported Permissions API change events and retains focus, pageshow, and visibility reconciliation as compatibility fallbacks.
+- Externally blocked browser notification permission now clears the local opt-in promptly and is visible in the collapsed settings summary instead of appearing as an unrequested permission.
+- System-alert privacy remains explicit opt-in, foreground-suppressed, backlog-suppressed, and limited to generic redacted operating-system text.
+- Actionable controls enforce the Glaze UI 44-pixel minimum target contract, with forced-colors and existing reduced-motion/transparency resilience preserved.
+
+### Validation
+
+- Expanded Playwright coverage records the Glaze UI target, core semantic contract values, minimum actionable target size, release-candidate presentation, and Permissions API revocation reconciliation.
+- Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
+
 ## 0.2.0 — Release candidate
 
 ### Added

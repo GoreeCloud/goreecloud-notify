@@ -83,7 +83,7 @@
   font-size: 0.84rem;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 599px) {
   .browser-notification-panel summary,
   .browser-notification-actions {
     align-items: flex-start;
