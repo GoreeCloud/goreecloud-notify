@@ -2,15 +2,29 @@
 
 ## Purpose
 
-I use this record to define the evidence I require before I treat the current GoreeCloud Notify Milestone 4 web implementation as stable enough for controlled target-environment validation or migration planning.
+I use this record to define the evidence I require before I treat the current GoreeCloud Notify Milestone 4 web implementation as a stable production product and authorize controlled migration away from ntfy.
 
-This record does not approve production deployment or ntfy replacement. GoreeCloud Notify remains draft, unmerged, and pre-production, and ntfy remains the current production notification service and rollback path.
+This record does not approve production deployment or ntfy replacement. The source line is integrated on `main`, the `v0.2.0` source release is a prerelease/release candidate, and post-release hardening continues on `main`. ntfy remains the current production notification service and rollback path until the remaining production-acceptance gates are completed and cutover is explicitly approved.
 
 ## Stabilization state
 
 I am treating the current source line as an acceptance and stabilization checkpoint rather than a feature-development checkpoint.
 
-I will not classify the current web implementation as stable merely because automated tests pass. I require source-controlled validation, manual browser/accessibility acceptance, target-environment evidence, recovery evidence, monitoring evidence, and controlled migration evidence appropriate to the change being approved.
+I will not classify the current web implementation as stable merely because automated tests pass or because a runtime uses production-mode security configuration. I require source-controlled validation, manual browser/accessibility acceptance, target-environment evidence, recovery evidence, monitoring evidence, and controlled migration evidence appropriate to the change being approved.
+
+The runtime environment and product release state are separate concepts. `GOREECLOUD_NOTIFY_ENVIRONMENT=production` means the process is using the fail-closed production configuration contract; it does not mean production acceptance has completed. `/api/v1/meta` therefore reports the runtime environment/configuration independently from the immutable source release stage and production-acceptance state.
+
+For the current source line the authoritative application metadata remains:
+
+- release stage: `release_candidate`;
+- production accepted: `false`;
+- acceptance status: `pending`;
+- backup/restore target evidence: pending;
+- independent monitoring/out-of-band evidence: pending;
+- target runtime/private-publication evidence: pending;
+- manual browser/OS acceptance: pending.
+
+A future Stable/production-accepted release must intentionally change the source release metadata after the required evidence is complete. Merely deploying this source with production configuration must never promote its user-facing release label automatically.
 
 ## Source-controlled automated evidence
 
@@ -28,7 +42,7 @@ The browser gate now exercises the following acceptance behavior with synthetic,
 - I verify synchronized SSE cursor bootstrap, authoritative aggregate counts, offline recovery, filtered REST reconciliation, subscription CSRF behavior, and responsive browser behavior.
 - I run Axe checks for the configured WCAG A/AA rule tags on authenticated and unauthenticated surfaces.
 
-The ordinary CI gate separately verifies backend regression tests and locked frontend lint, TypeScript, and build checks. Production-readiness and monitoring-readiness workflows continue to verify the disposable source-controlled deployment and outage-alert contracts.
+The ordinary CI gate separately verifies backend regression tests and locked frontend lint, TypeScript, and build checks. Production-readiness and monitoring-readiness workflows continue to verify the disposable source-controlled deployment and outage-alert contracts. Production readiness also verifies that a production-configured runtime still identifies the current product as a release candidate with production acceptance pending and the exact immutable build revision intact.
 
 ## Evidence that remains manual
 
@@ -38,7 +52,7 @@ I still need to perform and record manual acceptance for behavior that the autom
 - visible focus behavior across all interactive controls;
 - screen-reader names, landmarks, reading order, status announcements, and mutation feedback;
 - browser zoom and reflow at accessibility-relevant zoom levels;
-- visual contrast, readability, spacing, and Glaze UI usability review;
+- visual contrast, readability, spacing, hierarchy, and Glaze UI usability review;
 - real browser permission grant, deny, disable, and externally revoked-permission behavior using the browser's actual permission UI;
 - real operating-system notification presentation to confirm that the generic redacted content policy is preserved by supported browser/OS combinations;
 - practical multi-tab behavior during ordinary use, including independent selection and no confusing alert duplication.
@@ -71,6 +85,7 @@ I will consider the current Notify web implementation ready to advance from acce
 7. Security and privacy boundaries remain fail-closed and no reusable secret is introduced into source, test fixtures, logs, or documentation.
 8. The migration plan preserves ntfy as a tested rollback path until controlled cutover is explicitly approved.
 9. Project metadata, README guidance, change records, and relevant infrastructure records accurately describe the state that was actually validated.
+10. Source release metadata is intentionally advanced only after the required target/manual acceptance evidence exists; production-mode configuration alone is never treated as acceptance evidence.
 
 ## Current conclusion
 
