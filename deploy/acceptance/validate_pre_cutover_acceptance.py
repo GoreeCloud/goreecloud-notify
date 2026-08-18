@@ -17,7 +17,7 @@ MANIFEST_KIND = "goreecloud-notify-pre-cutover-acceptance"
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 PLACEHOLDERS = {"example", "pending", "placeholder", "replace-me", "tbd", "todo", "unknown", "unset"}
-SAFE_ASSERTIONS = {"reusable_secrets_recorded"}
+SAFE_ASSERTIONS = {"authorization_validation_passed", "reusable_secrets_recorded"}
 SENSITIVE_FRAGMENTS = (
     "authorization", "cookie", "csrf", "password", "private_key", "recovery_code", "secret", "token_value"
 )
@@ -164,7 +164,7 @@ def _validate_subordinate(
     module = _load_validator(validator_path, module_name)
     try:
         module.validate_evidence(evidence, expected_revision)
-    except Exception as exc:  # subordinate validators expose their own fail-closed error types
+    except Exception as exc:
         raise AcceptanceValidationError(f"{artifact.name} failed its source validator: {exc}") from exc
 
 
