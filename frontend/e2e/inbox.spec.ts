@@ -291,7 +291,7 @@ test('authenticated Glaze inbox synchronizes, survives offline recovery, and pre
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: 'Good day, Browser' })).toBeVisible()
-  await expect(page.getByText('0.2.0 · Release candidate')).toBeVisible()
+  await expect(page.getByText('0.2.0 · Release candidate', { exact: true })).toBeVisible()
   const inboxNavigation = page.getByRole('navigation', { name: 'Inbox views' })
   await expect(inboxNavigation).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Backup completed' })).toBeVisible()
