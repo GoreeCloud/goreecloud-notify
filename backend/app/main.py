@@ -96,6 +96,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RequestObservabilityMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
@@ -104,7 +105,6 @@ app.add_middleware(
     allow_headers=["Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-GoreeCloud-Admin-Token"],
     expose_headers=["X-CSRF-Token", REQUEST_ID_HEADER, WARDVEIL_HEADER],
 )
-app.add_middleware(RequestObservabilityMiddleware)
 app.add_middleware(ResponsePrivacyHeadersMiddleware)
 
 app.mount(
