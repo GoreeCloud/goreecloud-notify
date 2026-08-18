@@ -26,6 +26,10 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Ignored generated manual acceptance JSON by default so real Internal acceptance evidence is reviewed and sanitized before any permanent storage decision.
 - Added a source-controlled issue #23 target backup/restore evidence contract and read-only validator that binds the target database, backup repository, RPO/retention, independent failed/missed-backup monitoring, verified SQLite snapshot, alternate-location restore, observed recovery time, and security-state reconciliation to one exact candidate revision.
 - Added a target recovery evidence procedure and ignored generated target recovery JSON by default so real recovery evidence is sanitized and reviewed before permanent storage.
+- Added a source-controlled coherent pre-cutover acceptance contract that composes the real issue #23, #24, #25, and #55 evidence into one exact-candidate acceptance set without changing release or production state.
+- Added SHA-256 pinning for each referenced subordinate evidence artifact and direct invocation of the source backup/restore, monitoring, and manual browser/OS validators, while requiring an all-scope passing target-preflight-v2 report for the same HTTPS candidate and Git revision.
+- Strengthened the migration boundary so aggregate pre-cutover readiness requires parallel producer/consumer and authorization validation plus an exercised rollback while ntfy remains active, ntfy is not retired, and cutover remains unperformed.
+- Ignored generated monitoring and aggregate pre-cutover acceptance JSON by default so Internal evidence is sanitized and reviewed before permanent storage.
 
 ### Fixed and hardened
 
@@ -47,6 +51,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Fixed target preflight drift that could accept a production-configured candidate without verifying the newer release/acceptance boundary, Wardveil response identity, `X-Request-ID`, same-origin opener/resource isolation, origin-agent clustering, legacy cross-domain-policy denial, or canonical manifest/icon delivery through the final HTTPS path.
 - Hardened manual acceptance evidence so missing/duplicated checks, placeholder session metadata, revision drift, non-HTTPS or query-bearing candidate URLs, screen-reader claims without a real reader/version, failed checks without dedicated defects, failed final checks, sensitive-data fields, or privacy-contract violations cannot be accepted as issue #55 completion evidence.
 - Hardened target recovery acceptance so stale candidate revisions, permissive database modes, same-host/same-storage backup dependence, missing repository recoverability, invalid RPO/retention, self-dependent backup alerts, unverifiable snapshot identity, destructive restore testing, missing observed recovery time, incomplete application validation, unreconciled restored security state, or secret-bearing evidence cannot satisfy issue #23.
+- Hardened aggregate acceptance against evidence skew, path traversal, artifact substitution, digest mismatch, duplicate artifact reuse, partial target preflight, subordinate validator failure, early ntfy retirement, unexercised rollback, premature cutover, and secret-bearing manifest fields.
 
 ### Validation
 
@@ -61,6 +66,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added target-preflight regression coverage that requires current Wardveil/correlation/isolation headers and rejects release-state promotion, accepted production status, altered acceptance-gate state, or inconsistent Wardveil/observability metadata before real target evidence can pass.
 - Added regression coverage for the issue #55 contract, complete passing evidence, exact revision/session binding, required-check completeness, defect linkage, screen-reader session integrity, HTTPS candidate identity, privacy assertions, placeholder rejection, and sensitive-field rejection.
 - Added regression coverage for the issue #23 target recovery contract, exact candidate/snapshot/restore revision binding, backup independence and recoverability, RPO/retention enforcement, independent backup monitoring, SQLite snapshot identity/integrity, non-destructive hash-bound alternate restore, restrictive database permissions, security reconciliation, privacy assertions, and sensitive-field rejection.
+- Added coherent pre-cutover regression coverage for a complete same-candidate set, explicit revision mismatch, subordinate evidence revision skew, SHA-256 mismatch, non-all-scope target preflight, duplicate artifact reuse, ntfy/parallel-validation/rollback/cutover boundary failures, and sensitive aggregate fields.
 - Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
 
 ## 0.2.0 — Release candidate
