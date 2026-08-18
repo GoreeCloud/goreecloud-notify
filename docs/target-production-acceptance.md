@@ -6,7 +6,7 @@ I use this runbook to collect target-environment production-readiness evidence f
 
 This runbook does **not** approve deployment, change `notify.goreecloud.com`, retire ntfy, modify Caddy, DNS, AdGuard Home, NetBird, Uptime Kuma, backup schedules, producer credentials, or application data. It separates read-only evidence collection from later controlled change work.
 
-The source-controlled production contract remains defined by `docker-compose.production.yml`, `deploy/production/runtime.env.example`, `deploy/caddy/notify.goreecloud.com.caddy`, `docs/production-runtime.md`, `docs/backup-recovery.md`, and `docs/monitoring-alert-readiness.md`.
+The source-controlled production contract remains defined by `docker-compose.production.yml`, `deploy/production/runtime.env.example`, `deploy/caddy/notify.goreecloud.com.caddy`, `docs/production-runtime.md`, `docs/backup-recovery.md`, `docs/monitoring-alert-readiness.md`, and the current `/api/v1/meta` release/acceptance contract.
 
 ## Safety boundary
 
@@ -19,9 +19,11 @@ I will use the preflight only when one of these conditions is true:
 
 The preflight is read-only. It does not create directories, change ownership or permissions, restart containers, run migrations, modify Caddy, change DNS, change NetBird policy, create monitoring objects, create backup jobs, rotate credentials, or alter application state.
 
+Production-mode runtime configuration and product production acceptance are separate concepts. A target candidate is expected to use the fail-closed production configuration while the current source line still reports `release_candidate`, `production_accepted=false`, and `acceptance_status=pending`. A passing preflight must never promote those fields or be interpreted as an automatic Stable/production-accepted decision.
+
 ## Evidence collector
 
-`deploy/target/preflight.py` is the source-controlled read-only target checker.
+`deploy/target/preflight.py` is the source-controlled read-only target checker. The current report schema is `goreecloud-notify-target-preflight-v2`.
 
 It supports separate `host`, `network`, and `all` scopes so I do not have to pretend the production host and an approved private-network client have the same visibility. It accepts only non-secret arguments appropriate to the selected scope:
 
@@ -67,7 +69,7 @@ Expected result:
 target preflight self-test passed
 ```
 
-CI also executes this self-test so syntax and core evidence assertions remain regression-tested.
+CI also executes this self-test and backend regression tests import the preflight module directly so the current Wardveil, request-correlation, browser-isolation, release-state, acceptance-gate, and application-identity assertions remain regression-tested.
 
 ## Run target preflight
 
@@ -148,13 +150,21 @@ These checks belong to `--scope network` (or explicitly justified `--scope all`)
 - the candidate hostname resolves only to IPv4 addresses inside NetBird `100.64.0.0/10` from the approved test client;
 - TLS certificate verification succeeds through the normal system trust store;
 - `/healthz` reports healthy state without exposing the build revision;
-- `/api/v1/meta` reports production mode and the exact expected build revision;
+- `/api/v1/meta` reports `runtime_environment=production`, production configuration active, and the exact expected build revision;
+- the current source line still reports `release_stage=release_candidate`, `production_accepted=false`, `acceptance_status=pending`, and exactly the four current pending gates for backup/restore, independent monitoring, target runtime/private publication, and manual browser/OS acceptance;
+- `/api/v1/meta` reports the expected Wardveil Security identity and privacy-minimized structured-observability contract;
+- every checked HTTPS response carries `X-Wardveil-Security: Protected by Wardveil` and a syntactically valid bounded `X-Request-ID`;
+- the response security contract includes `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, `Origin-Agent-Cluster: ?1`, and `X-Permitted-Cross-Domain-Policies: none` in addition to HSTS, CSP, anti-framing, `nosniff`, referrer, and Permissions Policy protections;
 - unauthenticated `/api/v1/me` is denied;
 - unauthenticated `/api/v1/inbox/stream` is denied;
 - the HTML shell remains non-cacheable;
 - built frontend assets retain one-year immutable caching;
-- same-origin credentialed CORS is preserved;
-- the response privacy, CSP, anti-framing, `nosniff`, referrer, and Permissions-Policy contract is present through the target HTTPS route.
+- the HTML shell references the canonical `/manifest.webmanifest` and `/brand/goreecloud-notify-icon.svg` identity resources;
+- the manifest resolves through the final HTTPS route with the approved media type/cache policy and points at the canonical icon;
+- the canonical icon resolves through the final HTTPS route as SVG with the approved media type/cache policy;
+- same-origin credentialed CORS is preserved under the current security-header contract.
+
+These assertions deliberately make target preflight follow the current source contract rather than a historical release snapshot. If the product later becomes Stable/production-accepted, the source preflight contract must be intentionally advanced together with that approved release state rather than accepting either state implicitly.
 
 ### Bounded runtime-log review
 
@@ -226,6 +236,8 @@ I will not close monitoring readiness until I have target evidence for:
 - monitor rollback/removal procedure;
 - at least one tested Notify-down alert path that remains usable while GoreeCloud Notify itself is unavailable.
 
+The sanitized target monitoring record should satisfy `deploy/monitoring/validate_target_evidence.py`; passing repository fixtures are not a substitute for the real evidence.
+
 ### Producer/consumer migration and rollback
 
 Before ntfy retirement I will record:
@@ -248,7 +260,7 @@ For each target acceptance session I will record, without reusable secrets:
 - Candidate hostname:
 - Candidate Git revision:
 - Candidate image reference/ID:
-- Preflight JSON filename/location:
+- Preflight JSON filename/location and schema version:
 - Preflight result:
 - Data directory owner/group/mode:
 - Database owner/group/mode:
@@ -257,6 +269,9 @@ For each target acceptance session I will record, without reusable secrets:
 - Private DNS result:
 - Caddy validation result:
 - TLS/certificate result:
+- Current release/acceptance metadata result:
+- Wardveil/correlation/browser-isolation header result:
+- Canonical application manifest/icon result:
 - Approved NetBird source result:
 - Denied source result:
 - Authenticated web/session result:
@@ -275,12 +290,14 @@ For each target acceptance session I will record, without reusable secrets:
 
 ## Failure handling
 
-If any preflight or manual target check fails, I will stop treating the candidate as production-ready, preserve the relevant evidence, and return the failure to repair/stabilization. I will not weaken filesystem permissions, proxy trust, Caddy authorization, authentication, or monitoring merely to make a gate pass.
+If any preflight or manual target check fails, I will stop treating the candidate as production-ready, preserve the relevant evidence, and return the failure to repair/stabilization. I will not weaken filesystem permissions, proxy trust, Caddy authorization, authentication, Wardveil-related response/security controls, observability requirements, or monitoring merely to make a gate pass.
 
 A failed target check is evidence that the candidate or deployment contract needs correction; it is not permission to bypass the gate.
 
 ## Completion boundary
 
-Target production acceptance is complete only when the applicable evidence above is recorded together with the manual browser/accessibility gate and the license/release gate, no unexplained blocker remains, and the ntfy rollback path is still validated.
+Target production acceptance is complete only when the applicable evidence above is recorded together with the manual browser/accessibility gate, no unexplained blocker remains, and the ntfy rollback path is still validated.
+
+A passing `goreecloud-notify-target-preflight-v2` report is one acceptance artifact. It is not equivalent to `production_accepted=true`, does not change the product release stage, and does not close #23, #24, #25, or #55 by itself.
 
 Completion of this runbook makes the candidate **eligible for a separate explicit production cutover decision**. It does not itself authorize deployment, hostname repointing, producer migration, or ntfy retirement.
