@@ -107,7 +107,7 @@ test('Notify records and enforces its Glaze UI 1.0 application contract', async 
   })
 
   expect(contract.targetMin).toBe('44px')
-  expect(contract.motionStandard).toBe('220ms')
+  expect(['220ms', '.22s']).toContain(contract.motionStandard)
   expect(contract.radiusControl).toBe('16px')
   expect(contract.buttonHeight).toBeGreaterThanOrEqual(44)
 })
