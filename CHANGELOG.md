@@ -17,6 +17,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added an explicit production serving contract for the canonical icon and installable-web manifest with bounded revalidating public cache policies and exact media types.
 - Separated runtime environment/configuration metadata from immutable product release-stage and production-acceptance metadata so target-validation deployments cannot silently promote themselves merely by using production-mode settings.
 - Added explicit pending acceptance-gate metadata for backup/restore, independent monitoring, target runtime/private publication, and manual browser/OS validation while preserving the existing `production` field as the production-configuration compatibility indicator.
+- Added a source-bound, read-only target monitoring evidence validator that requires concrete live Uptime Kuma retry/timeout values, notification assignment, observed Caddy source authorization, final private-HTTPS DOWN/RECOVERED evidence, administrator receipt, ntfy rollback preservation, and a tested independent Notify-down path without inventing target-specific defaults.
 
 ### Fixed and hardened
 
@@ -32,6 +33,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Restricted production identity delivery to the exact canonical icon and manifest routes rather than widening the runtime into a general-purpose public static-file tree; missing identity artifacts remain private, non-cacheable failures.
 - Tightened cache classification so only successful immutable build assets or approved identity resources retain public caching while static-resource errors fall back to `no-store`/`no-cache` protection.
 - Fixed `/api/v1/meta` incorrectly reporting `release_stage: production` solely because `GOREECLOUD_NOTIFY_ENVIRONMENT=production`; the current source line now remains explicitly `release_candidate` with production acceptance pending until a future accepted release intentionally changes source metadata.
+- Hardened monitoring acceptance so placeholder values, disabled TLS, backend-only probing, unassigned notifications, unauthorized observed monitor sources, missing administrator receipt, missing ntfy preservation, and same-failure-domain/self-dependent outage alerting fail closed instead of being accepted as production evidence.
 
 ### Validation
 
@@ -41,6 +43,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added runtime regression coverage for canonical icon/manifest status, media type, cache behavior, browser-security headers, private failure behavior, and denial of arbitrary `/brand/*` files.
 - Extended the disposable production-readiness HTTPS client to prove the final Caddy/application topology can actually serve the manifest and canonical icon with the expected identity reference and cache/security contract.
 - Added backend and production-readiness regression assertions that production-mode configuration remains distinct from release stage, acceptance state, and the four outstanding production-acceptance gates.
+- Added target-monitor evidence regression coverage for safe passing evidence, TLS and notification-assignment failures, concrete retry/timeout enforcement, Caddy allowlist/source matching, ntfy baseline preservation, administrator receipt, independent failure-domain proof, placeholder rejection, and sensitive-field rejection.
 - Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
 
 ## 0.2.0 — Release candidate
