@@ -128,6 +128,24 @@ A restore point can predate a security-sensitive password reset. The administrat
 
 Login-rate buckets and security-event history may also reflect the restore point rather than current chronology. They must be interpreted as recovered historical state, not as proof of events that occurred after the snapshot.
 
+## Target-environment evidence validation
+
+The repository now defines a machine-readable issue #23 target recovery evidence contract in `deploy/recovery/target_backup_restore_contract.json` and a read-only validator in `deploy/recovery/validate_target_evidence.py`.
+
+The validator does not create or modify target recovery state. It validates a sanitized record produced by the real target backup, monitoring, alternate-location restore, and security-reconciliation exercise. The full evidence procedure is documented in `docs/target-backup-restore-evidence.md`.
+
+The final target record must bind the candidate, selected snapshot, and alternate restore to one exact Git revision. It must also record concrete repository independence and recoverability, target database ownership/permissions, approved backup frequency/RPO/retention, independent failed/missed-backup monitoring plus administrator receipt, verified snapshot integrity and SHA-256 identity, non-destructive alternate-location restore evidence with observed recovery time, application-level restored-state checks, and the required security-state reconciliation.
+
+After completing and sanitizing the real target evidence, validate it with:
+
+```bash
+python deploy/recovery/validate_target_evidence.py \
+  goreecloud-notify-target-recovery-evidence.json \
+  --expected-revision <exact-deployed-git-sha>
+```
+
+A validator PASS is an evidence-integrity gate, not a substitute for the real operations. Missing, placeholder, stale-revision, destructive, same-failure-domain, security-unreconciled, or secret-bearing evidence fails closed.
+
 ## Production backup design still required
 
 This source-controlled implementation does not select the production backup schedule or storage target.
@@ -145,8 +163,10 @@ Before production approval, the target environment must still define and validat
 - at least one recorded target-environment application-level restore test;
 - the observed recovery time from that test rather than an assumed RTO.
 
+These real target requirements remain pending until an actual target evidence bundle is collected and the source validator passes against the exact candidate revision intentionally under acceptance.
+
 ## Production and ntfy migration gate
 
-GoreeCloud Notify must not replace ntfy solely because this repository-level recovery test passes.
+GoreeCloud Notify must not replace ntfy solely because this repository-level recovery test or the target evidence validator passes.
 
-Production deployment and ntfy retirement remain blocked until the target-environment backup/recovery configuration, independent monitoring/outage alerting, production runtime/private-publication controls, authentication/authorization hardening, and rollback evidence are all approved and validated.
+Production deployment and ntfy retirement remain blocked until the target-environment backup/recovery configuration, independent monitoring/outage alerting, production runtime/private-publication controls, manual browser/OS acceptance, controlled producer/consumer migration, and rollback evidence are all approved and validated.
