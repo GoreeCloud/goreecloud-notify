@@ -45,6 +45,18 @@
     ],
     "notification_assignment_documented": true
   },
+  "target_acceptance_evidence": {
+    "validator": "deploy/monitoring/validate_target_evidence.py",
+    "evidence_kind": "goreecloud-notify-monitoring-target-acceptance",
+    "sanitized_evidence_only": true,
+    "concrete_retry_timeout_values_required": true,
+    "notification_assignment_required": true,
+    "observed_caddy_source_required": true,
+    "administrator_down_and_recovered_receipt_required": true,
+    "ntfy_monitor_preservation_required": true,
+    "rollback_documentation_required": true,
+    "independent_out_of_band_notify_down_test_required": true
+  },
   "production_values_to_confirm": [
     "final Uptime Kuma source address observed at Caddy",
     "final Caddy monitor-source allowlist value",
