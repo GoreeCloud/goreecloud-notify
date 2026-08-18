@@ -126,7 +126,18 @@ def assert_public_surface(opener: urllib.request.OpenerDirector) -> None:
     meta_body, meta_headers = request(opener, "/api/v1/meta")
     assert_private_response_headers(meta_headers)
     meta = json.loads(meta_body)
+    assert meta["runtime_environment"] == "production"
     assert meta["production"] is True
+    assert meta["production_configuration"] is True
+    assert meta["release_stage"] == "release_candidate"
+    assert meta["production_accepted"] is False
+    assert meta["acceptance_status"] == "pending"
+    assert meta["acceptance_gates"] == {
+        "backup_restore": "pending",
+        "independent_monitoring": "pending",
+        "target_runtime_publication": "pending",
+        "manual_browser_os": "pending",
+    }
     assert meta["build_revision"] == os.environ[
         "GOREECLOUD_NOTIFY_READINESS_EXPECTED_BUILD_REVISION"
     ]

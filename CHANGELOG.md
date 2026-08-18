@@ -15,6 +15,8 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added a unique canonical GoreeCloud Notify application icon and made the in-application product marks, web favicon, installable-web manifest, Linux AppImage identity contract, and Android APK identity contract converge on the same source artwork.
 - Added a source-controlled application-identity contract so platform-specific launcher assets may adapt required padding, masking, monochrome behavior, or rasterization without creating a separate Notify identity.
 - Added an explicit production serving contract for the canonical icon and installable-web manifest with bounded revalidating public cache policies and exact media types.
+- Separated runtime environment/configuration metadata from immutable product release-stage and production-acceptance metadata so target-validation deployments cannot silently promote themselves merely by using production-mode settings.
+- Added explicit pending acceptance-gate metadata for backup/restore, independent monitoring, target runtime/private publication, and manual browser/OS validation while preserving the existing `production` field as the production-configuration compatibility indicator.
 
 ### Fixed and hardened
 
@@ -29,6 +31,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Fixed the production-runtime gap where Vite copied the canonical icon and `manifest.webmanifest` into the image but FastAPI exposed only `/assets/*` and `/`, causing the favicon and installable-web identity resources to be unavailable through the final application server.
 - Restricted production identity delivery to the exact canonical icon and manifest routes rather than widening the runtime into a general-purpose public static-file tree; missing identity artifacts remain private, non-cacheable failures.
 - Tightened cache classification so only successful immutable build assets or approved identity resources retain public caching while static-resource errors fall back to `no-store`/`no-cache` protection.
+- Fixed `/api/v1/meta` incorrectly reporting `release_stage: production` solely because `GOREECLOUD_NOTIFY_ENVIRONMENT=production`; the current source line now remains explicitly `release_candidate` with production acceptance pending until a future accepted release intentionally changes source metadata.
 
 ### Validation
 
@@ -37,6 +40,7 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Added regression coverage for canonical icon safety, browser/installable-web metadata, visible product-mark usage, and cross-platform web/AppImage/APK icon-source consistency.
 - Added runtime regression coverage for canonical icon/manifest status, media type, cache behavior, browser-security headers, private failure behavior, and denial of arbitrary `/brand/*` files.
 - Extended the disposable production-readiness HTTPS client to prove the final Caddy/application topology can actually serve the manifest and canonical icon with the expected identity reference and cache/security contract.
+- Added backend and production-readiness regression assertions that production-mode configuration remains distinct from release stage, acceptance state, and the four outstanding production-acceptance gates.
 - Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
 
 ## 0.2.0 — Release candidate
