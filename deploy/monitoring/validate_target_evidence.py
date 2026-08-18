@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 
 CONTRACT_PATH = Path(__file__).with_name("notify_uptime_kuma_monitor.json")
 EVIDENCE_KIND = "goreecloud-notify-monitoring-target-acceptance"
+REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 SENSITIVE_KEY_FRAGMENTS = (
     "authorization",
     "cookie",
@@ -66,6 +68,13 @@ def _require_non_placeholder_text(value: Any, path: str) -> str:
     if normalized.lower() in PLACEHOLDER_VALUES:
         raise EvidenceValidationError(f"{path} must contain a concrete recorded value")
     return normalized
+
+
+def _require_revision(value: Any, path: str) -> str:
+    text = _require_non_placeholder_text(value, path).lower()
+    if REVISION_RE.fullmatch(text) is None:
+        raise EvidenceValidationError(f"{path} must be an exact 40-character lowercase Git SHA")
+    return text
 
 
 def _require_positive_int(value: Any, path: str, *, allow_zero: bool = False) -> int:
@@ -141,13 +150,25 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _load_contract() -> dict[str, Any]:
     contract = _load_json(CONTRACT_PATH)
+    if contract.get("schema_version") != 2:
+        raise EvidenceValidationError("source monitoring contract schema_version must be 2")
     if contract.get("state") != "proposed-not-provisioned":
         raise EvidenceValidationError("source monitoring contract is not in proposed-not-provisioned state")
+    target_evidence = contract.get("target_acceptance_evidence")
+    if not isinstance(target_evidence, dict) or target_evidence.get("evidence_schema_version") != 2:
+        raise EvidenceValidationError("source monitoring target evidence contract must require schema version 2")
+    if target_evidence.get("exact_candidate_revision_required") is not True:
+        raise EvidenceValidationError("source monitoring contract must require exact candidate revision evidence")
     return contract
 
 
-def validate_evidence(evidence: dict[str, Any], contract: dict[str, Any] | None = None) -> None:
+def validate_evidence(
+    evidence: dict[str, Any],
+    expected_revision: str,
+    contract: dict[str, Any] | None = None,
+) -> None:
     contract = contract or _load_contract()
+    expected_revision = _require_revision(expected_revision, "expected_revision")
     _reject_sensitive_keys(evidence)
     _require_exact_keys(
         evidence,
@@ -156,6 +177,7 @@ def validate_evidence(evidence: dict[str, Any], contract: dict[str, Any] | None 
             "evidence_kind",
             "sanitized",
             "captured_at",
+            "candidate",
             "notify_monitor",
             "source_path",
             "state_transitions",
@@ -166,12 +188,38 @@ def validate_evidence(evidence: dict[str, Any], contract: dict[str, Any] | None 
         },
         "evidence",
     )
-    if evidence["schema_version"] != 1:
-        raise EvidenceValidationError("schema_version must be 1")
+    if evidence["schema_version"] != 2:
+        raise EvidenceValidationError("schema_version must be 2")
     if evidence["evidence_kind"] != EVIDENCE_KIND:
         raise EvidenceValidationError(f"evidence_kind must be {EVIDENCE_KIND!r}")
     _require_bool(evidence["sanitized"], True, "sanitized")
     _require_timestamp(evidence["captured_at"], "captured_at")
+
+    expected_candidate = contract["candidate_contract"]
+    candidate = evidence["candidate"]
+    if not isinstance(candidate, dict):
+        raise EvidenceValidationError("candidate must be an object")
+    _require_exact_keys(
+        candidate,
+        {
+            "service_url",
+            "build_revision",
+            "release_stage",
+            "production_accepted",
+            "acceptance_status",
+        },
+        "candidate",
+    )
+    for field in ("service_url", "release_stage", "production_accepted", "acceptance_status"):
+        if candidate[field] != expected_candidate[field]:
+            raise EvidenceValidationError(
+                f"candidate.{field} must match the source contract: {expected_candidate[field]!r}"
+            )
+    candidate_revision = _require_revision(candidate["build_revision"], "candidate.build_revision")
+    if candidate_revision != expected_revision:
+        raise EvidenceValidationError(
+            "candidate.build_revision must match the explicitly expected deployed revision"
+        )
 
     expected_monitor = contract["monitor"]
     monitor = evidence["notify_monitor"]
@@ -408,11 +456,16 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     parser.add_argument("evidence", type=Path, help="path to sanitized target evidence JSON")
+    parser.add_argument(
+        "--expected-revision",
+        required=True,
+        help="exact 40-character Git SHA of the candidate intentionally under monitoring acceptance",
+    )
     args = parser.parse_args(argv)
 
     try:
         evidence = _load_json(args.evidence)
-        validate_evidence(evidence)
+        validate_evidence(evidence, args.expected_revision)
     except EvidenceValidationError as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 2

@@ -1,7 +1,14 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "state": "proposed-not-provisioned",
   "platform": "Uptime Kuma",
+  "candidate_contract": {
+    "service_url": "https://notify.goreecloud.com",
+    "release_stage": "release_candidate",
+    "production_accepted": false,
+    "acceptance_status": "pending",
+    "exact_build_revision_required": true
+  },
   "monitor": {
     "name": "GoreeCloud Notify",
     "type": "http",
@@ -47,8 +54,10 @@
   },
   "target_acceptance_evidence": {
     "validator": "deploy/monitoring/validate_target_evidence.py",
+    "evidence_schema_version": 2,
     "evidence_kind": "goreecloud-notify-monitoring-target-acceptance",
     "sanitized_evidence_only": true,
+    "exact_candidate_revision_required": true,
     "concrete_retry_timeout_values_required": true,
     "notification_assignment_required": true,
     "observed_caddy_source_required": true,
@@ -58,6 +67,7 @@
     "independent_out_of_band_notify_down_test_required": true
   },
   "production_values_to_confirm": [
+    "exact candidate Git revision under monitoring acceptance",
     "final Uptime Kuma source address observed at Caddy",
     "final Caddy monitor-source allowlist value",
     "max retries",
