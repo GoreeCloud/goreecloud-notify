@@ -6,7 +6,7 @@ I use `deploy/monitoring/validate_target_evidence.py` to validate the sanitized 
 
 The validator is read-only. It does not create or edit an Uptime Kuma monitor, change Caddy, change ntfy, install a credential, publish an alert, deploy Notify, or approve cutover. It validates a sanitized JSON record produced from real target observations after those approval-controlled actions are performed.
 
-Repository/disposable monitoring readiness remains separate from target acceptance. A green GitHub Actions monitoring workflow proves the source pattern; it cannot manufacture the live Uptime Kuma registration, administrator receipt, Caddy source observation, rollback record, or independent failure-domain evidence.
+Repository/disposable monitoring readiness remains separate from target acceptance. A green GitHub Actions monitoring workflow proves the source pattern; it cannot manufacture the live Uptime Kuma registration, administrator receipt, Caddy source observation, rollback record, independent failure-domain evidence, or bind a real observation to a deployed candidate unless that revision is explicitly recorded.
 
 ## Why the validator exists
 
@@ -22,23 +22,41 @@ The source monitoring contract intentionally does not invent target-specific val
 
 Those values must come from the actual target environment. The acceptance gate therefore requires them to be concrete and recorded instead of silently accepting a default, an omitted field, or a placeholder.
 
+The source contract also requires the target evidence to identify the exact candidate Git revision under monitoring acceptance. This prevents a valid Uptime Kuma/Caddy/out-of-band record from an older candidate from being silently reused after Notify source changes.
+
 ## Invocation
 
-Run the validator against a local sanitized evidence file:
+Run the validator against a local sanitized evidence file and explicitly supply the exact deployed candidate revision:
 
 ```text
-python deploy/monitoring/validate_target_evidence.py /protected/path/notify-monitoring-evidence.json
+python deploy/monitoring/validate_target_evidence.py \
+  /protected/path/notify-monitoring-evidence.json \
+  --expected-revision <exact-40-character-deployed-git-sha>
 ```
 
-A successful result exits zero and prints a single PASS line. Any missing, unexpected, unsafe, contradictory, or placeholder field fails closed with exit status 2.
+A successful result exits zero and prints a single PASS line. Any missing, unexpected, unsafe, contradictory, stale-revision, or placeholder field fails closed with exit status 2.
 
 The evidence file is an operational acceptance input, not a production secret store. Do not commit a live evidence file merely to make the validator pass.
 
 ## Required evidence structure
 
-The root record must identify schema version 1, evidence kind `goreecloud-notify-monitoring-target-acceptance`, a timezone-aware capture timestamp, and `sanitized: true`.
+The root record must identify schema version 2, evidence kind `goreecloud-notify-monitoring-target-acceptance`, a timezone-aware capture timestamp, and `sanitized: true`.
 
 The validator requires these sections.
+
+### Candidate identity
+
+The target evidence must record:
+
+- service URL `https://notify.goreecloud.com`;
+- the exact 40-character Git build revision intentionally under monitoring acceptance;
+- release stage `release_candidate`;
+- `production_accepted: false`;
+- acceptance status `pending`.
+
+The candidate build revision must exactly match the revision supplied through `--expected-revision`. Monitoring acceptance therefore cannot silently promote the product or reuse an older evidence record for a newer candidate.
+
+Schema-version-1 monitoring evidence is deliberately rejected after this revision-binding change. Any historical target evidence must be regenerated or deliberately migrated through a real revalidation against the intended candidate rather than treated as equivalent.
 
 ### Notify monitor
 
@@ -56,7 +74,7 @@ The live monitor must record:
 - TLS verification enabled;
 - at least one concrete notification-assignment identifier.
 
-The retry and timeout values are deliberately not prescribed by this validator. They are accepted when they are concrete values from the live target record. Changing the monitor identity, health URL, interval, HTTP policy, or TLS requirement requires a deliberate source-contract change rather than an evidence-file workaround.
+The retry and timeout values are deliberately not prescribed by this validator. They are accepted when they are concrete values from the live target record. Changing the monitor identity, health URL, interval, HTTP policy, TLS requirement, or candidate identity requires a deliberate source-contract change rather than an evidence-file workaround.
 
 ### Caddy and source path
 
@@ -127,5 +145,7 @@ The evidence should contain only the minimum facts required to prove the accepta
 ## Acceptance boundary
 
 Passing this validator is necessary evidence for issue #24, but it does not by itself change production state or automatically close the issue. The administrator still needs to confirm that the evidence came from the intended target and that the corresponding approval-controlled operational records are retained.
+
+The exact revision binding is also a prerequisite for the later aggregate production-acceptance manifest. Backup/restore, target publication, manual browser/OS, and monitoring evidence must eventually converge on the same candidate before a complete production acceptance set can be considered coherent.
 
 No source test may set production monitoring, administrator receipt, or independent alerting to proven merely to obtain a green CI run. The source contract remains proposed-not-provisioned until the real production operation is explicitly performed and documented.
