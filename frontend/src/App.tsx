@@ -16,9 +16,11 @@ type Health = {
 type ApiMeta = {
   service: string
   version: string
+  build_revision: string
   milestone: number
   development_milestone: number
   production: boolean
+  release_stage: 'release_candidate' | 'production'
   implemented_engine: string[]
   next_milestone: string
   next_slice: string
@@ -93,6 +95,14 @@ function formatTime(value: string): string {
 
 function severityLabel(severity: Severity): string {
   return severity === 'normal' ? 'Normal' : severity.charAt(0).toUpperCase() + severity.slice(1)
+}
+
+function releaseStageLabel(meta: ApiMeta): string {
+  return meta.release_stage === 'production' ? 'Production' : 'Release candidate'
+}
+
+function shortRevision(revision: string): string {
+  return revision === 'development' ? revision : revision.slice(0, 12)
 }
 
 function initialTheme(): ThemeMode {
@@ -510,15 +520,15 @@ export default function App() {
             </div>
             <div className="service-state" role="status" aria-live="polite">
               <span className={`state-dot ${health ? 'online' : healthError ? 'offline' : ''}`} />
-              <span>{health ? 'Development backend online' : healthError ? 'Backend unavailable' : 'Checking backend'}</span>
+              <span>{health ? `${health.service} ${health.version} available` : healthError ? 'Notify unavailable' : 'Checking Notify'}</span>
             </div>
           </div>
 
           <form className="login-card" onSubmit={handleLogin}>
             <div>
-              <span className="eyebrow">Human session</span>
+              <span className="eyebrow">Private account</span>
               <h2>Sign in</h2>
-              <p>Use an administrator-provisioned GoreeCloud Notify account.</p>
+              <p>Use your administrator-provisioned GoreeCloud Notify account.</p>
             </div>
             <label>
               <span>Username</span>
@@ -546,7 +556,7 @@ export default function App() {
               {loginBusy ? 'Signing in…' : 'Sign in to Notify'}
             </button>
             <p className="auth-footnote">
-              ntfy remains the active production notification service during this development milestone.
+              Controlled private acceptance is in progress. ntfy remains the production notification service until cutover is approved.
             </p>
           </form>
         </section>
@@ -606,7 +616,9 @@ export default function App() {
       <section className="inbox-column" aria-labelledby="inbox-title">
         <header className="inbox-header">
           <div>
-            <span className="eyebrow">Milestone 4 · Real-Time Delivery</span>
+            <span className="eyebrow">
+              {meta ? `${meta.version} · ${releaseStageLabel(meta)}` : 'Private notification center'}
+            </span>
             <h1 id="inbox-title">Good day, {user.display_name.split(' ')[0]}</h1>
             <p>{unreadCount ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'} need your attention.` : 'No unread notifications need your attention.'}</p>
           </div>
@@ -743,7 +755,11 @@ export default function App() {
 
         <footer className="development-footer">
           <span className={`state-dot ${health ? 'online' : healthError ? 'offline' : ''}`} />
-          <span>{meta ? `Milestone ${meta.development_milestone} · ${meta.next_milestone} · Next: ${meta.next_slice}` : 'Pre-production GoreeCloud Notify development'}</span>
+          <span>
+            {meta
+              ? `${meta.service} ${meta.version} · ${releaseStageLabel(meta)} · build ${shortRevision(meta.build_revision)} · ${meta.next_milestone}`
+              : 'GoreeCloud Notify · private service status'}
+          </span>
         </footer>
       </section>
     </main>
