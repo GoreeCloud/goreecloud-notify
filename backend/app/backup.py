@@ -13,7 +13,7 @@ from uuid import uuid4
 from sqlalchemy.engine import make_url
 
 from . import models as _models  # noqa: F401 - registers SQLAlchemy metadata
-from .database import Base
+from .orm import Base
 
 BACKUP_FORMAT = "goreecloud-notify-sqlite-backup-v1"
 
