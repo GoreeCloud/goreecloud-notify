@@ -56,6 +56,13 @@ async function installFakeNotificationApi(
         configurable: true,
         get() { return window.__notifyVisibilityState; }
       });
+      class FakePermissionStatus extends EventTarget {
+        get state() {
+          return FakeNotification.permission === 'granted'
+            ? 'granted'
+            : FakeNotification.permission === 'denied' ? 'denied' : 'prompt';
+        }
+      }
       class FakeNotification {
         static permission = ${JSON.stringify(initialPermission)};
         static async requestPermission() {
@@ -71,9 +78,20 @@ async function installFakeNotificationApi(
         }
         close() {}
       }
+      const permissionStatus = new FakePermissionStatus();
+      window.__notifyPermissionStatus = permissionStatus;
       Object.defineProperty(window, 'Notification', {
         configurable: true,
         value: FakeNotification
+      });
+      Object.defineProperty(navigator, 'permissions', {
+        configurable: true,
+        value: {
+          async query(descriptor) {
+            if (descriptor && descriptor.name === 'notifications') return permissionStatus;
+            throw new TypeError('Unsupported permission descriptor');
+          }
+        }
       });
     `,
   })
@@ -87,7 +105,7 @@ async function mockPrivacyScenario(page: Page) {
   const streamQueries: string[] = []
 
   await page.route('**/healthz', (route) => json(route, {
-    status: 'ok', service: 'GoreeCloud Notify', version: '0.1.0-dev',
+    status: 'ok', service: 'GoreeCloud Notify', version: '0.2.0',
   }))
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request()
@@ -97,13 +115,15 @@ async function mockPrivacyScenario(page: Page) {
     if (path === '/api/v1/meta') {
       return json(route, {
         service: 'GoreeCloud Notify',
-        version: '0.1.0-dev',
+        version: '0.2.0',
+        build_revision: 'dd22a7ad0765c8ca62b401749265594bb0a06e23',
         milestone: 1,
         development_milestone: 4,
         production: false,
+        release_stage: 'release_candidate',
         implemented_engine: ['authenticated SSE inbox stream'],
-        next_milestone: 'Real-Time Delivery',
-        next_slice: 'Milestone 4 manual realtime and browser notification acceptance',
+        next_milestone: 'Production Acceptance',
+        next_slice: 'Target deployment and controlled acceptance',
       })
     }
     if (path === '/api/v1/me') {
@@ -256,7 +276,7 @@ test('browser denial remains fail-closed and does not persist local opt-in', asy
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __notifySystemAlerts: unknown[] }).__notifySystemAlerts.length)).toBe(0)
 })
 
-test('external permission revocation clears the browser-local enabled state', async ({ page }) => {
+test('external permission revocation is reconciled from the Permissions API change signal', async ({ page }) => {
   await installFakeNotificationApi(page)
   await mockPrivacyScenario(page)
   await page.goto('/')
@@ -272,10 +292,11 @@ test('external permission revocation clears the browser-local enabled state', as
       writable: true,
       value: 'denied',
     })
-    document.dispatchEvent(new Event('visibilitychange'))
+    ;(window as typeof window & { __notifyPermissionStatus: EventTarget }).__notifyPermissionStatus.dispatchEvent(new Event('change'))
   })
 
   await expect(page.getByText('Blocked by browser')).toBeVisible()
+  await expect(page.getByText('Blocked by browser', { exact: true })).toHaveCount(2)
   await expect(page.getByRole('button', { name: 'Enable system alerts' })).toBeDisabled()
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('goreecloud-notify-system-alerts'))).toBeNull()
 })
