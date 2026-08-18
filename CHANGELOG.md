@@ -10,6 +10,8 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Aligned the primary responsive transformations with Glaze UI Compact, Medium, Expanded, and Wide ranges while preserving Notify's established notification-focused composition.
 - Replaced stale development-milestone presentation with release-aware version, stage, immutable build-revision, and production-acceptance status from `/api/v1/meta`.
 - Updated product metadata and browser theme-color metadata for the private Notify application experience.
+- Integrated Wardveil Security presentation metadata without changing the authority of the application's underlying security controls.
+- Added privacy-minimized structured HTTP observability with bounded `X-Request-ID` correlation, route-template/status/duration events, generic correlated unexpected-error responses, and deliberate exclusion of request secrets and personal network/browser metadata.
 
 ### Fixed and hardened
 
@@ -17,10 +19,14 @@ All notable source releases of GoreeCloud Notify are recorded here. Detailed ope
 - Externally blocked browser notification permission now clears the local opt-in promptly and is visible in the collapsed settings summary instead of appearing as an unrequested permission.
 - System-alert privacy remains explicit opt-in, foreground-suppressed, backlog-suppressed, and limited to generic redacted operating-system text.
 - Actionable controls enforce the Glaze UI 44-pixel minimum target contract, with forced-colors and existing reduced-motion/transparency resilience preserved.
+- Invalid caller-supplied request identifiers are replaced instead of being trusted as log correlation input.
+- Unexpected server errors no longer require exposing raw exception text to the client; the generic response carries only a sanitized correlation identifier.
+- Response hardening now additionally declares same-origin opener/resource isolation, origin-agent clustering, and denial of legacy cross-domain policy files.
 
 ### Validation
 
 - Expanded Playwright coverage records the Glaze UI target, core semantic contract values, minimum actionable target size, release-candidate presentation, and Permissions API revocation reconciliation.
+- Added backend regression coverage for Wardveil response metadata, generated and preserved request IDs, unsafe request-ID replacement, privacy-minimized structured log events, stronger browser-isolation headers, and secret-safe correlated unexpected-error handling.
 - Existing WCAG A/AA automation, Compact overflow checks, realtime/offline recovery, multi-tab behavior, and production/disposable readiness gates remain part of the pull-request validation set.
 
 ## 0.2.0 — Release candidate
