@@ -9,11 +9,11 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     override fun onResume() {
         super.onResume()
-        PersistentDeliveryStore(this).appVisible = true
+        ProcessVisibility.appVisible = true
     }
 
     override fun onPause() {
-        PersistentDeliveryStore(this).appVisible = false
+        ProcessVisibility.appVisible = false
         super.onPause()
     }
 
