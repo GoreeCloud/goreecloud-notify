@@ -96,6 +96,10 @@ jobs:
               g = g.replace(marker, marker + '        isCoreLibraryDesugaringEnabled = true\n', 1)
           if 'coreLibraryDesugaring(' not in g:
               g += '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")\n}\n'
+          # Flutter's generated Android template signs release builds with the debug key by
+          # default. Acceptance release artifacts must remain unsigned in CI so production
+          # signing material never enters the repository or GitHub Actions environment.
+          g = g.replace('signingConfig = signingConfigs.getByName("debug")', 'signingConfig = null')
           gradle.write_text(g)
           PY
           cp -a client/android-overlay/. "$RUNNER_TEMP/client/android/"
@@ -112,10 +116,32 @@ jobs:
           flutter analyze --no-fatal-infos
           flutter build apk --debug --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
           cp build/app/outputs/flutter-apk/app-debug.apk "$RUNNER_TEMP/goreecloud-notify-android-acceptance.apk"
-      - name: Upload Android acceptance APK
+          flutter build apk --release --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
+          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/goreecloud-notify-android-release-unsigned.apk"
+      - name: Verify release acceptance APK is unsigned
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          if "$APKSIGNER" verify "$RUNNER_TEMP/goreecloud-notify-android-release-unsigned.apk"; then
+            echo 'Release acceptance APK is unexpectedly signed.' >&2
+            exit 1
+          fi
+          sha256sum "$RUNNER_TEMP/goreecloud-notify-android-acceptance.apk" "$RUNNER_TEMP/goreecloud-notify-android-release-unsigned.apk" | tee "$RUNNER_TEMP/android-apk-sha256.txt"
+      - name: Upload Android debug acceptance APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: goreecloud-notify-android-apk
-          path: ${{ runner.temp }}/goreecloud-notify-android-acceptance.apk
+          path: |
+            ${{ runner.temp }}/goreecloud-notify-android-acceptance.apk
+            ${{ runner.temp }}/android-apk-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Android unsigned release acceptance APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: goreecloud-notify-android-release-unsigned
+          path: |
+            ${{ runner.temp }}/goreecloud-notify-android-release-unsigned.apk
+            ${{ runner.temp }}/android-apk-sha256.txt
           if-no-files-found: error
           retention-days: 14
