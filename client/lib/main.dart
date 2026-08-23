@@ -237,11 +237,14 @@ class ClientAlerts {
       linux: LinuxInitializationSettings(defaultActionName: 'Open GoreeCloud Notify'),
     );
     await _plugin.initialize(settings: settings);
-    if (Platform.isAndroid) {
-      await _plugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
-    }
+  }
+
+  Future<bool> requestPermission() async {
+    if (!Platform.isAndroid) return true;
+    return await _plugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission() ??
+        false;
   }
 
   Future<void> show(Delivery delivery) => _plugin.show(
@@ -432,6 +435,12 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
         appBar: AppBar(
           title: const Text('Notify'),
           actions: [
+            if (Platform.isAndroid)
+              IconButton(
+                onPressed: _enableSystemAlerts,
+                tooltip: 'Enable system alerts',
+                icon: const Icon(Icons.notifications_none),
+              ),
             IconButton(onPressed: _refresh, tooltip: 'Refresh', icon: const Icon(Icons.refresh)),
             IconButton(onPressed: _logout, tooltip: 'Sign out', icon: const Icon(Icons.logout)),
           ],
@@ -456,6 +465,20 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                           ),
                   ),
       );
+
+  Future<void> _enableSystemAlerts() async {
+    final enabled = await widget.alerts.requestPermission();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          enabled
+              ? 'System alerts enabled. Notification content remains private.'
+              : 'System alerts were not enabled. You can continue using Notify in the app.',
+        ),
+      ),
+    );
+  }
 
   Future<void> _logout() async {
     await _stream?.cancel();
