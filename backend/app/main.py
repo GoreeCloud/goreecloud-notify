@@ -19,6 +19,7 @@ from .observability import (
     WARDVEIL_STATUS,
     RequestObservabilityMiddleware,
 )
+from .request_limits import RequestBodyLimitMiddleware
 from .routers import admin, compatibility, inbox, notifications, retention, session, subscriptions
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
@@ -117,6 +118,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Starlette executes the last-added middleware first. Install the request-body
+# limiter before the response middleware so rejected requests still receive the
+# normal correlation, Wardveil, CORS, privacy, and browser-security headers.
+app.add_middleware(RequestBodyLimitMiddleware)
 app.add_middleware(RequestObservabilityMiddleware)
 app.add_middleware(
     CORSMiddleware,
