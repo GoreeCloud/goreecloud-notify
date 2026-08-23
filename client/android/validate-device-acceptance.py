@@ -91,6 +91,8 @@ def main() -> None:
     notes = record.get("notes")
     if not isinstance(notes, list):
         fail("notes must be a list")
+    if not notes or any(not isinstance(note, str) or not note.strip() for note in notes):
+        fail("notes must contain at least one non-empty review note")
 
     print(f"valid acceptance evidence: {path}")
 
