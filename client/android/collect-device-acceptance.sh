@@ -1,14 +1,53 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage:
+  collect-device-acceptance.sh SOURCE_REVISION SIGNED_APK [OUTPUT_JSON]
+
+The collector records non-secret physical-device acceptance context for the exact signed APK
+under test. It hashes the ADB serial rather than storing the raw device identifier.
+EOF
+}
+
+if [[ ${1:-} == "--help" || ${1:-} == "-h" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -lt 2 || $# -gt 3 ]]; then
+  usage >&2
+  exit 2
+fi
+
+source_revision=$1
+signed_apk=$2
+output=${3:-goreecloud-notify-android-device-acceptance.json}
 package_name=${GOREECLOUD_NOTIFY_ANDROID_PACKAGE:-com.goreecloud.goreecloud_notify_client}
-output=${1:-goreecloud-notify-android-device-acceptance.json}
+
+[[ "$source_revision" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "SOURCE_REVISION must be a full 40-character Git SHA." >&2; exit 1; }
+[[ -f "$signed_apk" ]] || { echo "Signed APK not found: $signed_apk" >&2; exit 1; }
+[[ ! -e "$output" ]] || { echo "Refusing to overwrite existing evidence file: $output" >&2; exit 1; }
 
 command -v adb >/dev/null 2>&1 || { echo "adb is required." >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required." >&2; exit 1; }
+command -v sha256sum >/dev/null 2>&1 || { echo "sha256sum is required." >&2; exit 1; }
+
+if [[ -n ${ANDROID_HOME:-} ]]; then
+  apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print 2>/dev/null | sort -V | tail -n 1)
+else
+  apksigner=$(command -v apksigner || true)
+fi
+[[ -n "$apksigner" && -x "$apksigner" ]] || { echo "Android apksigner was not found." >&2; exit 1; }
+"$apksigner" verify --verbose --print-certs "$signed_apk" >/dev/null
 
 serial=$(adb get-serialno)
 [[ -n "$serial" && "$serial" != "unknown" ]] || { echo "No authorized Android device detected." >&2; exit 1; }
+serial_hash=$(printf '%s' "$serial" | sha256sum | awk '{print $1}')
+signed_apk_sha256=$(sha256sum "$signed_apk" | awk '{print $1}')
+signer_certificate_sha256=$("$apksigner" verify --print-certs "$signed_apk" 2>/dev/null | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d '[:space:]')
+[[ "$signer_certificate_sha256" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "Unable to determine signer certificate SHA-256 digest." >&2; exit 1; }
 
 model=$(adb shell getprop ro.product.model | tr -d '\r')
 manufacturer=$(adb shell getprop ro.product.manufacturer | tr -d '\r')
@@ -22,13 +61,11 @@ version_name=$(printf '%s\n' "$package_dump" | sed -n 's/.*versionName=//p' | he
 version_code=$(printf '%s\n' "$package_dump" | sed -n 's/.*versionCode=\([0-9][0-9]*\).*/\1/p' | head -n 1)
 first_install=$(printf '%s\n' "$package_dump" | sed -n 's/.*firstInstallTime=//p' | head -n 1 | xargs)
 last_update=$(printf '%s\n' "$package_dump" | sed -n 's/.*lastUpdateTime=//p' | head -n 1 | xargs)
-
-signer=$(printf '%s\n' "$package_dump" | sed -n 's/.*signatures=\[\(.*\)\].*/\1/p' | head -n 1)
 notification_permission=$(adb shell cmd appops get "$package_name" POST_NOTIFICATION 2>/dev/null | tr -d '\r' || true)
 battery_state=$(adb shell dumpsys deviceidle 2>/dev/null | grep -E 'mState=|mLightState=|mScreenOn=|mCharging=' | tr -d '\r' || true)
 standby_bucket=$(adb shell am get-standby-bucket "$package_name" 2>/dev/null | tr -d '\r' || true)
 
-export GC_SERIAL="$serial" GC_MODEL="$model" GC_MANUFACTURER="$manufacturer" GC_ANDROID_RELEASE="$android_release" GC_SDK="$sdk" GC_BUILD_FINGERPRINT="$build_fingerprint" GC_PACKAGE="$package_name" GC_VERSION_NAME="$version_name" GC_VERSION_CODE="$version_code" GC_FIRST_INSTALL="$first_install" GC_LAST_UPDATE="$last_update" GC_SIGNER="$signer" GC_NOTIFICATION_PERMISSION="$notification_permission" GC_BATTERY_STATE="$battery_state" GC_STANDBY_BUCKET="$standby_bucket" GC_OUTPUT="$output"
+export GC_SOURCE_REVISION="$source_revision" GC_SIGNED_APK_SHA256="$signed_apk_sha256" GC_SIGNER_CERT_SHA256="$signer_certificate_sha256" GC_SERIAL_HASH="$serial_hash" GC_MODEL="$model" GC_MANUFACTURER="$manufacturer" GC_ANDROID_RELEASE="$android_release" GC_SDK="$sdk" GC_BUILD_FINGERPRINT="$build_fingerprint" GC_PACKAGE="$package_name" GC_VERSION_NAME="$version_name" GC_VERSION_CODE="$version_code" GC_FIRST_INSTALL="$first_install" GC_LAST_UPDATE="$last_update" GC_NOTIFICATION_PERMISSION="$notification_permission" GC_BATTERY_STATE="$battery_state" GC_STANDBY_BUCKET="$standby_bucket" GC_OUTPUT="$output"
 
 python3 - <<'PY'
 import json
@@ -36,13 +73,13 @@ import os
 from pathlib import Path
 
 record = {
-    "schema": "goreecloud-notify-android-device-acceptance/v1",
+    "schema": "goreecloud-notify-android-device-acceptance/v2",
     "classification": "acceptance-evidence-template",
-    "source_revision": None,
-    "signed_apk_sha256": None,
-    "signer_certificate_sha256": None,
+    "source_revision": os.environ["GC_SOURCE_REVISION"].lower(),
+    "signed_apk_sha256": os.environ["GC_SIGNED_APK_SHA256"].lower(),
+    "signer_certificate_sha256": os.environ["GC_SIGNER_CERT_SHA256"].lower(),
     "device": {
-        "adb_serial": os.environ["GC_SERIAL"],
+        "adb_serial_sha256": os.environ["GC_SERIAL_HASH"].lower(),
         "manufacturer": os.environ["GC_MANUFACTURER"],
         "model": os.environ["GC_MODEL"],
         "android_release": os.environ["GC_ANDROID_RELEASE"],
@@ -55,7 +92,6 @@ record = {
         "version_code": os.environ["GC_VERSION_CODE"],
         "first_install_time": os.environ["GC_FIRST_INSTALL"],
         "last_update_time": os.environ["GC_LAST_UPDATE"],
-        "dumpsys_signer_summary": os.environ["GC_SIGNER"],
         "notification_permission": os.environ["GC_NOTIFICATION_PERMISSION"],
         "standby_bucket": os.environ["GC_STANDBY_BUCKET"],
     },
@@ -77,8 +113,6 @@ record = {
 }
 
 path = Path(os.environ["GC_OUTPUT"])
-if path.exists():
-    raise SystemExit(f"Refusing to overwrite existing evidence file: {path}")
 path.write_text(json.dumps(record, indent=2) + "\n")
 print(path)
 PY
