@@ -39,10 +39,21 @@ class MainActivity : FlutterActivity() {
                     store.writeSessionCookie(cookie)
                     store.enabled = true
                     val service = Intent(this, PersistentDeliveryService::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(service)
-                    } else {
-                        startService(service)
+                    val started = runCatching {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(service)
+                        } else {
+                            startService(service)
+                        }
+                    }.isSuccess
+                    if (!started) {
+                        store.clearSession()
+                        result.error(
+                            "persistent_delivery_unavailable",
+                            "Android did not allow persistent notification delivery to start.",
+                            null,
+                        )
+                        return@setMethodCallHandler
                     }
                     result.success(true)
                 }
