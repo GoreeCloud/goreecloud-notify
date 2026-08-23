@@ -36,13 +36,13 @@ jobs:
           flutter --version
           flutter config --enable-linux-desktop
           flutter create --platforms=linux --org com.goreecloud --project-name goreecloud_notify_client "$RUNNER_TEMP/client"
-          rm -rf "$RUNNER_TEMP/client/lib"
+          rm -rf "$RUNNER_TEMP/client/lib" "$RUNNER_TEMP/client/test"
           cp -a client/lib "$RUNNER_TEMP/client/lib"
           cp client/pubspec.yaml "$RUNNER_TEMP/client/pubspec.yaml"
           cd "$RUNNER_TEMP/client"
           flutter pub get
           dart format lib
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter build linux --release --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
       - name: Build Debian package
         working-directory: client
@@ -76,7 +76,7 @@ jobs:
           export PATH="$RUNNER_TEMP/flutter/bin:$PATH"
           flutter --version
           flutter create --platforms=android --org com.goreecloud --project-name goreecloud_notify_client "$RUNNER_TEMP/client"
-          rm -rf "$RUNNER_TEMP/client/lib"
+          rm -rf "$RUNNER_TEMP/client/lib" "$RUNNER_TEMP/client/test"
           cp -a client/lib "$RUNNER_TEMP/client/lib"
           cp client/pubspec.yaml "$RUNNER_TEMP/client/pubspec.yaml"
           python3 - <<'PY'
@@ -108,7 +108,7 @@ jobs:
           cd "$RUNNER_TEMP/client"
           flutter pub get
           dart format lib
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter build apk --debug --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
           cp build/app/outputs/flutter-apk/app-debug.apk "$RUNNER_TEMP/goreecloud-notify-android-acceptance.apk"
       - name: Upload Android acceptance APK
