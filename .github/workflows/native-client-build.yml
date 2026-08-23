@@ -67,6 +67,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends librsvg2-bin
+      - name: Validate Android acceptance tooling
+        run: |
+          bash -n client/android/sign-release-apk.sh
+          bash -n client/android/collect-device-acceptance.sh
+          client/android/sign-release-apk.sh --help >/dev/null
+          client/android/collect-device-acceptance.sh --help >/dev/null
       - name: Install pinned Flutter SDK
         run: |
           git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
