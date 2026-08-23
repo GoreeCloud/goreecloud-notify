@@ -71,8 +71,10 @@ jobs:
         run: |
           bash -n client/android/sign-release-apk.sh
           bash -n client/android/collect-device-acceptance.sh
+          python3 -m py_compile client/android/validate-device-acceptance.py
           bash client/android/sign-release-apk.sh --help >/dev/null
           bash client/android/collect-device-acceptance.sh --help >/dev/null
+          python3 client/android/validate-device-acceptance.py --help >/dev/null
       - name: Install pinned Flutter SDK
         run: |
           git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
