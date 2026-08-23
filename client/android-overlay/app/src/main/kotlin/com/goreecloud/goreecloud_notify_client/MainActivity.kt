@@ -7,6 +7,16 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    override fun onResume() {
+        super.onResume()
+        PersistentDeliveryStore(this).appVisible = true
+    }
+
+    override fun onPause() {
+        PersistentDeliveryStore(this).appVisible = false
+        super.onPause()
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
