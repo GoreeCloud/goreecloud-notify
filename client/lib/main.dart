@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'persistent_alerts.dart';
+
 const _defaultServer = String.fromEnvironment(
   'GOREECLOUD_NOTIFY_URL',
   defaultValue: 'https://notify.goreecloud.com',
@@ -67,6 +69,8 @@ class NotifyApi {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   String? _cookie;
   String? _csrf;
+
+  String? get sessionCookie => _cookie;
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final uri = Uri.parse('${base.toString()}$path');
@@ -388,6 +392,7 @@ class InboxScreen extends StatefulWidget {
 }
 
 class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
+  final PersistentAlerts _persistentAlerts = PersistentAlerts();
   List<Delivery> _deliveries = const [];
   bool _loading = true;
   String? _error;
@@ -467,14 +472,38 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
       );
 
   Future<void> _enableSystemAlerts() async {
-    final enabled = await widget.alerts.requestPermission();
+    final permissionGranted = await widget.alerts.requestPermission();
+    if (!mounted) return;
+    if (!permissionGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('System alerts were not enabled. You can continue using Notify in the app.'),
+        ),
+      );
+      return;
+    }
+
+    final sessionCookie = widget.api.sessionCookie;
+    if (sessionCookie == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('System alerts require an active signed-in session.')),
+      );
+      return;
+    }
+
+    final latest = _deliveries.isEmpty ? 0 : _deliveries.map((item) => item.id).reduce((a, b) => a > b ? a : b);
+    final enabled = await _persistentAlerts.enable(
+      server: widget.api.base,
+      sessionCookie: sessionCookie,
+      afterId: latest,
+    );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           enabled
-              ? 'System alerts enabled. Notification content remains private.'
-              : 'System alerts were not enabled. You can continue using Notify in the app.',
+              ? 'Persistent system alerts enabled. Notification content remains private.'
+              : 'Persistent system alerts could not be enabled. You can continue using Notify in the app.',
         ),
       ),
     );
@@ -482,6 +511,7 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
 
   Future<void> _logout() async {
     await _stream?.cancel();
+    if (Platform.isAndroid) await _persistentAlerts.disable();
     await widget.api.logout();
     widget.onSignedOut();
   }
