@@ -99,7 +99,7 @@ class PersistentDeliveryService : Service() {
                             val deliveryId = eventId.toLongOrNull()
                             if (event == "inbox" && deliveryId != null && deliveryId > store.lastDeliveryId) {
                                 store.lastDeliveryId = deliveryId
-                                if (!ProcessVisibility.appVisible) showPrivateAlert(deliveryId)
+                                if (!ProcessVisibility.activityPresent) showPrivateAlert(deliveryId)
                             }
                             event = ""
                             eventId = ""
