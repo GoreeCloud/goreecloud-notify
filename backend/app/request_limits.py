@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -13,11 +14,12 @@ DEFAULT_MAX_REQUEST_BODY_BYTES = 64 * 1024
 NATIVE_NOTIFICATION_MAX_REQUEST_BODY_BYTES = 256 * 1024
 NTFY_COMPAT_MAX_REQUEST_BODY_BYTES = 8 * 1024
 BODY_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+NTFY_COMPAT_TOPIC_PATH = re.compile(r"^/[-_A-Za-z0-9]{1,64}$")
 
 
 def request_body_limit(scope: dict[str, Any]) -> int:
     path = str(scope.get("path", "")).rstrip("/") or "/"
-    if path.startswith("/compat/ntfy/"):
+    if path.startswith("/compat/ntfy/") or NTFY_COMPAT_TOPIC_PATH.fullmatch(path):
         return NTFY_COMPAT_MAX_REQUEST_BODY_BYTES
     if path == "/api/v1/notifications":
         return NATIVE_NOTIFICATION_MAX_REQUEST_BODY_BYTES
