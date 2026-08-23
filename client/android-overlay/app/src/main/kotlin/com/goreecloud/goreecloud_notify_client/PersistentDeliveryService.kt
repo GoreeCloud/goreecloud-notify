@@ -128,6 +128,7 @@ class PersistentDeliveryService : Service() {
     }
 
     private fun createChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(
@@ -153,7 +154,7 @@ class PersistentDeliveryService : Service() {
     }
 
     private fun foregroundNotification(): Notification =
-        Notification.Builder(this, SERVICE_CHANNEL_ID)
+        notificationBuilder(SERVICE_CHANNEL_ID)
             .setSmallIcon(applicationInfo.icon)
             .setContentTitle("GoreeCloud Notify")
             .setContentText("Background alerts enabled")
@@ -164,7 +165,7 @@ class PersistentDeliveryService : Service() {
             .build()
 
     private fun showPrivateAlert(deliveryId: Long) {
-        val notification = Notification.Builder(this, ALERT_CHANNEL_ID)
+        val notification = notificationBuilder(ALERT_CHANNEL_ID)
             .setSmallIcon(applicationInfo.icon)
             .setContentTitle("GoreeCloud Notify")
             .setContentText("New notification received. Open Notify to view details.")
@@ -176,6 +177,14 @@ class PersistentDeliveryService : Service() {
         getSystemService(NotificationManager::class.java)
             .notify((deliveryId and 0x7fffffff).toInt(), notification)
     }
+
+    @Suppress("DEPRECATION")
+    private fun notificationBuilder(channelId: String): Notification.Builder =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, channelId)
+        } else {
+            Notification.Builder(this)
+        }
 
     private fun openAppIntent(): PendingIntent {
         val intent = packageManager.getLaunchIntentForPackage(packageName)
