@@ -19,6 +19,7 @@ import kotlin.math.min
 class PersistentDeliveryService : Service() {
     private val executor = Executors.newSingleThreadExecutor()
     private val deliveryLoopRunning = AtomicBoolean(false)
+    @Volatile private var activeConnection: HttpURLConnection? = null
     @Volatile private var stopped = false
 
     override fun onCreate() {
@@ -58,6 +59,8 @@ class PersistentDeliveryService : Service() {
 
     override fun onDestroy() {
         stopped = true
+        activeConnection?.disconnect()
+        activeConnection = null
         executor.shutdownNow()
         super.onDestroy()
     }
@@ -81,6 +84,7 @@ class PersistentDeliveryService : Service() {
                     readTimeout = 75_000
                     instanceFollowRedirects = false
                 }
+                activeConnection = connection
                 val status = connection.responseCode
                 if (status == 401) {
                     store.clearSession()
@@ -122,6 +126,7 @@ class PersistentDeliveryService : Service() {
                     retrySeconds = min(retrySeconds * 2, 30L)
                 }
             } finally {
+                if (activeConnection === connection) activeConnection = null
                 connection?.disconnect()
             }
         }
