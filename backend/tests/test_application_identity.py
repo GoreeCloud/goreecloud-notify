@@ -55,7 +55,7 @@ def test_web_metadata_and_product_marks_use_canonical_icon() -> None:
 def test_packaging_contract_reuses_same_canonical_identity() -> None:
     contract = json.loads((ROOT / "packaging/application-identity.json").read_text(encoding="utf-8"))
 
-    assert contract["schema_version"] == 1
+    assert contract["schema_version"] == 2
     assert contract["product"] == "GoreeCloud Notify"
     assert contract["canonical_icon"] == ICON_REL
     assert contract["web"] == {
@@ -63,10 +63,15 @@ def test_packaging_contract_reuses_same_canonical_identity() -> None:
         "manifest": "frontend/public/manifest.webmanifest",
     }
     assert contract["linux"] == {
-        "target": "AppImage",
+        "target": "deb",
+        "package_name": "goreecloud-notify",
+        "artifact_pattern": "goreecloud-notify_<version>_amd64.deb",
         "icon_source": ICON_REL,
     }
     assert contract["android"] == {
         "target": "APK",
+        "application_id": "com.goreecloud.goreecloud_notify_client",
+        "acceptance_artifact": "goreecloud-notify-android-acceptance.apk",
         "icon_source": ICON_REL,
+        "production_signing": "external-protected-material-required",
     }
