@@ -1,66 +1,53 @@
 # GoreeCloud Notify Application Identity
 
-## Purpose
+GoreeCloud Notify uses one canonical first-party product identity across the web application and the first-party native clients.
 
-GoreeCloud Notify uses one canonical product identity across every supported or future client surface. This prevents the web application, Linux packaging, Android packaging, shortcuts, launchers, manifests, and future platform integrations from drifting into separate visual identities.
+## Canonical identity
 
-The authoritative source artwork is:
+- Product name: `GoreeCloud Notify`
+- Short product label: `Notify`
+- Canonical scalable mark: `frontend/public/brand/goreecloud-notify-icon.svg`
+- Design language: Glaze UI
+- Security identity: Wardveil Security by GoreeCloud
+- Privacy identity: GoreeCloud Privacy Shield
 
-`frontend/public/brand/goreecloud-notify-icon.svg`
+The canonical SVG is the source asset for web metadata and for package-specific icon derivatives. Platform packaging must not introduce unrelated or upstream product branding.
 
-The machine-readable distribution contract is:
+## Web contract
 
-`packaging/application-identity.json`
+The web application reuses the canonical SVG for its favicon, installable web-app manifest, and product-mark surfaces. The manifest presents the product as `GoreeCloud Notify` / `Notify` and uses standalone display behavior.
 
-## Canonical icon
+## Linux contract
 
-The Notify icon is a product-specific Glaze UI mark rather than the generic GoreeCloud platform logo. Its primary symbol combines a notification bell, a distinct N-shaped delivery pulse, and an unread/status point inside a Glaze blue product tile.
+Linux delivery is a native Flutter desktop client packaged as an amd64 Debian package:
 
-The source is a local scalable SVG with no remote fonts, remote images, scripts, tracking resources, embedded raster content, or external runtime dependency. Platform-specific derivatives may change rasterization, safe-area padding, masking, monochrome treatment, or launcher corner treatment when the target platform requires it, but they must preserve the same underlying symbol and product identity.
+- package name: `goreecloud-notify`
+- executable: `/usr/bin/goreecloud-notify`
+- application display name: `GoreeCloud Notify`
+- artifact pattern: `goreecloud-notify_<version>_amd64.deb`
+- icon source: the canonical GoreeCloud Notify SVG
 
-## Web and installable web surface
+The Debian package installs the Flutter release bundle under `/usr/lib/goreecloud-notify`, exposes a freedesktop desktop entry, and declares the GTK/libsecret runtime dependencies required by the client.
 
-The web application uses the canonical SVG directly as its browser favicon. `frontend/public/manifest.webmanifest` also references the same source for the installable web identity and declares it suitable for ordinary and maskable presentation.
+## Android contract
 
-Vite copies `frontend/public/` into the immutable production frontend artifact, so the favicon, manifest, and canonical source artwork are included in the existing production build rather than loaded from a third party.
+Android delivery is a first-party Flutter client, not a WebView wrapper. The acceptance artifact uses:
 
-### Production serving contract
+- application identity: `com.goreecloud.goreecloud_notify_client`
+- application display name: `GoreeCloud Notify`
+- acceptance artifact: `goreecloud-notify-android-acceptance.apk`
+- icon source: the canonical GoreeCloud Notify SVG
 
-The production FastAPI runtime explicitly serves only the two root-level identity resources required by the current application:
+The GitHub Actions acceptance build is installable for device testing but is intentionally not a production-signed Store release. Production signing keys and other reusable signing material must remain outside source control.
 
-- `/brand/goreecloud-notify-icon.svg`
-- `/manifest.webmanifest`
+## Native-client privacy and authentication boundary
 
-This is deliberate. The application does not expose a general-purpose `/brand/*` directory or arbitrary root-level frontend files merely because Vite copied them into the build artifact.
+The native client authenticates against the existing human-session API. It stores only the opaque session cookie and CSRF token through the platform secure-storage provider; it does not retain the user's password after login. Native operating-system notification previews are redacted so private notification content is not exposed on a lock screen by default.
 
-The canonical icon is served as `image/svg+xml` with a bounded public cache that must revalidate. The manifest is served as `application/manifest+json` with a shorter revalidating public cache. Both resources retain the application browser-security headers, including same-origin resource isolation. Missing identity artifacts fail with an ordinary private `404` response using `Cache-Control: no-store` rather than producing a cacheable public error.
+## Android background-delivery gate
 
-The production-readiness topology validates both resources through the approved private HTTPS/Caddy path from the synthetic approved client. The validation checks status, media type, cache policy, browser-security headers, manifest identity fields, and the manifest-to-canonical-icon reference. A successful source build is therefore not accepted as sufficient evidence that the installed production runtime can actually deliver the icon and manifest.
+The initial Android client maintains the realtime SSE stream while its process remains running. That behavior is not sufficient to claim ntfy-equivalent persistent mobile delivery. GoreeCloud Notify may retire ntfy as the phone's independent alert path only after persistent Android delivery has been implemented and independently accepted across backgrounding, process termination, device reboot, Doze/battery restrictions, and the approved production-signing path.
 
-## Linux AppImage contract
+## Acceptance rule
 
-Linux desktop/AppImage packaging must derive its launcher and package icon assets from `frontend/public/brand/goreecloud-notify-icon.svg`.
-
-A future Linux client may generate the raster or freedesktop sizes required by its packaging toolchain, but it must not substitute a different logo, recolor a generic GoreeCloud mark as the sole distinction, or maintain a separate editable master artwork file.
-
-This contract does not claim that a Linux/AppImage client is implemented, accepted, signed, or production-ready. A future desktop client still requires an approved application architecture, authentication/session model, secure update and packaging design, Glaze UI acceptance, release validation, and target-system testing before it may be classified as supported or Stable.
-
-## Android APK contract
-
-Android APK or AAB packaging must derive launcher/adaptive icon assets from the same canonical SVG.
-
-Android-specific foreground/background separation, masking, monochrome launcher treatment, density-specific rasterization, and safe-zone adjustments are allowed when they are generated as platform adaptations of the canonical mark. They must not change the underlying notification-bell and N-pulse identity.
-
-This contract does not claim that an Android client is implemented, accepted, signed, or production-ready. The project specification continues to define web first and Android next. Android implementation still requires an approved mobile architecture, authentication and token/session handling appropriate to a native client, notification-delivery design, secure storage, Glaze UI adaptation, signing/recovery controls, and real-device acceptance.
-
-## Security and privacy boundary
-
-Application identity assets are presentation resources only. They do not weaken or replace Wardveil Security, application authentication, authorization, CSRF protection, producer-token controls, private publication, backup/recovery, monitoring, or other technical security authorities.
-
-The repository regression suite must reject canonical icon changes that introduce executable SVG content, embedded external images, remote resource references, data URLs, or cross-platform source divergence.
-
-Production serving must not widen the static-file surface beyond the resources the current application actually requires. Public caching is permitted only for successful non-sensitive identity/build assets with explicit cache policy; API responses, authenticated responses, error responses, and other non-immutable application surfaces remain private and non-cacheable.
-
-## Change control
-
-Any future change to the canonical icon must be reviewed as an application-wide identity change. The web favicon, web manifest, Linux packaging contract, Android packaging contract, repository documentation, release metadata, production serving contract, runtime readiness validation, and any implemented platform derivatives must be updated or regenerated together from the same canonical source.
+A generated `.deb` or APK is an acceptance artifact, not proof of production readiness. Production claims require the repository's normal release, security, runtime, client, and migration gates to pass for the exact candidate revision.
