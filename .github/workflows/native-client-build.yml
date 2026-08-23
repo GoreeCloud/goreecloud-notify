@@ -75,6 +75,22 @@ jobs:
           bash client/android/sign-release-apk.sh --help >/dev/null
           bash client/android/collect-device-acceptance.sh --help >/dev/null
           python3 client/android/validate-device-acceptance.py --help >/dev/null
+          cat > "$RUNNER_TEMP/incomplete-acceptance.json" <<'JSON'
+          {
+            "schema": "goreecloud-notify-android-device-acceptance/v1",
+            "classification": "acceptance-evidence-template",
+            "source_revision": null,
+            "signed_apk_sha256": null,
+            "signer_certificate_sha256": null,
+            "authority": "https://notify.goreecloud.com",
+            "scenarios": {},
+            "accepted": false
+          }
+          JSON
+          if python3 client/android/validate-device-acceptance.py "$RUNNER_TEMP/incomplete-acceptance.json"; then
+            echo 'Incomplete Android acceptance evidence was unexpectedly accepted.' >&2
+            exit 1
+          fi
       - name: Install pinned Flutter SDK
         run: |
           git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
