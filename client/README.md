@@ -9,6 +9,7 @@ This directory contains the first-party Flutter client shared by the Linux and A
 - Authenticated inbox retrieval and real-time SSE delivery.
 - Read/unread and acknowledgement actions.
 - Privacy-redacted local operating-system alerts while the client is running outside the foreground.
+- Android notification permission requested only after explicit user action from the inbox; startup and sign-in do not trigger the permission prompt.
 - System light/dark appearance through the shared GoreeCloud application identity.
 - Linux `.deb` and Android APK acceptance artifacts produced by GitHub Actions.
 
