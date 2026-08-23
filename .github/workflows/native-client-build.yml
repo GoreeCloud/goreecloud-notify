@@ -98,6 +98,7 @@ jobs:
               g += '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")\n}\n'
           gradle.write_text(g)
           PY
+          cp -a client/android-overlay/. "$RUNNER_TEMP/client/android/"
           for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
             density="${spec%%:*}"; size="${spec##*:}"
             mkdir -p "$RUNNER_TEMP/client/android/app/src/main/res/mipmap-$density"
