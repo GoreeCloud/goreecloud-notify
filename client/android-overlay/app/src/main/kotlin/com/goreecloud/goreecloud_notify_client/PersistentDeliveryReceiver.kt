@@ -12,10 +12,12 @@ class PersistentDeliveryReceiver : BroadcastReceiver() {
         if (!store.enabled || store.readSessionCookie().isNullOrBlank() || store.server.isNullOrBlank()) return
 
         val service = Intent(context, PersistentDeliveryService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(service)
-        } else {
-            context.startService(service)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(service)
+            } else {
+                context.startService(service)
+            }
         }
     }
 }
