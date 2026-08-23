@@ -1,0 +1,120 @@
+name: Native client build
+
+on:
+  pull_request:
+    paths:
+      - 'client/**'
+      - 'frontend/public/brand/goreecloud-notify-icon.svg'
+      - '.github/workflows/native-client-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.0'
+  CLIENT_VERSION: '0.1.0'
+
+jobs:
+  linux-deb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev
+      - name: Install pinned Flutter SDK
+        run: |
+          git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - name: Generate native Linux project
+        run: |
+          export PATH="$RUNNER_TEMP/flutter/bin:$PATH"
+          flutter --version
+          flutter config --enable-linux-desktop
+          flutter create --platforms=linux --org com.goreecloud --project-name goreecloud_notify_client "$RUNNER_TEMP/client"
+          rm -rf "$RUNNER_TEMP/client/lib"
+          cp -a client/lib "$RUNNER_TEMP/client/lib"
+          cp client/pubspec.yaml "$RUNNER_TEMP/client/pubspec.yaml"
+          cd "$RUNNER_TEMP/client"
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib
+          flutter analyze
+          flutter build linux --release --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
+      - name: Build Debian package
+        working-directory: client
+        run: |
+          chmod +x package-deb.sh
+          ./package-deb.sh "$CLIENT_VERSION" amd64 "$RUNNER_TEMP/client/build/linux/x64/release/bundle" "$RUNNER_TEMP/dist"
+      - name: Upload Debian package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: goreecloud-notify-linux-deb
+          path: ${{ runner.temp }}/dist/*.deb
+          if-no-files-found: error
+          retention-days: 14
+
+  android-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install image tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends librsvg2-bin
+      - name: Install pinned Flutter SDK
+        run: |
+          git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - name: Generate native Android project
+        run: |
+          export PATH="$RUNNER_TEMP/flutter/bin:$PATH"
+          flutter --version
+          flutter create --platforms=android --org com.goreecloud --project-name goreecloud_notify_client "$RUNNER_TEMP/client"
+          rm -rf "$RUNNER_TEMP/client/lib"
+          cp -a client/lib "$RUNNER_TEMP/client/lib"
+          cp client/pubspec.yaml "$RUNNER_TEMP/client/pubspec.yaml"
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path(__import__('os').environ['RUNNER_TEMP']) / 'client'
+          manifest = root / 'android/app/src/main/AndroidManifest.xml'
+          text = manifest.read_text()
+          text = text.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />')
+          text = text.replace('android:label="goreecloud_notify_client"', 'android:label="GoreeCloud Notify"')
+          text = text.replace('<application\n', '<application\n        android:allowBackup="false"\n')
+          manifest.write_text(text)
+
+          gradle = root / 'android/app/build.gradle.kts'
+          g = gradle.read_text()
+          marker = 'compileOptions {\n'
+          if marker in g and 'isCoreLibraryDesugaringEnabled' not in g:
+              g = g.replace(marker, marker + '        isCoreLibraryDesugaringEnabled = true\n', 1)
+          if 'coreLibraryDesugaring(' not in g:
+              g += '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")\n}\n'
+          gradle.write_text(g)
+          PY
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"; size="${spec##*:}"
+            mkdir -p "$RUNNER_TEMP/client/android/app/src/main/res/mipmap-$density"
+            rsvg-convert -w "$size" -h "$size" frontend/public/brand/goreecloud-notify-icon.svg -o "$RUNNER_TEMP/client/android/app/src/main/res/mipmap-$density/ic_launcher.png"
+            cp "$RUNNER_TEMP/client/android/app/src/main/res/mipmap-$density/ic_launcher.png" "$RUNNER_TEMP/client/android/app/src/main/res/mipmap-$density/ic_launcher_round.png"
+          done
+          rm -rf "$RUNNER_TEMP/client/android/app/src/main/res/mipmap-anydpi-v26"
+          cd "$RUNNER_TEMP/client"
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib
+          flutter analyze
+          flutter build apk --debug --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
+          cp build/app/outputs/flutter-apk/app-debug.apk "$RUNNER_TEMP/goreecloud-notify-android-acceptance.apk"
+      - name: Upload Android acceptance APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: goreecloud-notify-android-apk
+          path: ${{ runner.temp }}/goreecloud-notify-android-acceptance.apk
+          if-no-files-found: error
+          retention-days: 14
