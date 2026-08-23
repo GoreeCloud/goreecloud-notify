@@ -34,6 +34,21 @@ client/android/sign-release-apk.sh \
 
 Do not place the keystore or passwords in Git, GitHub Actions secrets, issue comments, pull-request comments, Google Drive project documentation, shell history, or acceptance evidence. Record only public signer-certificate evidence, APK hashes, exact source revision, device/build information, and scenario outcomes.
 
+## Acceptance evidence initialization
+
+After installing the exact externally signed APK on the physical device, initialize a new evidence record before running acceptance scenarios:
+
+```bash
+client/android/collect-device-acceptance.sh \
+  <40-character-source-revision> \
+  goreecloud-notify-android-release-signed.apk \
+  goreecloud-notify-android-device-acceptance.json
+```
+
+The collector fails closed unless the source revision is a full Git SHA, the supplied APK exists and has a valid Android signature, the signer certificate SHA-256 can be extracted, the package is installed, and an authorized ADB device is present. It records the signed APK SHA-256 and signer-certificate SHA-256 directly at collection time so those values cannot be silently omitted later. The raw ADB device serial is not stored; only a one-way SHA-256 identifier is retained for evidence correlation.
+
+The generated JSON is only an evidence template. Every scenario remains `pending` and `accepted` remains `false` until the physical-device results are explicitly reviewed and recorded.
+
 ## Required real-device gate
 
 A signed APK is not sufficient to close issue #81. Acceptance must be performed on representative physical Android hardware and must remain tied to the exact source revision and signed APK hash.
