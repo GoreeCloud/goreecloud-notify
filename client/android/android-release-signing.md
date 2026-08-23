@@ -68,14 +68,14 @@ The acceptance session must cover:
 
 ## Evidence validation before closure
 
-After all physical-device scenarios have been reviewed, update each scenario status to `accepted`, set the top-level classification to `acceptance-evidence`, and set `accepted` to `true`. Then run:
+After all physical-device scenarios have been reviewed, update each scenario status to `accepted`, set the top-level classification to `acceptance-evidence`, set `accepted` to `true`, and add at least one non-empty review note describing the acceptance review or relevant device limitation. Then run:
 
 ```bash
 python3 client/android/validate-device-acceptance.py \
   goreecloud-notify-android-device-acceptance.json
 ```
 
-The validator rejects unsupported schemas, non-final authorities, missing or malformed source/APK/signer digests, raw ADB serial retention, incomplete package/device metadata, missing or extra acceptance scenarios, any scenario not explicitly marked `accepted`, and a false/missing top-level acceptance result. A validator pass is necessary evidence-integrity confirmation; it does not replace human review of the physical-device test results.
+The validator rejects unsupported schemas, non-final authorities, missing or malformed source/APK/signer digests, raw ADB serial retention, incomplete package/device metadata, missing or extra acceptance scenarios, any scenario not explicitly marked `accepted`, a false/missing top-level acceptance result, and empty/missing review notes. A validator pass is necessary evidence-integrity confirmation; it does not replace human review of the physical-device test results.
 
 ## Acceptance classification
 
