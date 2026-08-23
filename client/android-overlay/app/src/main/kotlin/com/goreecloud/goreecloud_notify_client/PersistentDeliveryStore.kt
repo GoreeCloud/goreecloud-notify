@@ -17,10 +17,6 @@ internal class PersistentDeliveryStore(context: Context) {
         get() = preferences.getBoolean(KEY_ENABLED, false)
         set(value) = preferences.edit().putBoolean(KEY_ENABLED, value).apply()
 
-    var appVisible: Boolean
-        get() = preferences.getBoolean(KEY_APP_VISIBLE, false)
-        set(value) = preferences.edit().putBoolean(KEY_APP_VISIBLE, value).apply()
-
     var server: String?
         get() = preferences.getString(KEY_SERVER, null)
         set(value) = preferences.edit().putString(KEY_SERVER, value).apply()
@@ -58,7 +54,6 @@ internal class PersistentDeliveryStore(context: Context) {
 
     fun clearSession() {
         enabled = false
-        appVisible = false
         preferences.edit()
             .remove(KEY_COOKIE_CIPHERTEXT)
             .remove(KEY_COOKIE_IV)
@@ -89,7 +84,6 @@ internal class PersistentDeliveryStore(context: Context) {
     private companion object {
         const val PREFERENCES = "goreecloud_notify_persistent_delivery"
         const val KEY_ENABLED = "enabled"
-        const val KEY_APP_VISIBLE = "app_visible"
         const val KEY_SERVER = "server"
         const val KEY_LAST_DELIVERY_ID = "last_delivery_id"
         const val KEY_COOKIE_CIPHERTEXT = "session_cookie_ciphertext"
