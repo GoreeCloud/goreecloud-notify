@@ -13,10 +13,12 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 
 class PersistentDeliveryService : Service() {
     private val executor = Executors.newSingleThreadExecutor()
+    private val deliveryLoopRunning = AtomicBoolean(false)
     @Volatile private var stopped = false
 
     override fun onCreate() {
@@ -42,7 +44,15 @@ class PersistentDeliveryService : Service() {
             startForeground(FOREGROUND_NOTIFICATION_ID, notification)
         }
 
-        executor.execute { deliveryLoop(store) }
+        if (deliveryLoopRunning.compareAndSet(false, true)) {
+            executor.execute {
+                try {
+                    deliveryLoop(store)
+                } finally {
+                    deliveryLoopRunning.set(false)
+                }
+            }
+        }
         return START_STICKY
     }
 
@@ -89,7 +99,7 @@ class PersistentDeliveryService : Service() {
                             val deliveryId = eventId.toLongOrNull()
                             if (event == "inbox" && deliveryId != null && deliveryId > store.lastDeliveryId) {
                                 store.lastDeliveryId = deliveryId
-                                if (!store.appVisible) showPrivateAlert(deliveryId)
+                                if (!ProcessVisibility.appVisible) showPrivateAlert(deliveryId)
                             }
                             event = ""
                             eventId = ""
