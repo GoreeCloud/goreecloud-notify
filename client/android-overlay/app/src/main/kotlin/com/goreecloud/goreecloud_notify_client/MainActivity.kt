@@ -2,19 +2,20 @@ package com.goreecloud.goreecloud_notify_client
 
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    override fun onResume() {
-        super.onResume()
-        ProcessVisibility.appVisible = true
+    override fun onCreate(savedInstanceState: Bundle?) {
+        ProcessVisibility.activityPresent = true
+        super.onCreate(savedInstanceState)
     }
 
-    override fun onPause() {
-        ProcessVisibility.appVisible = false
-        super.onPause()
+    override fun onDestroy() {
+        ProcessVisibility.activityPresent = false
+        super.onDestroy()
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
