@@ -39,7 +39,7 @@ Do not place the keystore or passwords in Git, GitHub Actions secrets, issue com
 After installing the exact externally signed APK on the physical device, initialize a new evidence record before running acceptance scenarios:
 
 ```bash
-client/android/collect-device-acceptance.sh \
+bash client/android/collect-device-acceptance.sh \
   <40-character-source-revision> \
   goreecloud-notify-android-release-signed.apk \
   goreecloud-notify-android-device-acceptance.json
@@ -66,6 +66,17 @@ The acceptance session must cover:
 9. verify sign-out disables native delivery and clears its stored authenticated session state;
 10. send representative notifications from the documented GoreeCloud producers through the final production authority and confirm expected mobile delivery.
 
+## Evidence validation before closure
+
+After all physical-device scenarios have been reviewed, update each scenario status to `accepted`, set the top-level classification to `acceptance-evidence`, and set `accepted` to `true`. Then run:
+
+```bash
+python3 client/android/validate-device-acceptance.py \
+  goreecloud-notify-android-device-acceptance.json
+```
+
+The validator rejects unsupported schemas, non-final authorities, missing or malformed source/APK/signer digests, raw ADB serial retention, incomplete package/device metadata, missing or extra acceptance scenarios, any scenario not explicitly marked `accepted`, and a false/missing top-level acceptance result. A validator pass is necessary evidence-integrity confirmation; it does not replace human review of the physical-device test results.
+
 ## Acceptance classification
 
-Until every required real-device scenario is accepted, PR #85 must remain a source/CI candidate and issue #81 must remain open. GoreeCloud Notify must not be described as ntfy-equivalent for Android background delivery, and issue #83 must not authorize ntfy retirement based on source or emulator evidence alone.
+Until every required real-device scenario is accepted and the completed evidence record passes `validate-device-acceptance.py`, PR #85 must remain a source/CI candidate and issue #81 must remain open. GoreeCloud Notify must not be described as ntfy-equivalent for Android background delivery, and issue #83 must not authorize ntfy retirement based on source or emulator evidence alone.
