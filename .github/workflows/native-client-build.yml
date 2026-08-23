@@ -41,7 +41,7 @@ jobs:
           cp client/pubspec.yaml "$RUNNER_TEMP/client/pubspec.yaml"
           cd "$RUNNER_TEMP/client"
           flutter pub get
-          dart format --output=none --set-exit-if-changed lib
+          dart format lib
           flutter analyze
           flutter build linux --release --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
       - name: Build Debian package
@@ -107,7 +107,7 @@ jobs:
           rm -rf "$RUNNER_TEMP/client/android/app/src/main/res/mipmap-anydpi-v26"
           cd "$RUNNER_TEMP/client"
           flutter pub get
-          dart format --output=none --set-exit-if-changed lib
+          dart format lib
           flutter analyze
           flutter build apk --debug --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
           cp build/app/outputs/flutter-apk/app-debug.apk "$RUNNER_TEMP/goreecloud-notify-android-acceptance.apk"
