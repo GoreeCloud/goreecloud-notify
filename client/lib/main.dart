@@ -146,6 +146,37 @@ class NotifyApi {
     if (response.statusCode != 200) throw HttpException('Acknowledgement failed (${response.statusCode}).');
   }
 
+  Future<void> deleteDelivery(int deliveryId) async {
+    final response = await _request('DELETE', '/api/v1/inbox/$deliveryId', csrf: true);
+    if (response.statusCode != 204) {
+      throw HttpException(_detail(response.body, 'Delete failed (${response.statusCode}).'));
+    }
+  }
+
+  Future<void> createAndSubscribeChannel({
+    required String slug,
+    required String name,
+    String? description,
+  }) async {
+    final create = await _request(
+      'POST',
+      '/api/v1/channels',
+      csrf: true,
+      jsonBody: {
+        'slug': slug,
+        'name': name,
+        'description': description == null || description.trim().isEmpty ? null : description.trim(),
+      },
+    );
+    if (create.statusCode != 201) {
+      throw HttpException(_detail(create.body, 'Topic creation failed (${create.statusCode}).'));
+    }
+    final subscribe = await _request('PUT', '/api/v1/subscriptions/${Uri.encodeComponent(slug)}', csrf: true);
+    if (subscribe.statusCode != 200) {
+      throw HttpException(_detail(subscribe.body, 'Topic was created but subscription failed (${subscribe.statusCode}).'));
+    }
+  }
+
   Stream<Delivery> stream({int? afterId}) async* {
     while (_cookie != null) {
       try {
@@ -440,6 +471,7 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
         appBar: AppBar(
           title: const Text('Notify'),
           actions: [
+            IconButton(onPressed: _addTopic, tooltip: 'Add topic', icon: const Icon(Icons.add_circle_outline)),
             if (Platform.isAndroid)
               IconButton(
                 onPressed: _enableSystemAlerts,
@@ -462,14 +494,85 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                             padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                             itemCount: _deliveries.length,
                             separatorBuilder: (_, __) => const SizedBox(height: 8),
-                            itemBuilder: (context, index) => _DeliveryCard(
-                              delivery: _deliveries[index],
-                              onRead: (read) async { await widget.api.markRead(_deliveries[index].id, read); await _refresh(); },
-                              onAcknowledge: () async { await widget.api.acknowledge(_deliveries[index].id); await _refresh(); },
-                            ),
+                            itemBuilder: (context, index) {
+                              final delivery = _deliveries[index];
+                              return _DeliveryCard(
+                                delivery: delivery,
+                                onRead: (read) async { await widget.api.markRead(delivery.id, read); await _refresh(); },
+                                onAcknowledge: () async { await widget.api.acknowledge(delivery.id); await _refresh(); },
+                                onDelete: () => _deleteDelivery(delivery),
+                              );
+                            },
                           ),
                   ),
       );
+
+  Future<void> _addTopic() async {
+    final name = TextEditingController();
+    final slug = TextEditingController();
+    final description = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add approved topic'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+              TextField(controller: slug, autocorrect: false, decoration: const InputDecoration(labelText: 'Topic slug', hintText: 'goreecloud-example')),
+              TextField(controller: description, decoration: const InputDecoration(labelText: 'Description (optional)')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Add topic')),
+        ],
+      ),
+    );
+    if (submitted != true || !mounted) return;
+    final cleanName = name.text.trim();
+    final cleanSlug = slug.text.trim().toLowerCase();
+    if (cleanName.isEmpty || !RegExp(r'^[a-z0-9][a-z0-9._-]{0,119}$').hasMatch(cleanSlug)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a name and a valid lowercase topic slug.')));
+      return;
+    }
+    try {
+      await widget.api.createAndSubscribeChannel(
+        slug: cleanSlug,
+        name: cleanName,
+        description: description.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Topic #$cleanSlug added and subscribed.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('HttpException: ', ''))));
+    }
+  }
+
+  Future<void> _deleteDelivery(Delivery delivery) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove from inbox?'),
+        content: const Text('This removes only your inbox copy. It does not delete the underlying notification or another user\'s copy.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await widget.api.deleteDelivery(delivery.id);
+      if (mounted) setState(() => _deliveries = _deliveries.where((item) => item.id != delivery.id).toList());
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('HttpException: ', ''))));
+    }
+  }
 
   Future<void> _enableSystemAlerts() async {
     final permissionGranted = await widget.alerts.requestPermission();
@@ -518,10 +621,16 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
 }
 
 class _DeliveryCard extends StatelessWidget {
-  const _DeliveryCard({required this.delivery, required this.onRead, required this.onAcknowledge});
+  const _DeliveryCard({
+    required this.delivery,
+    required this.onRead,
+    required this.onAcknowledge,
+    required this.onDelete,
+  });
   final Delivery delivery;
   final ValueChanged<bool> onRead;
   final VoidCallback onAcknowledge;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -544,9 +653,9 @@ class _DeliveryCard extends StatelessWidget {
             Chip(label: Text(_formatTime(delivery.createdAt))),
           ]),
           const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 6, children: [
+            TextButton.icon(onPressed: onDelete, icon: const Icon(Icons.delete_outline), label: const Text('Remove')),
             TextButton.icon(onPressed: () => onRead(!read), icon: Icon(read ? Icons.mark_email_unread_outlined : Icons.mark_email_read_outlined), label: Text(read ? 'Unread' : 'Read')),
-            const SizedBox(width: 8),
             FilledButton.tonalIcon(onPressed: acknowledged ? null : onAcknowledge, icon: const Icon(Icons.done_all), label: Text(acknowledged ? 'Acknowledged' : 'Acknowledge')),
           ]),
         ]),
