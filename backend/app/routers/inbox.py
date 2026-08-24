@@ -13,6 +13,7 @@ from ..config import settings
 from ..database import SessionLocal
 from ..delivery_service import (
     acknowledge_delivery,
+    delete_inbox_delivery,
     get_inbox_delivery,
     get_inbox_state,
     list_inbox,
@@ -201,6 +202,15 @@ def inbox_detail(
     session: Annotated[Session, Depends(get_db)],
 ) -> InboxDeliveryRead:
     return get_inbox_delivery(session, principal, delivery_id)
+
+
+@router.delete("/inbox/{delivery_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_delivery(
+    delivery_id: int,
+    principal: Annotated[UserPrincipal, Depends(require_csrf_user_session)],
+    session: Annotated[Session, Depends(get_db)],
+) -> None:
+    delete_inbox_delivery(session, principal, delivery_id)
 
 
 @router.post("/inbox/{delivery_id}/read", response_model=InboxDeliveryRead)
