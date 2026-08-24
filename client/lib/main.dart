@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'glaze_theme.dart';
 import 'persistent_alerts.dart';
 
 const _defaultServer = String.fromEnvironment(
@@ -133,11 +134,7 @@ class NotifyApi {
   }
 
   Future<void> markRead(int deliveryId, bool read) async {
-    final response = await _request(
-      read ? 'POST' : 'DELETE',
-      '/api/v1/inbox/$deliveryId/read',
-      csrf: true,
-    );
+    final response = await _request(read ? 'POST' : 'DELETE', '/api/v1/inbox/$deliveryId/read', csrf: true);
     if (response.statusCode != 200) throw HttpException('Read-state update failed (${response.statusCode}).');
   }
 
@@ -309,14 +306,8 @@ class NotifyApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'GoreeCloud Notify',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5A6CF0), brightness: Brightness.light),
-        ),
-        darkTheme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF8792FF), brightness: Brightness.dark),
-        ),
+        theme: glazeTheme(Brightness.light),
+        darkTheme: glazeTheme(Brightness.dark),
         themeMode: ThemeMode.system,
         home: SessionGate(api: api, alerts: alerts),
       );
@@ -333,6 +324,7 @@ class SessionGate extends StatefulWidget {
 
 class _SessionGateState extends State<SessionGate> {
   late Future<bool> _restore;
+
   @override
   void initState() {
     super.initState();
@@ -343,7 +335,9 @@ class _SessionGateState extends State<SessionGate> {
   Widget build(BuildContext context) => FutureBuilder<bool>(
         future: _restore,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          if (!snapshot.hasData) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
           return snapshot.data!
               ? InboxScreen(api: widget.api, alerts: widget.alerts, onSignedOut: _signedOut)
               : LoginScreen(api: widget.api, onSignedIn: _signedIn);
@@ -379,37 +373,132 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(Icons.notifications_active_rounded, size: 58),
-                  const SizedBox(height: 16),
-                  Text('GoreeCloud Notify', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium),
-                  const SizedBox(height: 28),
-                  TextField(controller: _username, autocorrect: false, decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder())),
-                  const SizedBox(height: 12),
-                  TextField(controller: _password, obscureText: true, onSubmitted: (_) => _login(), decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder())),
-                  if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(onPressed: _busy ? null : _login, icon: const Icon(Icons.login), label: Text(_busy ? 'Signing in…' : 'Sign in')),
-                  const SizedBox(height: 12),
-                  Text(widget.api.base.host, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
-                ],
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: dark
+                      ? const [Color(0xFF111219), Color(0xFF181927), Color(0xFF111218)]
+                      : const [Color(0xFFF5F3FA), Color(0xFFEEEFFA), Color(0xFFF8F5F9)],
+                ),
               ),
             ),
           ),
-        ),
-      );
+          Positioned(
+            top: -140,
+            right: -80,
+            child: _GlowOrb(color: scheme.primary.withValues(alpha: dark ? .16 : .14), size: 420),
+          ),
+          Positioned(
+            bottom: -180,
+            left: -90,
+            child: _GlowOrb(color: const Color(0xFFB693D1).withValues(alpha: dark ? .10 : .13), size: 440),
+          ),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(GlazeTokens.space6),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final desktop = constraints.maxWidth >= 760;
+                    final intro = _AuthIntro(host: widget.api.base.host);
+                    final form = GlazeChrome(
+                      padding: const EdgeInsets.all(GlazeTokens.space8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Welcome back', style: Theme.of(context).textTheme.headlineMedium),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Sign in to your private notification workspace.',
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 28),
+                            TextField(
+                              controller: _username,
+                              autocorrect: false,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person_outline_rounded)),
+                            ),
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: _password,
+                              obscureText: true,
+                              onSubmitted: (_) => _login(),
+                              decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_outline_rounded)),
+                            ),
+                            if (_error != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 14),
+                                child: _StatusBanner(message: _error!, danger: true),
+                              ),
+                            const SizedBox(height: 20),
+                            FilledButton.icon(
+                              onPressed: _busy ? null : _login,
+                              icon: _busy
+                                  ? const SizedBox.square(
+                                      dimension: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.login_rounded),
+                              label: Text(_busy ? 'Signing in…' : 'Sign in'),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.shield_outlined, size: 16, color: scheme.onSurfaceVariant),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    widget.api.base.host,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                    if (!desktop) {
+                      return Column(children: [intro, const SizedBox(height: 24), form]);
+                    }
+                    return Row(
+                      children: [
+                        Expanded(flex: 5, child: intro),
+                        const SizedBox(width: 42),
+                        Expanded(flex: 4, child: form),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _login() async {
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       await widget.api.login(_username.text.trim(), _password.text);
       widget.onSignedIn();
@@ -418,6 +507,56 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+class _AuthIntro extends StatelessWidget {
+  const _AuthIntro({required this.host});
+  final String host;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Icon(Icons.notifications_active_rounded, size: 34, color: scheme.onPrimaryContainer),
+          ),
+          const SizedBox(height: 28),
+          Text('GoreeCloud Notify', style: Theme.of(context).textTheme.headlineLarge),
+          const SizedBox(height: 14),
+          Text(
+            'Private alerts, calm by default.',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: scheme.primary),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'A focused notification workspace for GoreeCloud services, designed with Glaze UI and privacy-preserving system alerts.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 28),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _FeaturePill(icon: Icons.lock_outline_rounded, label: 'Private by default'),
+              _FeaturePill(icon: Icons.bolt_outlined, label: 'Realtime delivery'),
+              _FeaturePill(icon: Icons.devices_rounded, label: 'Cross-platform'),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -438,6 +577,17 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
   String? _error;
   StreamSubscription<Delivery>? _stream;
   AppLifecycleState _lifecycle = AppLifecycleState.resumed;
+  int? _selectedId;
+
+  Delivery? get _selected {
+    for (final item in _deliveries) {
+      if (item.id == _selectedId) return item;
+    }
+    return _deliveries.isEmpty ? null : _deliveries.first;
+  }
+
+  int get _unreadCount => _deliveries.where((item) => item.readAt == null).length;
+  int get _criticalCount => _deliveries.where((item) => item.severity.toLowerCase() == 'critical').length;
 
   @override
   void initState() {
@@ -459,9 +609,20 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
   Future<void> _refresh() async {
     try {
       final items = await widget.api.inbox();
-      if (mounted) setState(() { _deliveries = items; _loading = false; _error = null; });
+      if (!mounted) return;
+      setState(() {
+        _deliveries = items;
+        _selectedId = items.any((item) => item.id == _selectedId) ? _selectedId : (items.isEmpty ? null : items.first.id);
+        _loading = false;
+        _error = null;
+      });
     } catch (error) {
-      if (mounted) setState(() { _loading = false; _error = error.toString(); });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = error.toString();
+        });
+      }
     }
   }
 
@@ -470,51 +631,141 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
     final latest = _deliveries.isEmpty ? null : _deliveries.map((item) => item.id).reduce((a, b) => a > b ? a : b);
     _stream = widget.api.stream(afterId: latest).listen((delivery) {
       if (!mounted) return;
-      setState(() => _deliveries = [delivery, ..._deliveries.where((item) => item.id != delivery.id)]);
+      setState(() {
+        _deliveries = [delivery, ..._deliveries.where((item) => item.id != delivery.id)];
+        _selectedId ??= delivery.id;
+      });
       if (_lifecycle != AppLifecycleState.resumed) widget.alerts.show(delivery);
     });
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Notify'),
-          actions: [
-            IconButton(onPressed: _addTopic, tooltip: 'Add topic', icon: const Icon(Icons.add_circle_outline)),
-            if (Platform.isAndroid)
-              IconButton(
-                onPressed: _enableSystemAlerts,
-                tooltip: 'Enable system alerts',
-                icon: const Icon(Icons.notifications_none),
-              ),
-            IconButton(onPressed: _refresh, tooltip: 'Refresh', icon: const Icon(Icons.refresh)),
-            IconButton(onPressed: _logout, tooltip: 'Sign out', icon: const Icon(Icons.logout)),
-          ],
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final desktop = constraints.maxWidth >= 980;
+            final wide = constraints.maxWidth >= 1380;
+            final gutter = wide ? 28.0 : 18.0;
+            return Padding(
+              padding: EdgeInsets.all(gutter),
+              child: desktop
+                  ? Row(
+                      children: [
+                        SizedBox(width: wide ? 250 : 218, child: _Sidebar(apiHost: widget.api.base.host, unread: _unreadCount, onSignOut: _logout)),
+                        SizedBox(width: gutter),
+                        Expanded(child: _DesktopWorkspace(scheme: scheme)),
+                      ],
+                    )
+                  : _CompactWorkspace(scheme: scheme),
+            );
+          },
         ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
-                : RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: _deliveries.isEmpty
-                        ? ListView(children: const [SizedBox(height: 160), Center(child: Text('No notifications yet.'))])
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                            itemCount: _deliveries.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final delivery = _deliveries[index];
-                              return _DeliveryCard(
-                                delivery: delivery,
-                                onRead: (read) async { await widget.api.markRead(delivery.id, read); await _refresh(); },
-                                onAcknowledge: () async { await widget.api.acknowledge(delivery.id); await _refresh(); },
-                                onDelete: () => _deleteDelivery(delivery),
-                              );
+      ),
+    );
+  }
+
+  Widget _DesktopWorkspace({required ColorScheme scheme}) => Column(
+        children: [
+          _TopBar(
+            title: 'Notifications',
+            subtitle: '${_deliveries.length} total · $_unreadCount unread',
+            onAddTopic: _addTopic,
+            onEnableAlerts: Platform.isAndroid ? _enableSystemAlerts : null,
+            onRefresh: _refresh,
+          ),
+          const SizedBox(height: 18),
+          _SummaryStrip(total: _deliveries.length, unread: _unreadCount, critical: _criticalCount),
+          const SizedBox(height: 18),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 9,
+                  child: GlazeChrome(
+                    padding: const EdgeInsets.all(10),
+                    child: _buildList(compact: true),
+                  ),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  flex: 11,
+                  child: GlazeChrome(
+                    padding: const EdgeInsets.all(24),
+                    child: _selected == null
+                        ? const _EmptyState()
+                        : _DeliveryDetail(
+                            delivery: _selected!,
+                            onRead: (read) async {
+                              await widget.api.markRead(_selected!.id, read);
+                              await _refresh();
                             },
+                            onAcknowledge: () async {
+                              await widget.api.acknowledge(_selected!.id);
+                              await _refresh();
+                            },
+                            onDelete: () => _deleteDelivery(_selected!),
                           ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
+
+  Widget _CompactWorkspace({required ColorScheme scheme}) => Column(
+        children: [
+          _TopBar(
+            title: 'Notify',
+            subtitle: '$_unreadCount unread',
+            onAddTopic: _addTopic,
+            onEnableAlerts: Platform.isAndroid ? _enableSystemAlerts : null,
+            onRefresh: _refresh,
+            onSignOut: _logout,
+          ),
+          const SizedBox(height: 14),
+          Expanded(child: _buildList(compact: false)),
+        ],
+      );
+
+  Widget _buildList({required bool compact}) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return Center(child: _StatusBanner(message: _error!, danger: true));
+    if (_deliveries.isEmpty) return const _EmptyState();
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView.separated(
+        padding: compact ? const EdgeInsets.all(4) : const EdgeInsets.only(bottom: 24),
+        itemCount: _deliveries.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final delivery = _deliveries[index];
+          return _DeliveryTile(
+            delivery: delivery,
+            selected: compact && delivery.id == _selected?.id,
+            detailed: !compact,
+            onTap: () {
+              if (compact) {
+                setState(() => _selectedId = delivery.id);
+              }
+            },
+            onRead: (read) async {
+              await widget.api.markRead(delivery.id, read);
+              await _refresh();
+            },
+            onAcknowledge: () async {
+              await widget.api.acknowledge(delivery.id);
+              await _refresh();
+            },
+            onDelete: () => _deleteDelivery(delivery),
+          );
+        },
+      ),
+    );
+  }
 
   Future<void> _addTopic() async {
     final name = TextEditingController();
@@ -524,12 +775,19 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Add approved topic'),
-        content: SingleChildScrollView(
+        content: SizedBox(
+          width: 430,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
-              TextField(controller: slug, autocorrect: false, decoration: const InputDecoration(labelText: 'Topic slug', hintText: 'goreecloud-example')),
+              const SizedBox(height: 12),
+              TextField(
+                controller: slug,
+                autocorrect: false,
+                decoration: const InputDecoration(labelText: 'Topic slug', hintText: 'goreecloud-example'),
+              ),
+              const SizedBox(height: 12),
               TextField(controller: description, decoration: const InputDecoration(labelText: 'Description (optional)')),
             ],
           ),
@@ -548,11 +806,7 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
       return;
     }
     try {
-      await widget.api.createAndSubscribeChannel(
-        slug: cleanSlug,
-        name: cleanName,
-        description: description.text,
-      );
+      await widget.api.createAndSubscribeChannel(slug: cleanSlug, name: cleanName, description: description.text);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Topic #$cleanSlug added and subscribed.')));
     } catch (error) {
@@ -576,7 +830,11 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
     if (confirmed != true) return;
     try {
       await widget.api.deleteDelivery(delivery.id);
-      if (mounted) setState(() => _deliveries = _deliveries.where((item) => item.id != delivery.id).toList());
+      if (!mounted) return;
+      setState(() {
+        _deliveries = _deliveries.where((item) => item.id != delivery.id).toList();
+        if (_selectedId == delivery.id) _selectedId = _deliveries.isEmpty ? null : _deliveries.first.id;
+      });
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('HttpException: ', ''))));
@@ -587,28 +845,18 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
     final permissionGranted = await widget.alerts.requestPermission();
     if (!mounted) return;
     if (!permissionGranted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('System alerts were not enabled. You can continue using Notify in the app.'),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('System alerts were not enabled. You can continue using Notify in the app.')));
       return;
     }
 
     final sessionCookie = widget.api.sessionCookie;
     if (sessionCookie == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('System alerts require an active signed-in session.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('System alerts require an active signed-in session.')));
       return;
     }
 
     final latest = _deliveries.isEmpty ? 0 : _deliveries.map((item) => item.id).reduce((a, b) => a > b ? a : b);
-    final enabled = await _persistentAlerts.enable(
-      server: widget.api.base,
-      sessionCookie: sessionCookie,
-      afterId: latest,
-    );
+    final enabled = await _persistentAlerts.enable(server: widget.api.base, sessionCookie: sessionCookie, afterId: latest);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -629,13 +877,322 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
   }
 }
 
-class _DeliveryCard extends StatelessWidget {
-  const _DeliveryCard({
+class _Sidebar extends StatelessWidget {
+  const _Sidebar({required this.apiHost, required this.unread, required this.onSignOut});
+  final String apiHost;
+  final int unread;
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GlazeChrome(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(16)),
+                child: Icon(Icons.notifications_active_rounded, color: scheme.onPrimaryContainer),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('Notify', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20))),
+            ],
+          ),
+          const SizedBox(height: 28),
+          _SidebarDestination(icon: Icons.inbox_rounded, label: 'Inbox', badge: '$unread', selected: true),
+          const SizedBox(height: 8),
+          const _SidebarDestination(icon: Icons.check_circle_outline_rounded, label: 'Acknowledged'),
+          const SizedBox(height: 8),
+          const _SidebarDestination(icon: Icons.settings_outlined, label: 'Preferences'),
+          const Spacer(),
+          Divider(color: scheme.outlineVariant),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 18, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  apiHost,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(onPressed: onSignOut, icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarDestination extends StatelessWidget {
+  const _SidebarDestination({required this.icon, required this.label, this.badge, this.selected = false});
+  final IconData icon;
+  final String label;
+  final String? badge;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: selected ? scheme.primaryContainer.withValues(alpha: .72) : Colors.transparent,
+        borderRadius: BorderRadius.circular(GlazeTokens.radiusControl),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 21, color: selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label, style: TextStyle(fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+          ),
+          if (badge != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: scheme.surface, borderRadius: BorderRadius.circular(999)),
+              child: Text(badge!, style: Theme.of(context).textTheme.labelSmall),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({
+    required this.title,
+    required this.subtitle,
+    required this.onAddTopic,
+    required this.onRefresh,
+    this.onEnableAlerts,
+    this.onSignOut,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onAddTopic;
+  final VoidCallback onRefresh;
+  final VoidCallback? onEnableAlerts;
+  final VoidCallback? onSignOut;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.headlineMedium),
+                const SizedBox(height: 3),
+                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+          _CircleAction(icon: Icons.add_rounded, tooltip: 'Add topic', onPressed: onAddTopic),
+          const SizedBox(width: 8),
+          if (onEnableAlerts != null) ...[
+            _CircleAction(icon: Icons.notifications_none_rounded, tooltip: 'Enable system alerts', onPressed: onEnableAlerts!),
+            const SizedBox(width: 8),
+          ],
+          _CircleAction(icon: Icons.refresh_rounded, tooltip: 'Refresh', onPressed: onRefresh),
+          if (onSignOut != null) ...[
+            const SizedBox(width: 8),
+            _CircleAction(icon: Icons.logout_rounded, tooltip: 'Sign out', onPressed: onSignOut!),
+          ],
+        ],
+      );
+}
+
+class _CircleAction extends StatelessWidget {
+  const _CircleAction({required this.icon, required this.tooltip, required this.onPressed});
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Theme.of(context).colorScheme.surface,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: SizedBox.square(dimension: 46, child: Icon(icon, size: 21)),
+          ),
+        ),
+      );
+}
+
+class _SummaryStrip extends StatelessWidget {
+  const _SummaryStrip({required this.total, required this.unread, required this.critical});
+  final int total;
+  final int unread;
+  final int critical;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Expanded(child: _MetricCard(label: 'All notifications', value: '$total', icon: Icons.notifications_none_rounded)),
+          const SizedBox(width: 12),
+          Expanded(child: _MetricCard(label: 'Unread', value: '$unread', icon: Icons.mark_email_unread_outlined)),
+          const SizedBox(width: 12),
+          Expanded(child: _MetricCard(label: 'Critical', value: '$critical', icon: Icons.priority_high_rounded, danger: critical > 0)),
+        ],
+      );
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.label, required this.value, required this.icon, this.danger = false});
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final accent = danger ? GlazeTokens.danger : scheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(GlazeTokens.radiusLarge),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(color: accent.withValues(alpha: .12), borderRadius: BorderRadius.circular(14)),
+            child: Icon(icon, color: accent, size: 21),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))),
+          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeliveryTile extends StatelessWidget {
+  const _DeliveryTile({
     required this.delivery,
+    required this.selected,
+    required this.detailed,
+    required this.onTap,
     required this.onRead,
     required this.onAcknowledge,
     required this.onDelete,
   });
+
+  final Delivery delivery;
+  final bool selected;
+  final bool detailed;
+  final VoidCallback onTap;
+  final ValueChanged<bool> onRead;
+  final VoidCallback onAcknowledge;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final read = delivery.readAt != null;
+    final acknowledged = delivery.acknowledgedAt != null;
+    return Material(
+      color: selected ? scheme.primaryContainer.withValues(alpha: .42) : scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(GlazeTokens.radiusLarge),
+        side: BorderSide(color: selected ? scheme.primary.withValues(alpha: .42) : scheme.outlineVariant),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(GlazeTokens.radiusLarge),
+        child: Padding(
+          padding: EdgeInsets.all(detailed ? 18 : 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      delivery.title,
+                      maxLines: detailed ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: read ? FontWeight.w600 : FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _SeverityChip(delivery.severity),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                delivery.body,
+                maxLines: detailed ? 3 : 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(read ? Icons.drafts_outlined : Icons.mark_email_unread_outlined, size: 16, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${delivery.channel} · ${_formatTime(delivery.createdAt)}',
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                  if (acknowledged) Icon(Icons.done_all_rounded, size: 17, color: GlazeTokens.success),
+                ],
+              ),
+              if (detailed) ...[
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton.icon(onPressed: onDelete, icon: const Icon(Icons.delete_outline_rounded), label: const Text('Remove')),
+                    TextButton.icon(
+                      onPressed: () => onRead(!read),
+                      icon: Icon(read ? Icons.mark_email_unread_outlined : Icons.mark_email_read_outlined),
+                      label: Text(read ? 'Unread' : 'Read'),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed: acknowledged ? null : onAcknowledge,
+                      icon: const Icon(Icons.done_all_rounded),
+                      label: Text(acknowledged ? 'Acknowledged' : 'Acknowledge'),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeliveryDetail extends StatelessWidget {
+  const _DeliveryDetail({required this.delivery, required this.onRead, required this.onAcknowledge, required this.onDelete});
   final Delivery delivery;
   final ValueChanged<bool> onRead;
   final VoidCallback onAcknowledge;
@@ -643,41 +1200,208 @@ class _DeliveryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final read = delivery.readAt != null;
     final acknowledged = delivery.acknowledgedAt != null;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(delivery.title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: read ? FontWeight.w500 : FontWeight.w800))),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
             _SeverityChip(delivery.severity),
-          ]),
-          const SizedBox(height: 8),
-          Text(delivery.body),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 6, children: [
-            Chip(label: Text(delivery.source)),
-            Chip(label: Text(delivery.channel)),
-            Chip(label: Text(_formatTime(delivery.createdAt))),
-          ]),
-          const SizedBox(height: 8),
-          Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 6, children: [
-            TextButton.icon(onPressed: onDelete, icon: const Icon(Icons.delete_outline), label: const Text('Remove')),
-            TextButton.icon(onPressed: () => onRead(!read), icon: Icon(read ? Icons.mark_email_unread_outlined : Icons.mark_email_read_outlined), label: Text(read ? 'Unread' : 'Read')),
-            FilledButton.tonalIcon(onPressed: acknowledged ? null : onAcknowledge, icon: const Icon(Icons.done_all), label: Text(acknowledged ? 'Acknowledged' : 'Acknowledge')),
-          ]),
-        ]),
-      ),
+            const Spacer(),
+            Text(_formatTime(delivery.createdAt), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Text(delivery.title, style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: 14),
+        Text(delivery.body, style: Theme.of(context).textTheme.bodyLarge),
+        const SizedBox(height: 26),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _MetaPill(icon: Icons.source_outlined, text: delivery.source),
+            _MetaPill(icon: Icons.tag_rounded, text: delivery.channel),
+            _MetaPill(icon: read ? Icons.drafts_outlined : Icons.mark_email_unread_outlined, text: read ? 'Read' : 'Unread'),
+            _MetaPill(icon: Icons.done_all_rounded, text: acknowledged ? 'Acknowledged' : 'Not acknowledged'),
+          ],
+        ),
+        const Spacer(),
+        Divider(color: scheme.outlineVariant),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          alignment: WrapAlignment.end,
+          children: [
+            TextButton.icon(onPressed: onDelete, icon: const Icon(Icons.delete_outline_rounded), label: const Text('Remove')),
+            TextButton.icon(
+              onPressed: () => onRead(!read),
+              icon: Icon(read ? Icons.mark_email_unread_outlined : Icons.mark_email_read_outlined),
+              label: Text(read ? 'Mark unread' : 'Mark read'),
+            ),
+            FilledButton.icon(
+              onPressed: acknowledged ? null : onAcknowledge,
+              icon: const Icon(Icons.done_all_rounded),
+              label: Text(acknowledged ? 'Acknowledged' : 'Acknowledge'),
+            ),
+          ],
+        ),
+      ],
     );
   }
-
-  static String _formatTime(DateTime value) => '${value.month}/${value.day} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 }
 
 class _SeverityChip extends StatelessWidget {
   const _SeverityChip(this.value);
   final String value;
+
+  Color _color() {
+    switch (value.toLowerCase()) {
+      case 'critical':
+        return GlazeTokens.danger;
+      case 'warning':
+        return GlazeTokens.warning;
+      case 'info':
+        return GlazeTokens.info;
+      default:
+        return GlazeTokens.accent;
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Chip(label: Text(value.toUpperCase()), visualDensity: VisualDensity.compact);
+  Widget build(BuildContext context) {
+    final color = _color();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .11),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: .32)),
+      ),
+      child: Text(value.toUpperCase(), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .4)),
+    );
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .56),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16),
+            const SizedBox(width: 7),
+            Text(text, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+}
+
+class _FeaturePill extends StatelessWidget {
+  const _FeaturePill({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: .72),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [Icon(icon, size: 17), const SizedBox(width: 7), Text(label)],
+        ),
+      );
+}
+
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({required this.message, this.danger = false});
+  final String message;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? GlazeTokens.danger : GlazeTokens.info;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(GlazeTokens.radiusMedium),
+        border: Border.all(color: color.withValues(alpha: .28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(danger ? Icons.error_outline_rounded : Icons.info_outline_rounded, color: color, size: 20),
+          const SizedBox(width: 10),
+          Flexible(child: Text(message, style: TextStyle(color: color, fontWeight: FontWeight.w600))),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(22)),
+              child: Icon(Icons.notifications_none_rounded, color: scheme.onPrimaryContainer, size: 30),
+            ),
+            const SizedBox(height: 18),
+            Text('Nothing here yet', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 7),
+            Text('New GoreeCloud notifications will appear here.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  const _GlowOrb({required this.color, required this.size});
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+      );
+}
+
+String _formatTime(DateTime value) {
+  final hour = value.hour.toString().padLeft(2, '0');
+  final minute = value.minute.toString().padLeft(2, '0');
+  return '${value.month}/${value.day} $hour:$minute';
 }
