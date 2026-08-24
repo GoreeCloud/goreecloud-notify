@@ -482,6 +482,33 @@ export default function App() {
     }
   }
 
+  async function deleteDelivery(delivery: InboxDelivery) {
+    if (!window.confirm('Remove this item from your inbox? The underlying notification and other users\' inbox copies are preserved.')) return
+    setMutationId(delivery.id)
+    setInboxError(null)
+    try {
+      const token = csrfToken ?? (await loadCsrf())
+      await apiRequest<void>(`/api/v1/inbox/${delivery.id}`, {
+        method: 'DELETE',
+        headers: { [csrfHeader]: token },
+      })
+      pendingRealtimeDeliveriesRef.current.delete(delivery.id)
+      setDeliveries((current) => current.filter((item) => item.id !== delivery.id))
+      setSelectedId((current) => current === delivery.id ? null : current)
+      const { data: state } = await apiRequest<InboxState>('/api/v1/inbox/state')
+      setInboxState(state)
+      setRealtimeRefresh((current) => current + 1)
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 401) {
+        handleUnauthorized()
+      } else {
+        setInboxError(reason instanceof Error ? reason.message : 'Unable to remove notification from inbox')
+      }
+    } finally {
+      setMutationId(null)
+    }
+  }
+
   function clearFilters() {
     setSearch('')
     setDebouncedSearch('')
@@ -741,6 +768,13 @@ export default function App() {
                     onClick={() => void mutateDelivery(selectedDelivery, selectedDelivery.read_at ? 'unread' : 'read')}
                   >
                     {selectedDelivery.read_at ? 'Mark unread' : 'Mark read'}
+                  </button>
+                  <button
+                    className="secondary-button"
+                    disabled={mutationId === selectedDelivery.id}
+                    onClick={() => void deleteDelivery(selectedDelivery)}
+                  >
+                    Remove from inbox
                   </button>
                 </div>
               </>
