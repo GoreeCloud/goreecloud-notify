@@ -82,7 +82,7 @@ jobs:
             "source_revision": null,
             "signed_apk_sha256": null,
             "signer_certificate_sha256": null,
-            "authority": "https://notify.goreecloud.com",
+            "authority": "https://notify-rc.goreecloud.com",
             "scenarios": {},
             "accepted": false
           }
@@ -138,9 +138,9 @@ jobs:
           flutter pub get
           dart format lib
           flutter analyze --no-fatal-infos
-          flutter build apk --debug --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
+          flutter build apk --debug --dart-define=GOREECLOUD_NOTIFY_URL=https://notify-rc.goreecloud.com
           cp build/app/outputs/flutter-apk/app-debug.apk "$RUNNER_TEMP/goreecloud-notify-android-acceptance.apk"
-          flutter build apk --release --dart-define=GOREECLOUD_NOTIFY_URL=https://notify.goreecloud.com
+          flutter build apk --release --dart-define=GOREECLOUD_NOTIFY_URL=https://notify-rc.goreecloud.com
           cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/goreecloud-notify-android-release-unsigned.apk"
       - name: Verify release acceptance APK is unsigned
         run: |
