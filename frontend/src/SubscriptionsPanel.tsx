@@ -11,14 +11,6 @@ type SubscriptionRead = {
   subscribed: boolean
 }
 
-type UserRead = {
-  id: number
-  username: string
-  display_name: string
-  is_active: boolean
-  is_admin: boolean
-}
-
 type ChannelRead = {
   id: number
   slug: string
@@ -31,6 +23,7 @@ type CsrfResponse = {
 }
 
 type SubscriptionsPanelProps = {
+  isAdmin: boolean
   onUnauthorized: () => void
 }
 
@@ -70,9 +63,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T
 }
 
-export default function SubscriptionsPanel({ onUnauthorized }: SubscriptionsPanelProps) {
+export default function SubscriptionsPanel({ isAdmin, onUnauthorized }: SubscriptionsPanelProps) {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRead[]>([])
-  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busyChannel, setBusyChannel] = useState<string | null>(null)
@@ -83,12 +75,8 @@ export default function SubscriptionsPanel({ onUnauthorized }: SubscriptionsPane
   const browserNotifications = useBrowserNotificationsContext()
 
   async function loadSubscriptions(signal?: AbortSignal) {
-    const [items, user] = await Promise.all([
-      request<SubscriptionRead[]>('/api/v1/subscriptions', { signal }),
-      request<UserRead>('/api/v1/me', { signal }),
-    ])
+    const items = await request<SubscriptionRead[]>('/api/v1/subscriptions', { signal })
     setSubscriptions(items)
-    setIsAdmin(user.is_admin)
   }
 
   useEffect(() => {
