@@ -41,6 +41,7 @@ Icon=goreecloud-notify
 Terminal=false
 Categories=Network;Utility;
 StartupNotify=true
+StartupWMClass=goreecloud_notify_client
 EOF
 
 install -m 0644 ../frontend/public/brand/goreecloud-notify-icon.svg \
