@@ -77,10 +77,10 @@ ThemeData glazeTheme(Brightness brightness) {
         color: dark ? const Color(0xFFF5F3FA) : const Color(0xFF202027),
       ),
       titleLarge: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-      titleMedium: const TextStyle(fontSize: 16, fontWeight: FontWeight.w650),
+      titleMedium: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       bodyLarge: const TextStyle(fontSize: 16, height: 1.5),
       bodyMedium: const TextStyle(fontSize: 14, height: 1.45),
-      labelLarge: const TextStyle(fontSize: 14, fontWeight: FontWeight.w650),
+      labelLarge: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
