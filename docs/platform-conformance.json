@@ -26,13 +26,15 @@
     },
     "privacy_shield": {
       "identity": "GoreeCloud Privacy Shield",
-      "source_status": "privacy-capability-evidence-present-contract-pending",
+      "source_status": "draft-adapter-source-candidate",
       "evidence": [
+        "docs/privacy-shield.adapter.json",
+        "backend/tests/test_privacy_shield_adapter.py",
         "docs/end-user-authentication-and-delivery-state.md",
-        "docs/manual-browser-os-acceptance.md",
-        "backend/app/delivery_service.py"
+        "backend/app/delivery_service.py",
+        "backend/tests/test_inbox_delete.py"
       ],
-      "blocker": "Per-user delivery isolation and privacy-safe notification behavior are implemented, but the explicit Privacy Shield application contract and acceptance evidence remain required."
+      "blocker": "Notify now declares a source-side draft Privacy Shield adapter limited to data-minimization and deletion-controls. Runtime acceptance and central Privacy Shield adapter acceptance remain required, and production_approved remains false."
     },
     "everkeep": {
       "identity": "Everkeep",
@@ -47,7 +49,7 @@
   },
   "production_blockers": [
     "explicit Wardveil Security application contract and target acceptance",
-    "explicit Privacy Shield application contract and acceptance",
+    "Privacy Shield runtime and central adapter acceptance",
     "explicit Everkeep application contract and target recovery acceptance",
     "manual cross-platform Glaze UI 1.4 acceptance",
     "physical-device Android background-delivery acceptance",
