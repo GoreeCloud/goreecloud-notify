@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "application": "goreecloud-notify",
+  "stable_eligible": false,
+  "platform_systems": {
+    "glaze_ui": {
+      "identity": "Glaze UI",
+      "required_version": "1.4",
+      "source_status": "integrated-source-validated",
+      "evidence": [
+        "docs/glaze-ui-conformance.md",
+        "client/lib/glaze_theme.dart",
+        "frontend/src/App.tsx"
+      ],
+      "blocker": "Manual cross-platform Glaze UI 1.4 acceptance remains required before Stable qualification."
+    },
+    "wardveil_security": {
+      "identity": "Wardveil Security by GoreeCloud",
+      "source_status": "security-capability-evidence-present-contract-pending",
+      "evidence": [
+        "SECURITY.md",
+        "docs/end-user-authentication-and-delivery-state.md",
+        "backend/app"
+      ],
+      "blocker": "Notify has implemented authentication, CSRF, delivery isolation, minimized notification handling, and production-readiness controls, but the explicit Wardveil application contract and target acceptance are not yet complete."
+    },
+    "privacy_shield": {
+      "identity": "GoreeCloud Privacy Shield",
+      "source_status": "privacy-capability-evidence-present-contract-pending",
+      "evidence": [
+        "docs/end-user-authentication-and-delivery-state.md",
+        "docs/manual-browser-os-acceptance.md",
+        "backend/app/delivery_service.py"
+      ],
+      "blocker": "Per-user delivery isolation and privacy-safe notification behavior are implemented, but the explicit Privacy Shield application contract and acceptance evidence remain required."
+    },
+    "everkeep": {
+      "identity": "Everkeep",
+      "source_status": "recovery-evidence-present-contract-pending",
+      "evidence": [
+        "docs/backup-recovery.md",
+        "docs/migration.md",
+        "docs/milestone-4-acceptance.md"
+      ],
+      "blocker": "Backup, restore, migration, and rollback procedures exist, but explicit Everkeep application-contract acceptance and target-native recovery evidence remain outstanding."
+    }
+  },
+  "production_blockers": [
+    "explicit Wardveil Security application contract and target acceptance",
+    "explicit Privacy Shield application contract and acceptance",
+    "explicit Everkeep application contract and target recovery acceptance",
+    "manual cross-platform Glaze UI 1.4 acceptance",
+    "physical-device Android background-delivery acceptance",
+    "approved production Android signing and installation validation",
+    "representative producer migration and end-to-end delivery validation",
+    "target backup/restore and rollback evidence",
+    "explicit production cutover approval"
+  ]
+}
