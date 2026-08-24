@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import BrowserNotificationSettings from './BrowserNotificationSettings'
 import { useBrowserNotificationsContext } from './BrowserNotificationsContext'
 import './subscriptions.css'
@@ -9,6 +9,21 @@ type SubscriptionRead = {
   name: string
   description: string | null
   subscribed: boolean
+}
+
+type UserRead = {
+  id: number
+  username: string
+  display_name: string
+  is_active: boolean
+  is_admin: boolean
+}
+
+type ChannelRead = {
+  id: number
+  slug: string
+  name: string
+  description: string | null
 }
 
 type CsrfResponse = {
@@ -51,23 +66,37 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new SubscriptionApiError(response.status, message)
   }
 
+  if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }
 
 export default function SubscriptionsPanel({ onUnauthorized }: SubscriptionsPanelProps) {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRead[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busyChannel, setBusyChannel] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [channelName, setChannelName] = useState('')
+  const [channelSlug, setChannelSlug] = useState('')
+  const [channelDescription, setChannelDescription] = useState('')
   const browserNotifications = useBrowserNotificationsContext()
+
+  async function loadSubscriptions(signal?: AbortSignal) {
+    const [items, user] = await Promise.all([
+      request<SubscriptionRead[]>('/api/v1/subscriptions', { signal }),
+      request<UserRead>('/api/v1/me', { signal }),
+    ])
+    setSubscriptions(items)
+    setIsAdmin(user.is_admin)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
     setError(null)
 
-    void request<SubscriptionRead[]>('/api/v1/subscriptions', { signal: controller.signal })
-      .then(setSubscriptions)
+    void loadSubscriptions(controller.signal)
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
         if (reason instanceof SubscriptionApiError && reason.status === 401) {
@@ -112,6 +141,50 @@ export default function SubscriptionsPanel({ onUnauthorized }: SubscriptionsPane
     }
   }
 
+  async function createChannel(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const name = channelName.trim()
+    const slug = channelSlug.trim().toLowerCase()
+    if (!name || !slug) {
+      setError('Channel name and topic slug are required.')
+      return
+    }
+
+    setCreating(true)
+    setError(null)
+    try {
+      const csrfToken = await getCsrfToken()
+      const created = await request<ChannelRead>('/api/v1/channels', {
+        method: 'POST',
+        headers: {
+          [csrfHeader]: csrfToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slug,
+          name,
+          description: channelDescription.trim() || null,
+        }),
+      })
+      await request<SubscriptionRead>(`/api/v1/subscriptions/${encodeURIComponent(created.slug)}`, {
+        method: 'PUT',
+        headers: { [csrfHeader]: csrfToken },
+      })
+      await loadSubscriptions()
+      setChannelName('')
+      setChannelSlug('')
+      setChannelDescription('')
+    } catch (reason) {
+      if (reason instanceof SubscriptionApiError && reason.status === 401) {
+        onUnauthorized()
+        return
+      }
+      setError(reason instanceof Error ? reason.message : 'Unable to create notification channel')
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const subscribedCount = subscriptions.filter((subscription) => subscription.subscribed).length
 
   return (
@@ -129,6 +202,36 @@ export default function SubscriptionsPanel({ onUnauthorized }: SubscriptionsPane
           <p className="subscriptions-guidance">
             Choose which channels create future inbox deliveries for this account. Unsubscribing does not delete existing notification history.
           </p>
+
+          {isAdmin ? (
+            <form onSubmit={(event) => void createChannel(event)} className="subscription-row">
+              <div className="subscription-copy">
+                <strong>Add approved topic</strong>
+                <label>
+                  Name
+                  <input value={channelName} onChange={(event) => setChannelName(event.target.value)} maxLength={200} required />
+                </label>
+                <label>
+                  Topic slug
+                  <input
+                    value={channelSlug}
+                    onChange={(event) => setChannelSlug(event.target.value)}
+                    pattern="[a-z0-9][a-z0-9._-]{0,119}"
+                    placeholder="goreecloud-example"
+                    maxLength={120}
+                    required
+                  />
+                </label>
+                <label>
+                  Description
+                  <input value={channelDescription} onChange={(event) => setChannelDescription(event.target.value)} maxLength={2000} />
+                </label>
+              </div>
+              <button type="submit" className="subscription-toggle active" disabled={creating}>
+                {creating ? 'Adding…' : 'Add topic'}
+              </button>
+            </form>
+          ) : null}
 
           {error ? <div className="error-banner" role="alert">{error}</div> : null}
 
