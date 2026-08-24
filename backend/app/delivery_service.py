@@ -208,6 +208,16 @@ def get_inbox_delivery(
     return _to_inbox_read(*_owned_inbox_row(session, principal, delivery_id))
 
 
+def delete_inbox_delivery(
+    session: Session,
+    principal: UserPrincipal,
+    delivery_id: int,
+) -> None:
+    delivery = _owned_inbox_row(session, principal, delivery_id)[0]
+    session.delete(delivery)
+    session.commit()
+
+
 def mark_delivery_read(
     session: Session,
     principal: UserPrincipal,
