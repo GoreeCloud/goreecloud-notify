@@ -350,8 +350,17 @@ class _SessionGateState extends State<SessionGate> {
         },
       );
 
-  void _signedIn() => setState(() => _restore = Future.value(true));
-  void _signedOut() => setState(() => _restore = Future.value(false));
+  void _signedIn() {
+    setState(() {
+      _restore = Future.value(true);
+    });
+  }
+
+  void _signedOut() {
+    setState(() {
+      _restore = Future.value(false);
+    });
+  }
 }
 
 class LoginScreen extends StatefulWidget {
