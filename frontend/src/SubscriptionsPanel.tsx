@@ -11,6 +11,14 @@ type SubscriptionRead = {
   subscribed: boolean
 }
 
+type UserRead = {
+  id: number
+  username: string
+  display_name: string
+  is_active: boolean
+  is_admin: boolean
+}
+
 type ChannelRead = {
   id: number
   slug: string
@@ -23,7 +31,6 @@ type CsrfResponse = {
 }
 
 type SubscriptionsPanelProps = {
-  isAdmin: boolean
   onUnauthorized: () => void
 }
 
@@ -63,8 +70,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T
 }
 
-export default function SubscriptionsPanel({ isAdmin, onUnauthorized }: SubscriptionsPanelProps) {
+export default function SubscriptionsPanel({ onUnauthorized }: SubscriptionsPanelProps) {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRead[]>([])
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busyChannel, setBusyChannel] = useState<string | null>(null)
@@ -99,6 +107,20 @@ export default function SubscriptionsPanel({ isAdmin, onUnauthorized }: Subscrip
 
     return () => controller.abort()
   }, [onUnauthorized])
+
+  async function discoverAdminRole() {
+    if (isAdmin !== null) return
+    try {
+      const user = await request<UserRead>('/api/v1/me')
+      setIsAdmin(user.is_admin)
+    } catch (reason) {
+      if (reason instanceof SubscriptionApiError && reason.status === 401) {
+        onUnauthorized()
+        return
+      }
+      setError(reason instanceof Error ? reason.message : 'Unable to determine channel-administration access')
+    }
+  }
 
   async function getCsrfToken(): Promise<string> {
     const response = await request<CsrfResponse>('/api/v1/csrf')
@@ -177,7 +199,12 @@ export default function SubscriptionsPanel({ isAdmin, onUnauthorized }: Subscrip
 
   return (
     <div className="notification-preferences-stack">
-      <details className="subscriptions-panel">
+      <details
+        className="subscriptions-panel"
+        onToggle={(event) => {
+          if (event.currentTarget.open) void discoverAdminRole()
+        }}
+      >
         <summary>
           <span>
             <strong>Notification channels</strong>
