@@ -5,10 +5,20 @@ from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+CANONICAL_ACCEPTANCE_SCHEMA = (
+    "GoreeCloud/goreecloud-everkeep:contracts/continuity.acceptance.schema.json@v1"
+)
 
 
 def _json(path: str) -> dict:
     return json.loads((REPOSITORY_ROOT / path).read_text(encoding="utf-8"))
+
+
+def test_everkeep_policy_binds_canonical_acceptance_schema() -> None:
+    everkeep = _json("docs/platform-conformance.json")["platform_systems"]["everkeep"]
+    assert everkeep["source_status"] == "draft-acceptance-policy-candidate"
+    assert everkeep["canonical_acceptance_schema"] == CANONICAL_ACCEPTANCE_SCHEMA
+    assert "docs/everkeep.acceptance.json" in everkeep["evidence"]
 
 
 def test_everkeep_policy_covers_every_declared_dimension() -> None:
