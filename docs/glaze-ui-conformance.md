@@ -1,66 +1,39 @@
-# GoreeCloud Notify — Glaze UI conformance
+# GoreeCloud Notify — Glaze UI 1.4 conformance record
 
-## Target
+## Target and status
 
-GoreeCloud Notify targets **Glaze UI 1.0.0** from the canonical `GoreeCloud/glaze-ui` design-system repository.
+GoreeCloud Notify targets the current Stable **Glaze UI 1.4.0** release from the canonical `GoreeCloud/glaze-ui` design-system repository. The application source contains the current 1.4 semantic/form-factor foundation, but this document does **not** claim completed `Glaze UI 1.4 conformant` status or production Stable acceptance. Representative manual browser, operating-system, accessibility, and supported-profile acceptance remains mandatory.
 
-This record applies to the GoreeCloud-controlled web interface. It does not claim that infrastructure-only components have a visual Glaze UI requirement.
+This record applies to GoreeCloud-controlled user-facing Notify interfaces. Infrastructure-only components do not acquire a visual Glaze requirement merely because they support the application.
 
 ## Semantic contract
 
-`frontend/src/glaze-contract.css` is the application-level semantic bridge between Notify's established product palette and Glaze UI 1.0 roles. It records the shared target, spacing, radius, focus, motion, target-size, semantic color, and surface vocabulary without replacing Notify's successful notification-focused composition.
+`frontend/src/glaze-contract.css` and the current responsive/resilience layers are the application-level bridge between Notify's established product palette and Glaze UI semantic roles. They preserve Notify's notification-focused composition while mapping semantic colors, spacing, radii, typography, surfaces, motion, target sizing, focus behavior, safe areas, adaptive ranges, and form-factor roles.
 
-The application intentionally preserves its existing GoreeCloud identity while mapping the following roles:
+The application uses Canvas for the atmospheric application background, Solid for high-readability fallback/protected content, Raised for important content separation, selective Functional/Clear Glass where translucency materially helps hierarchy, and Overlay for attention-priority surfaces rather than applying maximum translucency everywhere.
 
-- Canvas → Notify atmospheric application background.
-- Solid → high-readability fallback and protected content surfaces.
-- Raised → summary and important content separation.
-- Glaze → primary shell, sidebar, and major application regions using selective translucency.
-- Overlay → reserved for future dialogs, menus, and other attention-priority surfaces rather than applying maximum translucency everywhere.
+## Adaptive and form-factor behavior
+
+Notify uses the current Glaze adaptive ranges as window signals: Compact through 599 px, Medium 600–1023 px, Expanded 1024–1439 px, and Wide at 1440 px and above. Compact and Medium layouts transform navigation and workspace composition instead of merely shrinking desktop geometry. Expanded and Wide layouts preserve pointer/keyboard-oriented workspace behavior and larger-screen information balance.
+
+The current source also includes native-client Glaze mapping for supported packaged clients. Platform-native clients must preserve Glaze semantic roles through appropriate native primitives rather than reproducing a scaled web shell. Source-level mappings do not substitute for real-device or representative form-factor acceptance.
 
 ## Accessibility and resilience
 
-The web application preserves or enforces:
-
-- a 44-pixel minimum actionable target contract;
-- visible keyboard focus with a three-pixel focus treatment and two-pixel offset;
-- semantic labels, status regions, landmarks, and skip navigation;
-- system, light, and dark appearance modes;
-- reduced-motion behavior;
-- reduced-transparency and no-backdrop-filter solid fallbacks;
-- forced-colors behavior for critical controls and status presentation;
-- operation when browser-local preference storage is unavailable;
-- automated WCAG A/AA browser checks for representative signed-in and signed-out flows.
-
-## Adaptive layout
-
-Notify uses the Glaze UI adaptive ranges as the application contract:
-
-- Compact: through 599 px;
-- Medium: 600–1023 px;
-- Expanded: 1024–1439 px;
-- Wide: 1440 px and above.
-
-Medium and Compact layouts transform navigation and workspace composition instead of only shrinking the Expanded layout. Wide layouts increase workspace breathing room and notification/detail balance.
+The source preserves a 44-pixel minimum actionable-target contract, visible keyboard focus, semantic labels/landmarks/status regions, skip navigation, System/Light/Dark appearance modes, reduced-motion handling, reduced-transparency and no-backdrop-filter fallbacks, forced-colors behavior, safe-area-aware layout, and operation when browser-local preference storage is unavailable. Automated browser checks cover representative signed-in and signed-out flows, but automated checks do not replace manual keyboard, screen-reader, zoom/reflow, contrast/readability, browser-permission, multi-tab, or operating-system notification acceptance.
 
 ## Privacy and dependency boundary
 
-Glaze UI does not add analytics, tracking, advertising technology, remote fonts, remote icons, or third-party UI delivery. Notify uses local application assets and system/local font fallbacks. Appearance and system-alert preferences remain browser-local.
+Glaze UI adds no analytics, tracking, advertising technology, remote fonts, remote icons, or third-party UI delivery. Notify uses local assets and local/system font fallbacks. Appearance and browser-alert preferences remain browser-local. Browser system alerts remain explicit opt-in and generic/redacted; private Delivery title, body, source, channel, and account details remain inside the authenticated inbox.
 
-Browser system alerts remain explicit opt-in. Their operating-system content is intentionally generic and redacted; private Delivery title, body, source, channel, and account details remain in the authenticated Notify inbox.
+## Product and platform-system boundaries
 
-## Release-state presentation
+Glaze UI remains the design language. Wardveil Security remains the evidence-backed security/protection identity, Privacy Shield remains the privacy-control identity/contract layer, and Everkeep remains the resilience/recovery identity. None of those systems substitutes for Glaze UI, and Glaze UI does not replace their technical authority.
 
-The frontend consumes `/api/v1/meta` release metadata for version, release stage, build revision, and production-acceptance status. User-facing status text must not present obsolete development milestones when the running backend identifies itself as a release candidate or production build.
+## Automated evidence
 
-## Automated conformance evidence
+`frontend/e2e/glaze-resilience.spec.ts`, `frontend/e2e/inbox.spec.ts`, browser-notification acceptance coverage, native-client validation, and `docs/glaze-ui-1.4-gates.json` provide source/automation evidence for current Glaze semantics and supported task flows. `docs/glaze-ui-1.4-gates.json` is fail-closed and keeps every acceptance-dependent gate explicit.
 
-`frontend/e2e/glaze-resilience.spec.ts` validates the recorded Glaze target, core semantic contract values, minimum target size, Auto light/dark behavior, and browser-storage resilience.
+## Stable-release boundary
 
-`frontend/e2e/inbox.spec.ts` validates representative authenticated Glaze UI behavior, keyboard skip navigation, dark appearance, Compact reflow without horizontal document overflow, and automated WCAG A/AA checks.
-
-`frontend/e2e/browser-notifications.spec.ts` validates explicit permission opt-in, privacy-preserving alert content, fail-closed denial behavior, and external browser-permission reconciliation.
-
-## Manual stable-release acceptance
-
-Automated conformance is necessary but does not replace manual stable-release acceptance. Before production stable classification, record representative Compact and Expanded visual review in light and dark appearances, practical contrast/readability, keyboard/focus behavior, assistive-technology sanity, and final browser/OS behavior. Any unmet Glaze UI requirement requires an explicit approved exception; no permanent exception is declared by this document.
+A `Glaze UI 1.4 conformant` claim is permitted only after every applicable current 1.4 gate is satisfied and representative supported-profile/task-flow acceptance is complete. Source integration, passing CI, responsive overflow checks, or a design-system Stable release do not automatically certify Notify. Until that evidence is complete, production Stable eligibility remains false and no exception is implied.
