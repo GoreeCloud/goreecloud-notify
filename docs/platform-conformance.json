@@ -38,19 +38,21 @@
     },
     "everkeep": {
       "identity": "Everkeep",
-      "source_status": "recovery-evidence-present-contract-pending",
+      "source_status": "draft-adoption-source-candidate",
       "evidence": [
+        "docs/everkeep.adoption.json",
+        "backend/tests/test_everkeep_adoption.py",
         "docs/backup-recovery.md",
         "docs/migration.md",
         "docs/milestone-4-acceptance.md"
       ],
-      "blocker": "Backup, restore, migration, and rollback procedures exist, but explicit Everkeep application-contract acceptance and target-native recovery evidence remain outstanding."
+      "blocker": "Notify now declares a fail-closed Everkeep adoption candidate for backup coverage, restore capability, migration, documentation, and provenance. Target-native restore/recovery evidence and exact-revision Everkeep acceptance remain required before readiness can be asserted."
     }
   },
   "production_blockers": [
     "explicit Wardveil Security application contract and target acceptance",
     "Privacy Shield runtime and central adapter acceptance",
-    "explicit Everkeep application contract and target recovery acceptance",
+    "Everkeep target-native restore/recovery and exact-revision acceptance",
     "manual cross-platform Glaze UI 1.4 acceptance",
     "physical-device Android background-delivery acceptance",
     "approved production Android signing and installation validation",
