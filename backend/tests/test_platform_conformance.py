@@ -44,7 +44,12 @@ def test_platform_conformance_evidence_paths_exist() -> None:
 def test_incomplete_platform_contracts_cannot_be_represented_as_complete() -> None:
     contract = _contract()
     systems = contract["platform_systems"]
-    assert "pending" in systems["wardveil_security"]["source_status"]
+    assert systems["wardveil_security"]["source_status"] == "draft-application-adoption-candidate"
+    wardveil_acceptance = json.loads(
+        (REPOSITORY_ROOT / "docs" / "wardveil.adoption.json").read_text(encoding="utf-8")
+    )["acceptance"]
+    assert wardveil_acceptance["target_runtime_acceptance_required"] is True
+    assert wardveil_acceptance["production_approved"] is False
     assert systems["privacy_shield"]["source_status"] == "draft-adapter-source-candidate"
     privacy_acceptance = json.loads(
         (REPOSITORY_ROOT / "docs" / "privacy-shield.adapter.json").read_text(encoding="utf-8")
