@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "project": "GoreeCloud Notify",
+  "repository": "GoreeCloud/goreecloud-notify",
+  "role": "producer",
+  "dimensions": [
+    "backup_coverage",
+    "restore_capability",
+    "migration",
+    "documentation",
+    "provenance"
+  ],
+  "read_only": true,
+  "fail_closed": true,
+  "status_schema": "contracts/continuity.status.schema.json",
+  "authoritative_sources": [
+    "docs/backup-recovery.md",
+    "docs/migration.md",
+    "docs/milestone-4-acceptance.md"
+  ],
+  "notes": "Source evidence records backup, restore, migration, acceptance, and provenance capabilities. Everkeep readiness is not asserted until target-native restore/recovery evidence and exact-revision acceptance are complete."
+}
