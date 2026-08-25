@@ -51,6 +51,11 @@ def test_incomplete_platform_contracts_cannot_be_represented_as_complete() -> No
     )["acceptance"]
     assert privacy_acceptance["runtime_acceptance_required"] is True
     assert privacy_acceptance["production_approved"] is False
-    assert "pending" in systems["everkeep"]["source_status"]
+    assert systems["everkeep"]["source_status"] == "draft-adoption-source-candidate"
+    everkeep = json.loads(
+        (REPOSITORY_ROOT / "docs" / "everkeep.adoption.json").read_text(encoding="utf-8")
+    )
+    assert everkeep["fail_closed"] is True
+    assert everkeep["read_only"] is True
     assert contract["stable_eligible"] is False
     assert contract["production_blockers"]
