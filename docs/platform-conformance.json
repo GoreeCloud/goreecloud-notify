@@ -16,13 +16,18 @@
     },
     "wardveil_security": {
       "identity": "Wardveil Security by GoreeCloud",
-      "source_status": "security-capability-evidence-present-contract-pending",
+      "source_status": "draft-application-adoption-candidate",
       "evidence": [
+        "docs/wardveil.adoption.json",
+        "backend/tests/test_wardveil_adoption.py",
         "SECURITY.md",
-        "docs/end-user-authentication-and-delivery-state.md",
-        "backend/app"
+        "backend/app/login_security.py",
+        "backend/app/delivery_service.py",
+        "backend/app/main.py",
+        "backend/app/observability.py",
+        "deploy/target/preflight.py"
       ],
-      "blocker": "Notify has implemented authentication, CSRF, delivery isolation, minimized notification handling, and production-readiness controls, but the explicit Wardveil application contract and target acceptance are not yet complete."
+      "blocker": "Notify now declares a fail-closed Wardveil application adoption candidate with explicit authoritative scope and evidence ownership. Target runtime acceptance remains required and production_approved remains false."
     },
     "privacy_shield": {
       "identity": "GoreeCloud Privacy Shield",
@@ -50,7 +55,7 @@
     }
   },
   "production_blockers": [
-    "explicit Wardveil Security application contract and target acceptance",
+    "Wardveil Security target runtime acceptance",
     "Privacy Shield runtime and central adapter acceptance",
     "Everkeep target-native restore/recovery and exact-revision acceptance",
     "manual cross-platform Glaze UI 1.4 acceptance",
