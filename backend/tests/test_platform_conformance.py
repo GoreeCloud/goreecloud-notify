@@ -41,9 +41,16 @@ def test_platform_conformance_evidence_paths_exist() -> None:
             assert (REPOSITORY_ROOT / relative_path).exists(), relative_path
 
 
-def test_pending_platform_contracts_cannot_be_represented_as_complete() -> None:
-    systems = _contract()["platform_systems"]
+def test_incomplete_platform_contracts_cannot_be_represented_as_complete() -> None:
+    contract = _contract()
+    systems = contract["platform_systems"]
     assert "pending" in systems["wardveil_security"]["source_status"]
-    assert "pending" in systems["privacy_shield"]["source_status"]
+    assert systems["privacy_shield"]["source_status"] == "draft-adapter-source-candidate"
+    privacy_acceptance = json.loads(
+        (REPOSITORY_ROOT / "docs" / "privacy-shield.adapter.json").read_text(encoding="utf-8")
+    )["acceptance"]
+    assert privacy_acceptance["runtime_acceptance_required"] is True
+    assert privacy_acceptance["production_approved"] is False
     assert "pending" in systems["everkeep"]["source_status"]
-    assert _contract()["production_blockers"]
+    assert contract["stable_eligible"] is False
+    assert contract["production_blockers"]
