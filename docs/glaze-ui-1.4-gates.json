@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "application": "goreecloud-notify",
+  "target_release": "1.4.0",
+  "canonical_repository": "GoreeCloud/glaze-ui",
+  "conformance_claim": false,
+  "stable_eligible": false,
+  "gates": {
+    "01_identity": {"status": "source-evidence-present", "evidence": ["docs/application-identity.md"]},
+    "02_tokens": {"status": "source-evidence-present", "evidence": ["frontend/src/glaze-contract.css", "client/lib/glaze_theme.dart"]},
+    "03_surface_hierarchy": {"status": "source-evidence-present", "evidence": ["frontend/src/glaze-contract.css"]},
+    "04_states": {"status": "source-evidence-present", "evidence": ["frontend/src/App.tsx"]},
+    "05_forms_and_selection": {"status": "source-evidence-present", "evidence": ["frontend/src/App.tsx"]},
+    "06_expressive_hierarchy": {"status": "source-evidence-present", "evidence": ["frontend/src/glaze-contract.css"]},
+    "07_motion_separation": {"status": "source-evidence-present", "evidence": ["frontend/src/glaze-contract.css"]},
+    "08_accessibility": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["frontend/e2e/inbox.spec.ts"]},
+    "09_adaptive_window_behavior": {"status": "source-evidence-present", "evidence": ["frontend/src/glaze-contract.css"]},
+    "10_form_factor_fidelity": {"status": "source-foundation-present-manual-acceptance-required", "evidence": ["client/lib/glaze_theme.dart", "frontend/src/App.tsx"]},
+    "11_mobile_fidelity": {"status": "source-foundation-present-manual-acceptance-required", "evidence": ["client/lib/glaze_theme.dart"]},
+    "12_tablet_fidelity": {"status": "source-foundation-present-manual-acceptance-required", "evidence": ["frontend/src/App.tsx"]},
+    "13_desktop_fidelity": {"status": "source-foundation-present-manual-acceptance-required", "evidence": ["frontend/src/App.tsx", "client/lib/glaze_theme.dart"]},
+    "14_tv_fidelity": {"status": "not-currently-production-accepted", "evidence": []},
+    "15_adaptive_action_grouping": {"status": "source-evidence-present", "evidence": ["frontend/src/App.tsx"]},
+    "16_privacy": {"status": "source-evidence-present", "evidence": ["docs/privacy-shield.adapter.json", "docs/glaze-ui-conformance.md"]},
+    "17_resilience": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["frontend/e2e/glaze-resilience.spec.ts"]},
+    "18_product_personality": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["docs/application-identity.md"]},
+    "19_cross_platform_mapping": {"status": "source-contract-present-acceptance-required", "evidence": ["client/lib/glaze_theme.dart", "docs/application-identity.md"]},
+    "20_visual_acceptance": {"status": "pending", "evidence": []},
+    "21_stability_and_lifecycle": {"status": "pending", "evidence": ["docs/platform-conformance.json"]}
+  },
+  "blocking_gates": ["08_accessibility", "10_form_factor_fidelity", "11_mobile_fidelity", "12_tablet_fidelity", "13_desktop_fidelity", "14_tv_fidelity", "17_resilience", "18_product_personality", "19_cross_platform_mapping", "20_visual_acceptance", "21_stability_and_lifecycle"],
+  "acceptance_boundary": "Current Glaze UI 1.4 source integration and automation do not constitute completed conformance. Representative supported-profile, native/device, accessibility, browser/OS, and visual acceptance remain mandatory before any Stable claim."
+}
