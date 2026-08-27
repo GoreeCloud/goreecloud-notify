@@ -14,12 +14,19 @@ frontend/dist/
 .env.*
 !.env.example
 
+# Android signing material must remain external to the repository
+*.jks
+*.keystore
+*.p12
+*.pfx
+
 # Target acceptance evidence (internal, review before permanent storage)
 goreecloud-notify-target-preflight*.json
 goreecloud-notify-manual-browser-acceptance*.json
 goreecloud-notify-target-recovery-evidence*.json
 goreecloud-notify-monitoring-target-evidence*.json
 goreecloud-notify-pre-cutover-acceptance*.json
+goreecloud-notify-android-device-acceptance*.json
 
 # Editors / OS
 .vscode/

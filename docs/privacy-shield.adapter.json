@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "adapter": {
+    "id": "notify-application-privacy",
+    "product": "GoreeCloud Notify",
+    "runtime_authority": "GoreeCloud/goreecloud-notify",
+    "contract_version": 1
+  },
+  "capabilities": [
+    "data-minimization",
+    "deletion-controls"
+  ],
+  "privacy": {
+    "local_first": true,
+    "raw_private_activity_exported_for_status": false,
+    "remote_tracker_learning": false,
+    "remote_tracker_telemetry": false
+  },
+  "acceptance": {
+    "runtime_acceptance_required": true,
+    "production_approved": false
+  }
+}

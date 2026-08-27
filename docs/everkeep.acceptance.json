@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "application": "goreecloud-notify",
+  "producer": "GoreeCloud/goreecloud-notify",
+  "status_schema": "contracts/continuity.status.schema.json",
+  "freshness": {
+    "required_for_ready": true,
+    "rule": "required continuity records that depend on freshness must carry fresh_until; missing or expired freshness yields unknown or a stricter non-ready state"
+  },
+  "failure_behavior": {
+    "producer_unavailable": "unknown",
+    "malformed_evidence": "unknown",
+    "missing_required_evidence": "unknown",
+    "failed_restore_validation": "degraded",
+    "summary_rule": "summary state may never be more favorable than any required child evidence"
+  },
+  "required_ready_evidence": {
+    "backup_coverage": [
+      "backup configuration is present",
+      "backup execution succeeded",
+      "backup artifact exists",
+      "artifact integrity was verified"
+    ],
+    "restore_capability": [
+      "restore was tested",
+      "restore used an isolated or explicitly approved recovery target",
+      "restored Notify state was verified"
+    ],
+    "migration": [
+      "migration path is documented",
+      "migration evidence is revision-bound"
+    ],
+    "documentation": [
+      "current backup, recovery, migration, and acceptance documentation is present"
+    ],
+    "provenance": [
+      "evidence identifies the exact source revision or authoritative runtime source"
+    ]
+  },
+  "sensitive_evidence": {
+    "forbidden": [
+      "passwords",
+      "tokens",
+      "recovery codes",
+      "private keys",
+      "secret values",
+      "backup contents",
+      "detailed private storage paths"
+    ]
+  },
+  "acceptance": {
+    "everkeep_integrated": false,
+    "everkeep_ready": false,
+    "target_runtime_acceptance_required": true,
+    "exact_revision_acceptance_required": true
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "project": "GoreeCloud Notify",
+  "repository": "GoreeCloud/goreecloud-notify",
+  "identity": "Wardveil Security by GoreeCloud",
+  "presentation_claim": "Protected by Wardveil",
+  "source_status": "draft-application-adoption-candidate",
+  "fail_closed": true,
+  "unknown_when_evidence_missing": true,
+  "authoritative_controls": [
+    {
+      "scope": "authentication-and-session",
+      "producer": "GoreeCloud Notify backend",
+      "evidence": "backend/app/login_security.py"
+    },
+    {
+      "scope": "authorization-and-user-isolation",
+      "producer": "GoreeCloud Notify backend",
+      "evidence": "backend/app/delivery_service.py"
+    },
+    {
+      "scope": "security-response-presentation",
+      "producer": "GoreeCloud Notify backend",
+      "evidence": "backend/app/main.py"
+    },
+    {
+      "scope": "privacy-safe-security-observability",
+      "producer": "GoreeCloud Notify backend",
+      "evidence": "backend/app/observability.py"
+    },
+    {
+      "scope": "production-readiness",
+      "producer": "GoreeCloud Notify deployment validation",
+      "evidence": "deploy/target/preflight.py"
+    }
+  ],
+  "excluded_authority": [
+    "firewall",
+    "vpn",
+    "backup",
+    "vulnerability-management",
+    "external-identity-provider"
+  ],
+  "acceptance": {
+    "exact_revision_ci_required": true,
+    "target_runtime_acceptance_required": true,
+    "production_approved": false
+  }
+}

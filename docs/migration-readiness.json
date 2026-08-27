@@ -1,0 +1,41 @@
+{
+  "schema": "goreecloud-notify-migration-readiness/v1",
+  "application": "goreecloud-notify",
+  "repository": "GoreeCloud/goreecloud-notify",
+  "readiness": {
+    "source_ready_for_migration_rehearsal": true,
+    "live_producer_migration_authorized": false,
+    "production_cutover_authorized": false,
+    "stable_eligible": false
+  },
+  "authority": {
+    "current_production_notification_service": "ntfy",
+    "migration_mode": "same-candidate-parallel-acceptance",
+    "retirement_requires_explicit_approval": true
+  },
+  "required_source_evidence": [
+    "docker-compose.production.yml",
+    "deploy/acceptance/pre_cutover_acceptance_contract.json",
+    "deploy/acceptance/validate_pre_cutover_acceptance.py",
+    "deploy/acceptance/validate_manual_browser_evidence.py",
+    "deploy/monitoring/validate_target_evidence.py",
+    "deploy/recovery/validate_target_evidence.py",
+    "client/android/validate-device-acceptance.py",
+    "backend/app/routers/inbox.py",
+    "docs/platform-conformance.json",
+    "docs/everkeep.acceptance.json",
+    "docs/integrations/monitor-producer.json"
+  ],
+  "pre_live_migration_gates": [
+    "exact-candidate-target-runtime-private-publication-evidence",
+    "exact-candidate-backup-restore-and-security-reconciliation",
+    "live-monitoring-and-independent-notify-down-alert-path",
+    "manual-browser-os-accessibility-acceptance",
+    "physical-android-background-delivery-and-production-signed-install-acceptance",
+    "representative-monitor-producer-runtime-delivery",
+    "coherent-pre-cutover-acceptance-bundle-with-rollback-exercised",
+    "fresh-pre-cutover-recovery-point",
+    "explicit-live-producer-migration-approval"
+  ],
+  "revision_binding": "All migration acceptance evidence must bind to one exact reviewed Git revision."
+}
