@@ -1,0 +1,31 @@
+{
+  "schema": "goreecloud-notify-migration-rehearsal-request/v1",
+  "application": "goreecloud-notify",
+  "reviewed_base_revision": "c41928209f4274c480d9cd2377bc25c7a0e1a8d7",
+  "requested_mode": "same-candidate-parallel-acceptance",
+  "authority": {
+    "current_production_notification_service": "ntfy",
+    "notify_candidate_may_be_staged_for_acceptance": true,
+    "ntfy_must_remain_active": true
+  },
+  "authorizations": {
+    "rehearsal_preparation": true,
+    "sanitized_evidence_collection": true,
+    "isolated_candidate_validation": true,
+    "live_producer_migration": false,
+    "production_cutover": false,
+    "ntfy_retirement": false
+  },
+  "required_session_evidence": [
+    "exact-candidate-git-revision",
+    "exact-candidate-target-runtime-private-publication-evidence",
+    "exact-candidate-backup-restore-and-security-reconciliation",
+    "live-monitoring-and-independent-notify-down-alert-path",
+    "manual-browser-os-accessibility-acceptance",
+    "physical-android-background-delivery-and-production-signed-install-acceptance",
+    "representative-monitor-producer-runtime-delivery",
+    "coherent-pre-cutover-acceptance-bundle-with-rollback-exercised",
+    "fresh-pre-cutover-recovery-point"
+  ],
+  "completion_boundary": "Successful rehearsal evidence may support a later explicit producer-migration or cutover decision but must never authorize live producer migration, production cutover, or ntfy retirement by itself."
+}
