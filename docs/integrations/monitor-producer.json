@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "producer": {
+    "id": "goreecloud-monitor",
+    "repository": "GoreeCloud/goreecloud-monitor",
+    "source_slug": "goreecloud-monitor",
+    "channel_slug": "monitoring"
+  },
+  "notify_contract": {
+    "endpoint": "/api/v1/notifications",
+    "method": "POST",
+    "required_scope": "notifications:write",
+    "authentication": "notify-producer-token",
+    "transport": "https"
+  },
+  "events": {
+    "DOWN": "critical",
+    "RECOVERED": "normal",
+    "DEGRADED": "warning",
+    "TLS_EXPIRING": "warning",
+    "HEARTBEAT_MISSED": "error"
+  },
+  "privacy": {
+    "allowed_content": [
+      "monitor-display-label",
+      "minimized-transition-summary"
+    ],
+    "forbidden_content": [
+      "target-url",
+      "target-ip-address",
+      "raw-diagnostics",
+      "stack-trace",
+      "producer-token",
+      "credentials",
+      "private-monitoring-configuration",
+      "recovery-secret"
+    ]
+  },
+  "delivery": {
+    "notify_is_authoritative_for_delivery": true,
+    "monitor_is_authoritative_for_monitoring_state": true,
+    "publication_success_is_not_health_evidence": true,
+    "notify_must_not_be_sole_outage_alert_path_for_notify": true
+  },
+  "acceptance": {
+    "runtime_acceptance_required": true,
+    "representative_transition_validation_required": true,
+    "rollback_to_existing_notification_path_required": true,
+    "production_approved": false
+  }
+}
