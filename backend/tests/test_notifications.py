@@ -44,9 +44,13 @@ def principal(identity_id: int, name: str) -> TokenPrincipal:
     )
 
 
-def _payload(*, body: str = "Kopia snapshot completed successfully.") -> NotificationCreate:
+def _payload(
+    *,
+    source: str = "healthchecks",
+    body: str = "Kopia snapshot completed successfully.",
+) -> NotificationCreate:
     return NotificationCreate(
-        source="healthchecks",
+        source=source,
         channel="goreecloud-healthchecks",
         title="Backup completed",
         body=body,
@@ -109,6 +113,50 @@ def test_idempotent_ingestion_replays_one_notification_and_one_fanout() -> None:
         assert len(deliveries) == 1
         assert notifications[0].idempotency_digest is not None
         assert notifications[0].idempotency_digest != "monitor:incident:42:down"
+
+
+def test_same_external_idempotency_key_is_independent_across_sources() -> None:
+    owner_id, other_id = create_route_fixture()
+    with SessionLocal() as session:
+        channel = session.scalar(select(Channel).where(Channel.slug == "goreecloud-healthchecks"))
+        assert channel is not None
+        session.add(Source(service_identity_id=other_id, slug="beszel", name="Beszel"))
+        session.commit()
+
+        healthchecks_route = resolve_route(
+            session,
+            principal(owner_id, "Healthchecks"),
+            source_slug="healthchecks",
+            channel_slug=channel.slug,
+        )
+        beszel_route = resolve_route(
+            session,
+            principal(other_id, "Beszel"),
+            source_slug="beszel",
+            channel_slug=channel.slug,
+        )
+        external_key = "shared-external-transition-id"
+
+        healthchecks = persist_notification_idempotent(
+            session,
+            healthchecks_route,
+            _payload(source="healthchecks"),
+            idempotency_key=external_key,
+        )
+        beszel = persist_notification_idempotent(
+            session,
+            beszel_route,
+            _payload(source="beszel"),
+            idempotency_key=external_key,
+        )
+
+        assert healthchecks.replayed is False
+        assert beszel.replayed is False
+        assert healthchecks.notification.id != beszel.notification.id
+        notifications = session.scalars(select(Notification).order_by(Notification.id)).all()
+        assert len(notifications) == 2
+        assert notifications[0].idempotency_digest == notifications[1].idempotency_digest
+        assert notifications[0].source_id != notifications[1].source_id
 
 
 def test_idempotency_key_reuse_with_different_payload_is_rejected() -> None:
