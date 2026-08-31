@@ -127,6 +127,13 @@ class Subscription(Base):
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_id",
+            "idempotency_digest",
+            name="uq_notification_source_idempotency",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     source_id: Mapped[int | None] = mapped_column(ForeignKey("sources.id"), nullable=True, index=True)
@@ -134,6 +141,9 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(300))
     body: Mapped[str] = mapped_column(Text)
     severity: Mapped[str] = mapped_column(String(40), default="normal", index=True)
+    # Only a SHA-256 digest is retained. The producer-supplied Idempotency-Key
+    # itself is intentionally not persisted or exposed in reads/exports.
+    idempotency_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
