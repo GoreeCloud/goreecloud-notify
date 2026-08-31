@@ -69,6 +69,35 @@ def _existing_idempotent_notification(
     )
 
 
+def _assert_idempotent_payload_matches(
+    existing: Notification,
+    route: ResolvedRoute,
+    payload: NotificationCreate,
+) -> None:
+    existing_expires = as_utc(existing.expires_at) if existing.expires_at is not None else None
+    requested_expires = as_utc(payload.expires_at) if payload.expires_at is not None else None
+    if (
+        existing.channel_id != route.channel.id
+        or existing.title != payload.title.strip()
+        or existing.body != payload.body
+        or existing.severity != payload.severity
+        or existing_expires != requested_expires
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Idempotency-Key has already been used for a different notification",
+        )
+
+
+def _replayed_result(
+    existing: Notification,
+    route: ResolvedRoute,
+    payload: NotificationCreate,
+) -> NotificationPersistenceResult:
+    _assert_idempotent_payload_matches(existing, route, payload)
+    return NotificationPersistenceResult(notification=existing, replayed=True)
+
+
 def persist_notification_idempotent(
     session: Session,
     route: ResolvedRoute,
@@ -80,7 +109,7 @@ def persist_notification_idempotent(
     if digest is not None:
         existing = _existing_idempotent_notification(session, route, digest)
         if existing is not None:
-            return NotificationPersistenceResult(notification=existing, replayed=True)
+            return _replayed_result(existing, route, payload)
 
     notification = Notification(
         source_id=route.source.id,
@@ -102,7 +131,7 @@ def persist_notification_idempotent(
         if digest is not None:
             existing = _existing_idempotent_notification(session, route, digest)
             if existing is not None:
-                return NotificationPersistenceResult(notification=existing, replayed=True)
+                return _replayed_result(existing, route, payload)
         raise
 
     fanout_notification(session, notification)
