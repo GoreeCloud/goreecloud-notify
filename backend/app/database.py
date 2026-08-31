@@ -79,3 +79,10 @@ def verify_schema() -> None:
             "database schema is behind the CSRF migration; "
             "run `alembic -c alembic.ini upgrade head`"
         )
+
+    notification_columns = {column["name"] for column in inspector.get_columns("notifications")}
+    if "idempotency_digest" not in notification_columns:
+        raise RuntimeError(
+            "database schema is behind the notification-idempotency migration; "
+            "run `alembic -c alembic.ini upgrade head`"
+        )
