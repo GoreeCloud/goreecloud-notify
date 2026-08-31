@@ -17,21 +17,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "notifications",
-        sa.Column("idempotency_digest", sa.String(length=64), nullable=True),
-    )
-    op.create_unique_constraint(
-        "uq_notification_source_idempotency",
-        "notifications",
-        ["source_id", "idempotency_digest"],
-    )
+    # Batch mode keeps this migration portable to the SQLite test/development
+    # database while producing the same unique source/key constraint on target
+    # databases such as PostgreSQL.
+    with op.batch_alter_table("notifications") as batch_op:
+        batch_op.add_column(
+            sa.Column("idempotency_digest", sa.String(length=64), nullable=True)
+        )
+        batch_op.create_unique_constraint(
+            "uq_notification_source_idempotency",
+            ["source_id", "idempotency_digest"],
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "uq_notification_source_idempotency",
-        "notifications",
-        type_="unique",
-    )
-    op.drop_column("notifications", "idempotency_digest")
+    with op.batch_alter_table("notifications") as batch_op:
+        batch_op.drop_constraint(
+            "uq_notification_source_idempotency",
+            type_="unique",
+        )
+        batch_op.drop_column("idempotency_digest")
