@@ -67,6 +67,21 @@ summary {
   min-height: var(--glaze-target-min);
 }
 
+/* Legacy application selectors are more specific than the generic control
+   rule above. Resolve them through the 2.1 token so the effective rendered
+   target floor cannot silently remain at the historical 44/46 px values. */
+button.primary-button,
+button.secondary-button,
+button.refresh-button,
+button.text-button,
+.sidebar-nav button,
+.segmented-control button,
+.login-card input,
+.toolbar input,
+.toolbar select {
+  min-height: var(--glaze-target-min);
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
