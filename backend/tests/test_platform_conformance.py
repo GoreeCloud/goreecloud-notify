@@ -22,7 +22,12 @@ def test_platform_conformance_contract_is_fail_closed() -> None:
         "privacy_shield",
         "everkeep",
     }
-    assert contract["platform_systems"]["glaze_ui"]["required_version"] == "1.4"
+    glaze = contract["platform_systems"]["glaze_ui"]
+    assert glaze["required_version"] == "2.1"
+    assert glaze["required_release"] == "2.1.0"
+    assert glaze["canonical_repository"] == "GoreeCloud/goreecloud-glaze-ui"
+    assert glaze["canonical_revision"] == "c49113eb8b93c267613fdf1bbca1f814495acad7"
+    assert glaze["source_status"] == "adoption-candidate-web-and-native-source-validated"
 
 
 def test_platform_conformance_uses_canonical_identities() -> None:

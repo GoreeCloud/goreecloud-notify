@@ -2,12 +2,24 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-/// GoreeCloud Notify native mapping for the Glaze UI 1.4 Stable semantics.
+/// GoreeCloud Notify native mapping for the Glaze UI 2.1 Stable semantics.
 ///
-/// This intentionally maps shared Glaze roles into Flutter rather than copying
-/// the web implementation. Solid/Raised surfaces remain the default content
-/// materials; translucent Glaze surfaces are reserved for chrome and emphasis.
+/// This repository is an application Adoption Candidate, not a completed
+/// Glaze UI 2.1 conformance claim. Shared roles map into Flutter primitives
+/// rather than copying the web implementation. Durable content remains solid;
+/// glazed materials are reserved for interaction chrome and live emphasis.
+enum GlazeMaterialRole {
+  canvas,
+  surface,
+  softGlaze,
+  glaze,
+  deepGlaze,
+  liveGlaze,
+}
+
 abstract final class GlazeTokens {
+  static const String stableVersion = '2.1.0';
+
   static const double radiusSmall = 12;
   static const double radiusMedium = 16;
   static const double radiusControl = 18;
@@ -15,8 +27,11 @@ abstract final class GlazeTokens {
   static const double radiusXLarge = 30;
   static const double radiusPill = 999;
 
-  static const double targetMin = 44;
+  // Glaze UI 2.1 target floors.
+  static const double targetMin = 48;
   static const double targetComfortable = 48;
+  static const double targetTouchAssistance = 56;
+  static const double targetFarView = 56;
 
   static const double space1 = 4;
   static const double space2 = 8;
@@ -34,6 +49,15 @@ abstract final class GlazeTokens {
   static const Color warning = Color(0xFFB87525);
   static const Color danger = Color(0xFFB65361);
   static const Color success = Color(0xFF3E8B6B);
+
+  static double effectiveTarget({
+    bool touchAssistance = false,
+    bool farView = false,
+  }) {
+    if (touchAssistance) return targetTouchAssistance;
+    if (farView) return targetFarView;
+    return targetMin;
+  }
 }
 
 ThemeData glazeTheme(Brightness brightness) {
