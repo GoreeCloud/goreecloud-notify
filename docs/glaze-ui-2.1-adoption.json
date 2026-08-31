@@ -21,7 +21,7 @@
     "03_native_material_mapping": {"status": "source-evidence-present-native-device-acceptance-required", "evidence": ["client/lib/glaze_theme.dart"]},
     "04_material_clarity": {"status": "source-evidence-present", "evidence": ["frontend/src/glaze-contract.css"]},
     "05_density_profiles": {"status": "source-evidence-present", "evidence": ["frontend/src/glaze-contract.css"]},
-    "06_target_floors": {"status": "web-and-native-source-evidence-present", "evidence": ["frontend/src/glaze-contract.css", "client/lib/glaze_theme.dart"]},
+    "06_target_floors": {"status": "web-and-native-source-evidence-present", "evidence": ["frontend/src/glaze-contract.css", "client/lib/glaze_theme.dart", "frontend/e2e/glaze-resilience.spec.ts"]},
     "07_reduced_transparency": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["frontend/src/glaze-contract.css", "frontend/src/glaze-resilience.css"]},
     "08_reduced_motion": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["frontend/src/glaze-contract.css", "frontend/src/glaze-resilience.css"]},
     "09_increased_contrast": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["frontend/src/glaze-contract.css", "frontend/src/glaze-resilience.css"]},
@@ -32,7 +32,7 @@
     "14_authoritative_platform_state": {"status": "source-contracts-present-runtime-acceptance-required", "evidence": ["docs/platform-conformance.json", "docs/privacy-shield.adapter.json", "docs/everkeep.adoption.json", "docs/wardveil.adoption.json"]},
     "15_material_budget_and_performance": {"status": "pending-application-specific-evidence", "evidence": []},
     "16_web_rendered_visual_excellence": {"status": "pending", "evidence": []},
-    "17_browser_os_accessibility": {"status": "pending", "evidence": []},
+    "17_browser_os_accessibility": {"status": "automated-web-accessibility-evidence-present-representative-browser-os-manual-acceptance-required", "evidence": ["frontend/e2e/acceptance.spec.ts", "frontend/e2e/inbox.spec.ts", "frontend/e2e/glaze-resilience.spec.ts", ".github/workflows/browser-accessibility.yml"]},
     "18_flutter_native_accessibility": {"status": "pending", "evidence": []},
     "19_physical_device_acceptance": {"status": "pending", "evidence": []},
     "20_central_consumer_registry": {"status": "pending-registry-entry-and-review", "evidence": []}
@@ -54,5 +54,5 @@
     "19_physical_device_acceptance",
     "20_central_consumer_registry"
   ],
-  "acceptance_boundary": "Notify now carries web and Flutter-native Glaze UI 2.1.0 Adoption Candidate source mappings pinned to the Stable release anchor. This is not current-Stable conformance or production acceptance. Rendered web, browser/OS accessibility, native accessibility, physical-device, Material Budget/performance, authoritative platform-state, and central consumer-registry evidence remains required."
+  "acceptance_boundary": "Notify now carries web and Flutter-native Glaze UI 2.1.0 Adoption Candidate source mappings pinned to the Stable release anchor, with automated web WCAG and effective 48 px target-floor evidence. This is not current-Stable conformance or production acceptance. Representative browser/OS manual accessibility, rendered visual excellence, native accessibility, physical-device, Material Budget/performance, authoritative platform-state, and central consumer-registry evidence remains required."
 }
