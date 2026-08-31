@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "producer": {
     "id": "goreecloud-monitor",
     "repository": "GoreeCloud/goreecloud-monitor",
@@ -11,7 +11,27 @@
     "method": "POST",
     "required_scope": "notifications:write",
     "authentication": "notify-producer-token",
-    "transport": "https"
+    "transport": "https",
+    "idempotency_header": "Idempotency-Key",
+    "idempotency_scope": "source",
+    "first_write_status": 201,
+    "exact_replay_status": 200,
+    "replay_response_header": "Idempotency-Replayed",
+    "conflicting_reuse_status": 409,
+    "raw_idempotency_key_persisted": false
+  },
+  "producer_replay_identity": {
+    "required": true,
+    "version": "gcm-v1",
+    "inputs": [
+      "event-type",
+      "stable-transition-id"
+    ],
+    "presentation_fields_excluded": [
+      "monitor-display-label",
+      "minimized-transition-summary"
+    ],
+    "wire_value": "sha256-derived-opaque-key"
   },
   "events": {
     "DOWN": "critical",
@@ -33,18 +53,23 @@
       "producer-token",
       "credentials",
       "private-monitoring-configuration",
-      "recovery-secret"
-    ]
+      "recovery-secret",
+      "raw-transition-id"
+    ],
+    "notify_idempotency_storage": "sha256-digest-only"
   },
   "delivery": {
     "notify_is_authoritative_for_delivery": true,
     "monitor_is_authoritative_for_monitoring_state": true,
     "publication_success_is_not_health_evidence": true,
-    "notify_must_not_be_sole_outage_alert_path_for_notify": true
+    "notify_must_not_be_sole_outage_alert_path_for_notify": true,
+    "exact_retries_must_not_duplicate_delivery_fanout": true
   },
   "acceptance": {
     "runtime_acceptance_required": true,
     "representative_transition_validation_required": true,
+    "representative_retry_validation_required": true,
+    "conflicting_replay_validation_required": true,
     "rollback_to_existing_notification_path_required": true,
     "production_approved": false
   }
