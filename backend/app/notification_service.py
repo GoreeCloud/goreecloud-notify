@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .datetime_utils import as_utc
@@ -17,6 +19,12 @@ from .security import TokenPrincipal
 class ResolvedRoute:
     source: Source
     channel: Channel
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationPersistenceResult:
+    notification: Notification
+    replayed: bool
 
 
 def resolve_route(
@@ -42,11 +50,38 @@ def resolve_route(
     return ResolvedRoute(source=source, channel=channel)
 
 
-def persist_notification(
+def _idempotency_digest(idempotency_key: str) -> str:
+    # Persist only a one-way digest. Idempotency keys can encode producer-local
+    # identifiers and do not need to become notification history or export data.
+    return sha256(idempotency_key.encode("utf-8")).hexdigest()
+
+
+def _existing_idempotent_notification(
+    session: Session,
+    route: ResolvedRoute,
+    digest: str,
+) -> Notification | None:
+    return session.scalar(
+        select(Notification).where(
+            Notification.source_id == route.source.id,
+            Notification.idempotency_digest == digest,
+        )
+    )
+
+
+def persist_notification_idempotent(
     session: Session,
     route: ResolvedRoute,
     payload: NotificationCreate,
-) -> Notification:
+    *,
+    idempotency_key: str | None,
+) -> NotificationPersistenceResult:
+    digest = _idempotency_digest(idempotency_key) if idempotency_key is not None else None
+    if digest is not None:
+        existing = _existing_idempotent_notification(session, route, digest)
+        if existing is not None:
+            return NotificationPersistenceResult(notification=existing, replayed=True)
+
     notification = Notification(
         source_id=route.source.id,
         channel_id=route.channel.id,
@@ -54,13 +89,40 @@ def persist_notification(
         body=payload.body,
         severity=payload.severity,
         expires_at=payload.expires_at,
+        idempotency_digest=digest,
     )
     session.add(notification)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # A concurrent request with the same source-scoped key may have won the
+        # unique constraint. Roll back our failed transaction and converge on
+        # the already-persisted notification instead of producing a duplicate.
+        session.rollback()
+        if digest is not None:
+            existing = _existing_idempotent_notification(session, route, digest)
+            if existing is not None:
+                return NotificationPersistenceResult(notification=existing, replayed=True)
+        raise
+
     fanout_notification(session, notification)
     session.commit()
     session.refresh(notification)
-    return notification
+    return NotificationPersistenceResult(notification=notification, replayed=False)
+
+
+def persist_notification(
+    session: Session,
+    route: ResolvedRoute,
+    payload: NotificationCreate,
+) -> Notification:
+    """Persist legacy/non-idempotent ingestion paths without changing behavior."""
+    return persist_notification_idempotent(
+        session,
+        route,
+        payload,
+        idempotency_key=None,
+    ).notification
 
 
 def to_read(notification: Notification, route: ResolvedRoute) -> NotificationRead:
