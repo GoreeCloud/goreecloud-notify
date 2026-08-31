@@ -3,10 +3,11 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.database import Base, SessionLocal, engine
 from app.main import app
-from app.models import AccessToken, Channel, ServiceIdentity, Source
+from app.models import AccessToken, Channel, Notification, ServiceIdentity, Source
 from app.notification_service import (
     get_notification,
     list_notifications,
@@ -155,3 +156,87 @@ def test_history_endpoint_returns_only_owned_notifications() -> None:
 
     assert response.status_code == 200
     assert [item["title"] for item in response.json()] == ["Owned"]
+
+
+def test_native_ingestion_idempotency_replays_the_original_response() -> None:
+    owner_id, _ = create_fixture()
+    raw_token = "gcn_test_idempotent_writer"
+    with SessionLocal() as session:
+        session.add(
+            AccessToken(
+                service_identity_id=owner_id,
+                name="idempotent-writer",
+                token_digest=token_digest(raw_token),
+                scope="notifications:write",
+            )
+        )
+        session.commit()
+
+    payload = {
+        "source": "healthchecks",
+        "channel": "goreecloud-healthchecks",
+        "title": "Backup completed",
+        "body": "Kopia snapshot completed successfully.",
+        "severity": "info",
+    }
+    headers = {
+        "Authorization": f"Bearer {raw_token}",
+        "Idempotency-Key": "monitor-transition-42",
+    }
+
+    with TestClient(app) as client:
+        first = client.post("/api/v1/notifications", headers=headers, json=payload)
+        replay = client.post("/api/v1/notifications", headers=headers, json=payload)
+
+    assert first.status_code == 201
+    assert "idempotency-replayed" not in first.headers
+    assert replay.status_code == 200
+    assert replay.headers["idempotency-replayed"] == "true"
+    assert replay.json() == first.json()
+
+    with SessionLocal() as session:
+        notifications = session.scalars(select(Notification)).all()
+        assert len(notifications) == 1
+        assert notifications[0].idempotency_digest is not None
+        assert notifications[0].idempotency_digest != headers["Idempotency-Key"]
+
+
+def test_native_ingestion_rejects_key_reuse_for_changed_content() -> None:
+    owner_id, _ = create_fixture()
+    raw_token = "gcn_test_idempotency_conflict"
+    with SessionLocal() as session:
+        session.add(
+            AccessToken(
+                service_identity_id=owner_id,
+                name="idempotency-conflict",
+                token_digest=token_digest(raw_token),
+                scope="notifications:write",
+            )
+        )
+        session.commit()
+
+    headers = {
+        "Authorization": f"Bearer {raw_token}",
+        "Idempotency-Key": "monitor-transition-43",
+    }
+    base_payload = {
+        "source": "healthchecks",
+        "channel": "goreecloud-healthchecks",
+        "title": "Availability changed",
+        "body": "Service became unavailable.",
+        "severity": "critical",
+    }
+
+    with TestClient(app) as client:
+        first = client.post("/api/v1/notifications", headers=headers, json=base_payload)
+        conflict = client.post(
+            "/api/v1/notifications",
+            headers=headers,
+            json={**base_payload, "body": "Different event content reused the key."},
+        )
+
+    assert first.status_code == 201
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"] == "Idempotency-Key has already been used for a different notification"
+    with SessionLocal() as session:
+        assert len(session.scalars(select(Notification)).all()) == 1
