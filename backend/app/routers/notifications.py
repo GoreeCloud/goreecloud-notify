@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
 from ..notification_service import (
     get_notification,
     list_notifications,
-    persist_notification,
+    persist_notification_idempotent,
     resolve_route,
     to_read,
 )
@@ -27,8 +27,13 @@ Severity = Literal["info", "normal", "warning", "error", "critical"]
 )
 def create_notification(
     payload: NotificationCreate,
+    response: Response,
     principal: Annotated[TokenPrincipal, Depends(require_scope("notifications:write"))],
     session: Annotated[Session, Depends(get_db)],
+    idempotency_key: Annotated[
+        str | None,
+        Header(alias="Idempotency-Key", min_length=1, max_length=512),
+    ] = None,
 ) -> NotificationRead:
     route = resolve_route(
         session,
@@ -36,8 +41,16 @@ def create_notification(
         source_slug=payload.source,
         channel_slug=payload.channel,
     )
-    notification = persist_notification(session, route, payload)
-    return to_read(notification, route)
+    persisted = persist_notification_idempotent(
+        session,
+        route,
+        payload,
+        idempotency_key=idempotency_key,
+    )
+    if persisted.replayed:
+        response.status_code = status.HTTP_200_OK
+        response.headers["Idempotency-Replayed"] = "true"
+    return to_read(persisted.notification, route)
 
 
 @router.get("/notifications", response_model=list[NotificationRead])
