@@ -2,11 +2,13 @@
 
 ## Decision
 
-GoreeCloud Notify is licensed under the **MIT License** beginning with the 0.2.0 release line.
+Current and future GoreeCloud-owned GoreeCloud Notify source is licensed prospectively under the **GNU Affero General Public License, version 3 only (`AGPL-3.0-only`)** beginning with the repository relicensing integration that contains this review.
 
-The choice is intentionally simple and permissive. It satisfies the GoreeCloud requirement for a recognized open-source license, permits independent inspection/use/modification/redistribution, and does not add an additional network-source-offer feature requirement to the private web application.
+This is a prospective source-license change. GoreeCloud Notify `v0.2.0`, published from commit `dd22a7ad0765c8ca62b401749265594bb0a06e23`, was distributed under the MIT License. That release and copies previously distributed under MIT retain their MIT permissions. See `LICENSE-NOTICE.md`.
 
-The canonical applied license is stored at the repository root in `LICENSE`. The production image also copies that file into `/app/LICENSE` and records `org.opencontainers.image.licenses=MIT`.
+AGPL-3.0-only is selected for the original GoreeCloud-owned network/server application so modified network-service deployments receive the source-availability reciprocity expected for this service. Dependencies and separately licensed components are not relicensed as GoreeCloud-owned source.
+
+The current source grant is stored at the repository root in `LICENSE`. The production image copies both `LICENSE` and `LICENSE-NOTICE.md` into `/app` and records `org.opencontainers.image.licenses=AGPL-3.0-only`.
 
 ## Automated dependency evidence
 
@@ -25,44 +27,58 @@ The tool:
 - emits Markdown or JSON;
 - fails in strict mode when resolution, version, lockfile, or license metadata is incomplete.
 
-CI runs the strict inventory after the constrained backend environment is installed. A green strict inventory is required for the release line.
+CI runs the strict inventory after the constrained backend environment is installed. A green strict inventory remains required after the application-license change.
+
+The native Flutter client is also a first-party GoreeCloud component. Its direct Flutter/plugin dependencies remain separately licensed upstream components and are not converted to AGPL by the repository license.
 
 ## Review conclusion
 
-The current dependency inventory is suitable for the MIT-licensed GoreeCloud Notify distribution model.
+The reviewed dependency boundary does not prevent AGPL-3.0-only licensing of the original GoreeCloud-owned Notify source.
 
-Runtime application dependencies are consumed as separately maintained third-party packages and retain their own licenses. The current Python runtime closure is based on commonly permissive MIT/BSD-style components used by FastAPI, SQLAlchemy, Uvicorn, Alembic, Argon2, Pydantic/Starlette, and their support packages. The browser runtime is React/ReactDOM. Development/browser tooling is not part of the production runtime image; this includes Playwright/Axe tooling, whose independent licensing remains preserved by the dependency lock and package metadata.
+Runtime application dependencies are consumed as separately maintained third-party packages and retain their own licenses. The current Python runtime closure uses the established FastAPI, SQLAlchemy, Uvicorn, Alembic, Argon2, Pydantic/Starlette, and supporting package ecosystem. The browser runtime uses React/ReactDOM. Development/browser tooling, including Playwright/Axe tooling, remains separately licensed and is not part of the production runtime image merely because it is present in the source tree.
 
-The strict inventory previously completed without unknown license metadata or dependency-version drift. The release CI must continue to pass that same check after license integration.
+The strict inventory previously completed without unknown Python/npm license metadata or dependency-version drift. The same strict check must remain green on the exact relicensing head.
 
-No third-party package is relicensed as GoreeCloud-owned code. The root MIT license applies to original GoreeCloud Notify source; third-party dependencies remain governed by their respective upstream licenses.
+No third-party package is relicensed as GoreeCloud-owned code. If vendored, copied, or separately licensed source is introduced later, its required copyright/license notices and applicable terms must remain preserved.
 
 ## Distribution boundary
 
-For source distribution:
+For current source distribution:
 
-- keep the root `LICENSE` file;
+- keep the root `LICENSE` file containing the `AGPL-3.0-only` grant;
+- keep `LICENSE-NOTICE.md` so the published `v0.2.0` MIT grant and other prior MIT distributions remain explicit;
 - keep the committed dependency manifests/locks and this review record;
-- do not remove third-party license/copyright material from vendored or packaged third-party content if such content is introduced later.
+- preserve third-party license/copyright material for separately licensed or packaged third-party content.
 
 For the production container image:
 
 - keep `/app/LICENSE`;
-- preserve installed dependency metadata/license files supplied by the package distributions;
+- keep `/app/LICENSE-NOTICE.md`;
+- record `org.opencontainers.image.licenses=AGPL-3.0-only`;
+- preserve installed dependency metadata/license files supplied by package distributions;
 - publish immutable source/build revision metadata with the image;
-- do not represent third-party dependencies as MIT-licensed GoreeCloud code.
+- do not represent third-party dependencies as AGPL-licensed GoreeCloud code.
+
+For the Linux Debian client package:
+
+- install the canonical repository `LICENSE` and `LICENSE-NOTICE.md` under `/usr/share/doc/goreecloud-notify/`;
+- do not create duplicate source-of-truth copies of those legal files inside the client source tree.
+
+Current Android APKs are source/CI acceptance artifacts rather than the final approved production-signed distribution. The final Android release/signing packaging contract must preserve the application license and applicable third-party notices without creating a conflicting duplicate licensing authority.
 
 If a future dependency introduces a license with additional redistribution, attribution, notice, source-offer, or other obligations, the dependency review must be updated before that release is approved.
 
-## Release gate result
+## Current-source licensing gate
 
-The source-level licensing gate is considered satisfied when all of the following are true on one exact head:
+The current-source relicensing gate is satisfied only when all of the following are true on one exact head:
 
-- root `LICENSE` contains the applied MIT license;
-- README identifies MIT consistently;
-- production image carries license/version/source metadata and includes the license file;
+- root `LICENSE` declares `SPDX-License-Identifier: AGPL-3.0-only`;
+- `LICENSE-NOTICE.md` preserves the `v0.2.0` MIT grant and prior MIT distributions;
+- README identifies current source as AGPL-3.0-only and prior `v0.2.0` as MIT;
+- the production image carries AGPL-3.0-only OCI metadata and includes both licensing files;
+- the Linux Debian package includes both canonical licensing files;
 - strict dependency-license inventory passes;
-- backend/frontend/readiness validation remains green;
-- repository license detection reports MIT after integration to the release/main branch.
+- repository licensing regression coverage passes;
+- all applicable backend/frontend/readiness/native-client validation remains green on the exact relicensing head.
 
-Production deployment remains separately controlled by the target recovery, monitoring/out-of-band alerting, private-publication/runtime, manual browser/OS acceptance, and migration gates.
+Production deployment remains separately controlled by target recovery, monitoring/out-of-band alerting, private-publication/runtime, manual browser/OS acceptance, Android production-signing/device acceptance, controlled migration, and rollback gates.
