@@ -15,7 +15,8 @@ if [[ ! -x "$BUNDLE/goreecloud_notify_client" ]]; then
 fi
 
 install -d "$ROOT/DEBIAN" "$ROOT/usr/lib/goreecloud-notify" "$ROOT/usr/bin" \
-  "$ROOT/usr/share/applications" "$ROOT/usr/share/icons/hicolor/scalable/apps"
+  "$ROOT/usr/share/applications" "$ROOT/usr/share/icons/hicolor/scalable/apps" \
+  "$ROOT/usr/share/doc/goreecloud-notify"
 cp -a "$BUNDLE/." "$ROOT/usr/lib/goreecloud-notify/"
 ln -s ../lib/goreecloud-notify/goreecloud_notify_client "$ROOT/usr/bin/goreecloud-notify"
 
@@ -46,6 +47,8 @@ EOF
 
 install -m 0644 ../frontend/public/brand/goreecloud-notify-icon.svg \
   "$ROOT/usr/share/icons/hicolor/scalable/apps/goreecloud-notify.svg"
+install -m 0644 ../LICENSE "$ROOT/usr/share/doc/goreecloud-notify/LICENSE"
+install -m 0644 ../LICENSE-NOTICE.md "$ROOT/usr/share/doc/goreecloud-notify/LICENSE-NOTICE.md"
 
 mkdir -p "$OUT"
 dpkg-deb --root-owner-group --build "$ROOT" "$OUT/${PKG}.deb"
