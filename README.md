@@ -61,7 +61,8 @@ The application does not require a public backend host port. The intended produc
 ├── docker-compose.yml             Development topology
 ├── docker-compose.production.yml  Production runtime contract
 ├── Dockerfile.production          Reproducible multi-stage production image
-├── LICENSE                        MIT license
+├── LICENSE                        AGPL-3.0-only license grant
+├── LICENSE-NOTICE.md              Prior MIT grants and third-party licensing boundary
 └── .github/workflows/             CI, browser, production-readiness, and monitoring-readiness gates
 ```
 
@@ -235,4 +236,4 @@ Until those target/manual gates are complete, ntfy remains the active production
 
 ## License
 
-GoreeCloud Notify is licensed under the **MIT License**. See [`LICENSE`](LICENSE).
+Current and future GoreeCloud-owned GoreeCloud Notify source is licensed under the **GNU Affero General Public License, version 3 only (`AGPL-3.0-only`)**. The published `v0.2.0` source release remains available under the MIT License granted for that release. See [`LICENSE`](LICENSE) and [`LICENSE-NOTICE.md`](LICENSE-NOTICE.md).
