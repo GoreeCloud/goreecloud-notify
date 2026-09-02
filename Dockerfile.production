@@ -17,7 +17,7 @@ LABEL org.opencontainers.image.title="GoreeCloud Notify" \
       org.opencontainers.image.version="0.2.0" \
       org.opencontainers.image.revision="${GOREECLOUD_NOTIFY_BUILD_REVISION}" \
       org.opencontainers.image.source="https://github.com/GoreeCloud/goreecloud-notify" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="AGPL-3.0-only"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -34,6 +34,7 @@ RUN groupadd --system --gid 10001 goreecloud \
     && useradd --system --uid 10001 --gid goreecloud --home-dir /app goreecloud
 
 COPY LICENSE ./LICENSE
+COPY LICENSE-NOTICE.md ./LICENSE-NOTICE.md
 COPY backend/requirements.txt ./requirements.txt
 COPY backend/constraints.txt ./constraints.txt
 RUN python -m pip install \
