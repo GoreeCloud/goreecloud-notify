@@ -1,6 +1,6 @@
 :root {
-  /* GoreeCloud Glaze UI 1.0.0 application contract. */
-  --glaze-ui-version: "1.0.0";
+  /* GoreeCloud Notify — Glaze UI 2.1.0 Adoption Candidate contract. */
+  --glaze-ui-version: "2.1.0";
   --glaze-canvas: var(--bg);
   --glaze-canvas-accent: var(--bg-strong);
   --glaze-surface: var(--panel);
@@ -30,30 +30,103 @@
   --glaze-space-10: 40px;
   --glaze-space-12: 48px;
   --glaze-space-16: 64px;
-  --glaze-target-min: 44px;
+
+  /* Glaze UI 2.1 effective target floors. */
+  --glaze-target-min: 48px;
   --glaze-target-comfortable: 48px;
+  --glaze-target-touch-assistance: 56px;
+  --glaze-target-far-view: 56px;
+
   --glaze-motion-instant: 90ms;
   --glaze-motion-fast: 160ms;
   --glaze-motion-standard: 220ms;
   --glaze-motion-emphasized: 320ms;
   --glaze-focus-width: 3px;
   --glaze-focus-offset: 2px;
+
+  /* Stable 2.1 material hierarchy and presentation resolution. */
+  --glaze-material-canvas: var(--glaze-canvas);
+  --glaze-material-surface: var(--glaze-surface-strong);
+  --glaze-material-soft-glaze: color-mix(in srgb, var(--glaze-surface-strong) 92%, transparent);
+  --glaze-material-glaze: color-mix(in srgb, var(--glaze-surface-strong) 82%, transparent);
+  --glaze-material-deep-glaze: color-mix(in srgb, var(--glaze-surface-strong) 94%, transparent);
+  --glaze-material-live-glaze: color-mix(in srgb, var(--glaze-accent) 12%, var(--glaze-surface-strong));
+  --glaze-material-clarity: balanced;
+  --glaze-density-effective: standard;
+  --glaze-density-comfortable-gap: 20px;
+  --glaze-density-standard-gap: 16px;
+  --glaze-density-compact-gap: 12px;
+  --glaze-density-far-view-gap: 28px;
 }
 
 button,
 input,
 select,
+textarea,
 summary {
+  min-height: var(--glaze-target-min);
+}
+
+/* Legacy application selectors are more specific than the generic control
+   rule above. Resolve them through the 2.1 token so the effective rendered
+   target floor cannot silently remain at the historical 44/46 px values. */
+button.primary-button,
+button.secondary-button,
+button.refresh-button,
+button.text-button,
+.sidebar-nav button,
+.segmented-control button,
+.login-card input,
+.toolbar input,
+.toolbar select {
   min-height: var(--glaze-target-min);
 }
 
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 summary:focus-visible,
 a:focus-visible {
   outline-width: var(--glaze-focus-width);
   outline-offset: var(--glaze-focus-offset);
+}
+
+/* Durable inbox and detail content is solid. Interaction chrome is glazed. */
+.glaze-canvas-21 {
+  background: var(--glaze-material-canvas);
+}
+
+.glaze-surface-21,
+.glaze-content-surface-21 {
+  background: var(--glaze-material-surface);
+  border: 1px solid var(--glaze-line);
+}
+
+.glaze-soft-21 {
+  background: var(--glaze-material-soft-glaze);
+  border: 1px solid var(--glaze-line);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+.glaze-interaction-21 {
+  background: var(--glaze-material-glaze);
+  border: 1px solid var(--glaze-line);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.glaze-deep-21 {
+  background: var(--glaze-material-deep-glaze);
+  border: 1px solid var(--glaze-line);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+.glaze-live-21 {
+  background: var(--glaze-material-live-glaze);
+  border: 1px solid color-mix(in srgb, var(--glaze-accent) 28%, var(--glaze-line));
 }
 
 .loading-card,
@@ -66,6 +139,27 @@ a:focus-visible {
 .notification-list,
 .detail-panel {
   border-radius: var(--glaze-radius-lg);
+}
+
+/* Explicit application rendering hooks for platform-resolved accessibility. */
+:root[data-glaze-large-text="true"] {
+  --glaze-density-effective: comfortable;
+}
+
+:root[data-glaze-large-text="true"] .notification-workspace,
+:root[data-glaze-large-text="true"] .summary-grid,
+:root[data-glaze-large-text="true"] .toolbar,
+:root[data-glaze-large-text="true"] .detail-provenance {
+  grid-template-columns: 1fr;
+}
+
+:root[data-glaze-touch-assistance="true"] {
+  --glaze-target-min: var(--glaze-target-touch-assistance);
+}
+
+:root[data-glaze-far-view="true"] {
+  --glaze-target-min: var(--glaze-target-far-view);
+  --glaze-density-effective: far-view;
 }
 
 @media (max-width: 1023px) {
@@ -118,6 +212,10 @@ a:focus-visible {
 }
 
 @media (max-width: 599px) {
+  :root {
+    --glaze-density-effective: compact;
+  }
+
   .shell {
     padding: 14px;
   }
@@ -207,7 +305,54 @@ a:focus-visible {
   }
 }
 
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glaze-material-clarity: solid;
+    --glaze-material-soft-glaze: var(--glaze-surface-strong);
+    --glaze-material-glaze: var(--glaze-surface-strong);
+    --glaze-material-deep-glaze: var(--glaze-surface-strong);
+    --glaze-material-live-glaze: var(--glaze-surface-strong);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glaze-material-clarity: solid;
+    --glaze-material-soft-glaze: var(--glaze-surface-strong);
+    --glaze-material-glaze: var(--glaze-surface-strong);
+    --glaze-material-deep-glaze: var(--glaze-surface-strong);
+    --glaze-material-live-glaze: var(--glaze-surface-strong);
+  }
+
+  .glaze-soft-21,
+  .glaze-interaction-21,
+  .glaze-deep-21,
+  .glaze-live-21 {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --glaze-material-clarity: solid;
+  }
+}
+
 @media (forced-colors: active) {
+  :root {
+    --glaze-material-clarity: solid;
+  }
+
   .brand-mark,
   .primary-button,
   .severity-badge,
@@ -222,7 +367,13 @@ a:focus-visible {
   .sidebar,
   .inbox-column,
   .notification-list,
-  .detail-panel {
+  .detail-panel,
+  .glaze-soft-21,
+  .glaze-interaction-21,
+  .glaze-deep-21,
+  .glaze-live-21 {
     box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

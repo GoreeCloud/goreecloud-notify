@@ -5,14 +5,21 @@
   "platform_systems": {
     "glaze_ui": {
       "identity": "Glaze UI",
-      "required_version": "1.4",
-      "source_status": "integrated-source-validated",
+      "required_version": "2.1",
+      "required_release": "2.1.0",
+      "canonical_repository": "GoreeCloud/goreecloud-glaze-ui",
+      "canonical_release_tag": "v2.1.0",
+      "canonical_revision": "c49113eb8b93c267613fdf1bbca1f814495acad7",
+      "source_status": "adoption-candidate-web-and-native-source-validated",
       "evidence": [
         "docs/glaze-ui-conformance.md",
+        "docs/glaze-ui-2.1-adoption.json",
+        "frontend/src/main.tsx",
+        "frontend/src/glaze-contract.css",
         "client/lib/glaze_theme.dart",
-        "frontend/src/App.tsx"
+        "backend/tests/test_glaze_ui_2_1_adoption.py"
       ],
-      "blocker": "Manual cross-platform Glaze UI 1.4 acceptance remains required before Stable qualification."
+      "blocker": "Notify now carries exact Glaze UI 2.1.0 Stable release provenance plus web and Flutter-native Adoption Candidate source mappings. Current-Stable conformance remains blocked on rendered web acceptance, browser/OS accessibility, native accessibility, Large Text and Touch Assistance resolution, Material Budget/performance evidence, physical-device acceptance, and a reviewed central consumer-registry entry."
     },
     "wardveil_security": {
       "identity": "Wardveil Security by GoreeCloud",
@@ -27,7 +34,7 @@
         "backend/app/observability.py",
         "deploy/target/preflight.py"
       ],
-      "blocker": "Notify now declares a fail-closed Wardveil application adoption candidate with explicit authoritative scope and evidence ownership. Target runtime acceptance remains required and production_approved remains false."
+      "blocker": "Notify declares a fail-closed Wardveil application adoption candidate with explicit authoritative scope and evidence ownership. Target runtime acceptance remains required and production_approved remains false."
     },
     "privacy_shield": {
       "identity": "GoreeCloud Privacy Shield",
@@ -39,7 +46,7 @@
         "backend/app/delivery_service.py",
         "backend/tests/test_inbox_delete.py"
       ],
-      "blocker": "Notify now declares a source-side draft Privacy Shield adapter limited to data-minimization and deletion-controls. Runtime acceptance and central Privacy Shield adapter acceptance remain required, and production_approved remains false."
+      "blocker": "Notify declares a source-side draft Privacy Shield adapter limited to data-minimization and deletion-controls. Runtime acceptance and central Privacy Shield adapter acceptance remain required, and production_approved remains false."
     },
     "everkeep": {
       "identity": "Everkeep",
@@ -54,14 +61,14 @@
         "docs/migration.md",
         "docs/milestone-4-acceptance.md"
       ],
-      "blocker": "Notify now declares an Everkeep adoption and fail-closed acceptance-policy candidate bound to the canonical Everkeep acceptance schema. Target-native restore/recovery evidence and exact-revision Everkeep acceptance remain required before integration or readiness can be asserted."
+      "blocker": "Notify declares an Everkeep adoption and fail-closed acceptance-policy candidate bound to the canonical Everkeep acceptance schema. Target-native restore/recovery evidence and exact-revision Everkeep acceptance remain required before integration or readiness can be asserted."
     }
   },
   "production_blockers": [
     "Wardveil Security target runtime acceptance",
     "Privacy Shield runtime and central adapter acceptance",
     "Everkeep target-native restore/recovery and exact-revision acceptance",
-    "manual cross-platform Glaze UI 1.4 acceptance",
+    "complete Glaze UI 2.1 Adoption Candidate rendered web, browser/OS accessibility, native accessibility, performance, physical-device, and consumer-registry acceptance",
     "physical-device Android background-delivery acceptance",
     "approved production Android signing and installation validation",
     "representative producer migration and end-to-end delivery validation",
