@@ -5,14 +5,21 @@
   "platform_systems": {
     "glaze_ui": {
       "identity": "Glaze UI",
-      "required_version": "1.4",
-      "source_status": "integrated-source-validated",
+      "required_version": "1.3",
+      "required_release": "1.3.0",
+      "canonical_repository": "GoreeCloud/goreecloud-glaze-ui",
+      "canonical_revision": "fc7cc91d2eace8da2371371c2855c24cbcb326a1",
+      "source_status": "v1.3-migration-candidate-web-and-native-source-mapped",
       "evidence": [
+        "docs/glaze-ui-v1.3-adoption.json",
         "docs/glaze-ui-conformance.md",
+        "frontend/src/glaze-contract.css",
+        "frontend/src/main.tsx",
+        "frontend/index.html",
         "client/lib/glaze_theme.dart",
-        "frontend/src/App.tsx"
+        "frontend/e2e/glaze-resilience.spec.ts"
       ],
-      "blocker": "Manual cross-platform Glaze UI 1.4 acceptance remains required before Stable qualification."
+      "blocker": "Repository-local V1.3 web and Flutter source mapping exists, but representative rendered/native, accessibility, adaptive/form-factor, physical-device, performance, rollback, governed registry, and production acceptance remain required."
     },
     "wardveil_security": {
       "identity": "Wardveil Security by GoreeCloud",
@@ -27,7 +34,7 @@
         "backend/app/observability.py",
         "deploy/target/preflight.py"
       ],
-      "blocker": "Notify now declares a fail-closed Wardveil application adoption candidate with explicit authoritative scope and evidence ownership. Target runtime acceptance remains required and production_approved remains false."
+      "blocker": "Notify declares a fail-closed Wardveil application adoption candidate with explicit source evidence. Target runtime acceptance remains required and production_approved remains false."
     },
     "privacy_shield": {
       "identity": "GoreeCloud Privacy Shield",
@@ -39,7 +46,7 @@
         "backend/app/delivery_service.py",
         "backend/tests/test_inbox_delete.py"
       ],
-      "blocker": "Notify now declares a source-side draft Privacy Shield adapter limited to data-minimization and deletion-controls. Runtime acceptance and central Privacy Shield adapter acceptance remain required, and production_approved remains false."
+      "blocker": "Notify declares a source-side draft Privacy Shield adapter limited to data-minimization and deletion-controls. Runtime and central adapter acceptance remain required, and production_approved remains false."
     },
     "everkeep": {
       "identity": "Everkeep",
@@ -54,14 +61,17 @@
         "docs/migration.md",
         "docs/milestone-4-acceptance.md"
       ],
-      "blocker": "Notify now declares an Everkeep adoption and fail-closed acceptance-policy candidate bound to the canonical Everkeep acceptance schema. Target-native restore/recovery evidence and exact-revision Everkeep acceptance remain required before integration or readiness can be asserted."
+      "blocker": "Notify declares an Everkeep adoption and fail-closed acceptance-policy candidate. Target-native restore/recovery evidence and exact-revision Everkeep acceptance remain required before readiness can be asserted."
     }
   },
   "production_blockers": [
+    "Glaze UI V1.3 representative rendered/native, accessibility, physical-device, performance, rollback, and production acceptance",
     "Wardveil Security target runtime acceptance",
     "Privacy Shield runtime and central adapter acceptance",
     "Everkeep target-native restore/recovery and exact-revision acceptance",
-    "manual cross-platform Glaze UI 1.4 acceptance",
+    "GoreeCloud Identity accepted integration for identity-aware production operation",
+    "GoreeCloud Mesh capability publication and runtime acceptance",
+    "Manager operational visibility acceptance",
     "physical-device Android background-delivery acceptance",
     "approved production Android signing and installation validation",
     "representative producer migration and end-to-end delivery validation",

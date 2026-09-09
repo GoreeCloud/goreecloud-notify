@@ -6,6 +6,7 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_PATH = REPOSITORY_ROOT / "docs" / "platform-conformance.json"
+MANIFEST_PATH = REPOSITORY_ROOT / "goreecloud.platform.yaml"
 
 
 def _contract() -> dict:
@@ -22,7 +23,26 @@ def test_platform_conformance_contract_is_fail_closed() -> None:
         "privacy_shield",
         "everkeep",
     }
-    assert contract["platform_systems"]["glaze_ui"]["required_version"] == "1.4"
+    glaze = contract["platform_systems"]["glaze_ui"]
+    assert glaze["required_version"] == "1.3"
+    assert glaze["required_release"] == "1.3.0"
+    assert glaze["canonical_repository"] == "GoreeCloud/goreecloud-glaze-ui"
+    assert glaze["canonical_revision"] == "fc7cc91d2eace8da2371371c2855c24cbcb326a1"
+    assert glaze["source_status"] == "v1.3-migration-candidate-web-and-native-source-mapped"
+
+
+def test_root_platform_manifest_tracks_current_contract() -> None:
+    manifest = MANIFEST_PATH.read_text(encoding="utf-8")
+    for expected in (
+        'schema_version: "0.2"',
+        "type: application",
+        "id: goreecloud-notify",
+        "lifecycle: release-candidate",
+        'glaze_ui_required: "1.3.0"',
+        'version: "1.3.0"',
+        "status: nonconformant",
+    ):
+        assert expected in manifest
 
 
 def test_platform_conformance_uses_canonical_identities() -> None:

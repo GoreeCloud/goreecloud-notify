@@ -1,0 +1,61 @@
+{
+  "schema_version": 2,
+  "application": "goreecloud-notify",
+  "target_release": "1.3.0",
+  "baseline_release": "1.2.0",
+  "canonical_repository": "GoreeCloud/goreecloud-glaze-ui",
+  "canonical_revision": "fc7cc91d2eace8da2371371c2855c24cbcb326a1",
+  "adoption_status": "migration-candidate",
+  "conformance_claim": false,
+  "stable_eligible": false,
+  "supported_surfaces": [
+    "web",
+    "flutter-linux",
+    "flutter-android"
+  ],
+  "platform_authority": {
+    "security": "Wardveil Security",
+    "privacy": "Privacy Shield",
+    "continuity": "Everkeep",
+    "identity": "GoreeCloud Identity",
+    "coordination": "GoreeCloud Mesh"
+  },
+  "gates": {
+    "01_exact_stable_anchor": {"status": "source-evidence-present", "evidence": ["docs/glaze-ui-v1.3-adoption.json"]},
+    "02_web_source_mapping": {"status": "source-evidence-present", "evidence": ["frontend/src/glaze-contract.css", "frontend/src/main.tsx", "frontend/index.html"]},
+    "03_flutter_native_mapping": {"status": "source-evidence-present-native-device-acceptance-required", "evidence": ["client/lib/glaze_theme.dart"]},
+    "04_ergonomic_target_floors": {"status": "web-and-native-source-evidence-present", "evidence": ["frontend/src/glaze-contract.css", "client/lib/glaze_theme.dart", "frontend/e2e/glaze-resilience.spec.ts"]},
+    "05_living_material_resilience": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["frontend/src/glaze-contract.css", "frontend/src/glaze-resilience.css"]},
+    "06_reduced_motion": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["frontend/src/glaze-contract.css"]},
+    "07_contrast_and_forced_colors": {"status": "source-evidence-present-manual-acceptance-required", "evidence": ["frontend/src/glaze-contract.css"]},
+    "08_large_text_and_reflow": {"status": "web-source-hook-present-native-and-200-percent-reflow-acceptance-required", "evidence": ["frontend/src/glaze-contract.css", "client/lib/glaze_theme.dart"]},
+    "09_touch_assistance": {"status": "web-and-native-source-contract-present-platform-resolution-and-target-acceptance-required", "evidence": ["frontend/src/glaze-contract.css", "client/lib/glaze_theme.dart"]},
+    "10_adaptive_task_flows": {"status": "source-foundation-present-representative-web-and-native-acceptance-required", "evidence": ["frontend/src/App.tsx", "frontend/src/glaze-contract.css", "client/lib/glaze_theme.dart"]},
+    "11_browser_os_accessibility": {"status": "automated-web-evidence-present-representative-browser-os-manual-acceptance-required", "evidence": ["frontend/e2e/acceptance.spec.ts", "frontend/e2e/inbox.spec.ts", "frontend/e2e/glaze-resilience.spec.ts", ".github/workflows/browser-accessibility.yml"]},
+    "12_flutter_native_accessibility": {"status": "pending", "evidence": []},
+    "13_physical_device_acceptance": {"status": "pending", "evidence": []},
+    "14_application_performance": {"status": "pending-application-specific-evidence", "evidence": []},
+    "15_visual_excellence": {"status": "pending", "evidence": []},
+    "16_authoritative_platform_state": {"status": "source-contracts-present-runtime-acceptance-required", "evidence": ["goreecloud.platform.yaml", "docs/platform-conformance.json", "docs/privacy-shield.adapter.json", "docs/everkeep.adoption.json", "docs/wardveil.adoption.json"]},
+    "17_rollback_and_production_approval": {"status": "pending", "evidence": []},
+    "18_central_consumer_registry": {"status": "pending-governed-registry-review", "evidence": []}
+  },
+  "blocking_gates": [
+    "03_flutter_native_mapping",
+    "05_living_material_resilience",
+    "06_reduced_motion",
+    "07_contrast_and_forced_colors",
+    "08_large_text_and_reflow",
+    "09_touch_assistance",
+    "10_adaptive_task_flows",
+    "11_browser_os_accessibility",
+    "12_flutter_native_accessibility",
+    "13_physical_device_acceptance",
+    "14_application_performance",
+    "15_visual_excellence",
+    "16_authoritative_platform_state",
+    "17_rollback_and_production_approval",
+    "18_central_consumer_registry"
+  ],
+  "acceptance_boundary": "Notify now carries repository-local web and Flutter-native source mappings for current Stable GLAZE UI V1.3 / 1.3.0 at exact source integration anchor fc7cc91d2eace8da2371371c2855c24cbcb326a1. This is a migration candidate, not a conformance or production-acceptance claim. Representative browser/OS manual accessibility, rendered visual excellence, native accessibility, physical-device, performance, authoritative platform-system, rollback, production-approval, and governed consumer-registry evidence remain required."
+}

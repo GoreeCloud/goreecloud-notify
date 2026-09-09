@@ -1,0 +1,151 @@
+schema_version: "0.2"
+
+component:
+  type: application
+  id: goreecloud-notify
+  product_name: GoreeCloud Notify
+  repository: GoreeCloud/goreecloud-notify
+
+lifecycle: release-candidate
+version: "0.2.0"
+
+supported_platforms:
+  - web
+  - linux
+  - android
+
+api:
+  versions:
+    - v1
+  endpoints:
+    - name: native-api
+      url: /api/v1
+      purpose: Versioned GoreeCloud Notify producer, inbox, subscription, administration, and metadata API.
+    - name: authenticated-sse
+      url: /api/v1/inbox/stream
+      purpose: Authenticated Server-Sent Events delivery and replay path for the user inbox.
+    - name: ntfy-compatibility
+      url: /{topic}
+      purpose: Deliberately bounded authenticated ntfy-compatible publishing path used during controlled migration.
+
+platform_systems:
+  manager:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: Accepted GoreeCloud Manager operational visibility and administrative integration are not established for Notify.
+  privacy_shield:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - docs/privacy-shield.adapter.json
+      - backend/tests/test_privacy_shield_adapter.py
+    notes: A source-side privacy adapter candidate exists, but central/runtime Privacy Shield acceptance and production approval remain incomplete.
+  wardveil_security:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - docs/wardveil.adoption.json
+      - backend/tests/test_wardveil_adoption.py
+      - SECURITY.md
+    notes: Wardveil Security source adoption evidence exists, but target-runtime acceptance and production approval remain incomplete.
+  everkeep:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - docs/everkeep.adoption.json
+      - docs/everkeep.acceptance.json
+      - docs/backup-recovery.md
+    notes: Backup/restore tooling and fail-closed Everkeep acceptance policy exist, but target-native restore/recovery and exact-revision acceptance remain incomplete.
+  glaze_ui:
+    result: applicable-migration-required
+    version: "1.3.0"
+    evidence:
+      - docs/glaze-ui-v1.3-adoption.json
+      - docs/glaze-ui-conformance.md
+      - frontend/src/glaze-contract.css
+      - frontend/src/main.tsx
+      - frontend/index.html
+      - client/lib/glaze_theme.dart
+      - frontend/e2e/glaze-resilience.spec.ts
+    notes: Repository-local web and Flutter source now map to current Stable GLAZE UI V1.3 / 1.3.0 at exact shared source integration anchor fc7cc91d2eace8da2371371c2855c24cbcb326a1. Representative rendered/native, accessibility, adaptive/form-factor, physical-device, performance, rollback, governed registry, and production acceptance remain required before conformance can be claimed.
+  mesh:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: Canonical GoreeCloud Mesh registration, capability publication, producer/consumer event contracts, and runtime acceptance are not established for Notify.
+    capabilities: []
+    dependencies: []
+    published_events: []
+    consumed_events: []
+  identity:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - docs/end-user-authentication-and-delivery-state.md
+      - backend/app/user_security.py
+    notes: Notify has its current internal human-session and producer-identity boundaries, but accepted GoreeCloud Identity integration is not established.
+
+health:
+  health_endpoint: /healthz
+  readiness_endpoint: /healthz
+
+continuity:
+  backup:
+    required: true
+    requirements:
+      - Preserve the SQLite Online Backup API path and sanitized integrity evidence for approved backup targets.
+      - Establish the approved target repository, schedule, retention, independent credentials, and missed/failed-backup monitoring before production acceptance.
+  restore:
+    required: true
+    requirements:
+      - Validate alternate-location restore against the exact candidate revision and Alembic state before production acceptance.
+      - Reconcile restored sessions, producer tokens, user active state, administrator authority, password-reset state, and recovered security history before restored state is trusted.
+  export:
+    required: true
+    requirements:
+      - Define and validate user-controlled export for durable notification, subscription, and preference data before complete product portability is claimed.
+  portability:
+    required: true
+    requirements:
+      - Preserve documented versioned API and data semantics across supported web, Linux, and Android clients.
+      - Keep client-local secure session material outside ordinary portable exports.
+
+external_dependencies:
+  - name: SQLite
+    purpose: Persistent notification, delivery, identity, session, audit, and security-state storage.
+    required: true
+
+compatibility:
+  platform_contract: "0.2"
+  glaze_ui_required: "1.3.0"
+  requires:
+    - goreecloud-platform-contract==0.2
+    - glaze-ui==1.3.0
+  provides:
+    - goreecloud-notify-api-v1
+    - goreecloud-notify-sse-v1
+
+evidence:
+  acceptance_tests: []
+  release: []
+
+conformance:
+  status: nonconformant
+  validated_at: null
+  evidence:
+    - docs/platform-conformance.json
+    - docs/glaze-ui-v1.3-adoption.json
+    - docs/wardveil.adoption.json
+    - docs/privacy-shield.adapter.json
+    - docs/everkeep.acceptance.json
+  blockers:
+    - Glaze UI V1.3 source mapping is present, but representative rendered/native, accessibility, adaptive/form-factor, physical-device, performance, rollback, governed registry, and production acceptance remain incomplete.
+    - GoreeCloud Manager operational visibility and administrative integration acceptance are not established.
+    - Privacy Shield runtime and central adapter acceptance are not established.
+    - Wardveil Security target-runtime acceptance is not established.
+    - Everkeep target-native restore/recovery and exact-revision acceptance are not established.
+    - GoreeCloud Mesh registration, capability publication, and runtime acceptance are not established.
+    - GoreeCloud Identity integration and acceptance are not established.
+    - Physical-device Android background-delivery and production-signing acceptance remain incomplete.
+    - Target backup/restore, monitoring/out-of-band alerting, private publication, manual browser/OS acceptance, controlled producer/consumer migration, tested rollback, and explicit production cutover approval remain incomplete.

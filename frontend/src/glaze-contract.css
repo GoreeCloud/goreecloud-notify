@@ -1,6 +1,6 @@
 :root {
-  /* GoreeCloud Glaze UI 1.0.0 application contract. */
-  --glaze-ui-version: "1.0.0";
+  /* GoreeCloud Notify — GLAZE UI V1.3 / 1.3.0 Adaptive Resonance migration mapping. */
+  --glaze-ui-version: "1.3.0";
   --glaze-canvas: var(--bg);
   --glaze-canvas-accent: var(--bg-strong);
   --glaze-surface: var(--panel);
@@ -30,26 +30,60 @@
   --glaze-space-10: 40px;
   --glaze-space-12: 48px;
   --glaze-space-16: 64px;
-  --glaze-target-min: 44px;
+
+  /* V1.3 inherits the V1.2 ergonomic target floors. */
+  --glaze-target-min: 48px;
   --glaze-target-comfortable: 48px;
+  --glaze-target-touch-assistance: 56px;
+  --glaze-target-far-view: 56px;
+
   --glaze-motion-instant: 90ms;
   --glaze-motion-fast: 160ms;
   --glaze-motion-standard: 220ms;
   --glaze-motion-emphasized: 320ms;
   --glaze-focus-width: 3px;
   --glaze-focus-offset: 2px;
+
+  /* Bounded Living Material 2.0 source mapping. Durable content stays readable. */
+  --glaze-material-canvas: var(--glaze-canvas);
+  --glaze-material-surface: var(--glaze-surface-strong);
+  --glaze-material-soft: color-mix(in srgb, var(--glaze-surface-strong) 92%, transparent);
+  --glaze-material-interaction: color-mix(in srgb, var(--glaze-surface-strong) 82%, transparent);
+  --glaze-material-deep: color-mix(in srgb, var(--glaze-surface-strong) 94%, transparent);
+  --glaze-material-live: color-mix(in srgb, var(--glaze-accent) 12%, var(--glaze-surface-strong));
+  --glaze-material-clarity: balanced;
+  --glaze-density-effective: standard;
+  --glaze-density-comfortable-gap: 20px;
+  --glaze-density-standard-gap: 16px;
+  --glaze-density-compact-gap: 12px;
+  --glaze-density-far-view-gap: 28px;
 }
 
 button,
 input,
 select,
+textarea,
 summary {
+  min-height: var(--glaze-target-min);
+}
+
+/* Existing application selectors are more specific than the generic control rule. */
+button.primary-button,
+button.secondary-button,
+button.refresh-button,
+button.text-button,
+.sidebar-nav button,
+.segmented-control button,
+.login-card input,
+.toolbar input,
+.toolbar select {
   min-height: var(--glaze-target-min);
 }
 
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 summary:focus-visible,
 a:focus-visible {
   outline-width: var(--glaze-focus-width);
@@ -66,6 +100,27 @@ a:focus-visible {
 .notification-list,
 .detail-panel {
   border-radius: var(--glaze-radius-lg);
+}
+
+/* Explicit repository-local hooks for platform-resolved accessibility behavior. */
+:root[data-glaze-large-text="true"] {
+  --glaze-density-effective: comfortable;
+}
+
+:root[data-glaze-large-text="true"] .notification-workspace,
+:root[data-glaze-large-text="true"] .summary-grid,
+:root[data-glaze-large-text="true"] .toolbar,
+:root[data-glaze-large-text="true"] .detail-provenance {
+  grid-template-columns: 1fr;
+}
+
+:root[data-glaze-touch-assistance="true"] {
+  --glaze-target-min: var(--glaze-target-touch-assistance);
+}
+
+:root[data-glaze-far-view="true"] {
+  --glaze-target-min: var(--glaze-target-far-view);
+  --glaze-density-effective: far-view;
 }
 
 @media (max-width: 1023px) {
@@ -118,6 +173,10 @@ a:focus-visible {
 }
 
 @media (max-width: 599px) {
+  :root {
+    --glaze-density-effective: compact;
+  }
+
   .shell {
     padding: 14px;
   }
@@ -207,7 +266,46 @@ a:focus-visible {
   }
 }
 
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glaze-material-clarity: solid;
+    --glaze-material-soft: var(--glaze-surface-strong);
+    --glaze-material-interaction: var(--glaze-surface-strong);
+    --glaze-material-deep: var(--glaze-surface-strong);
+    --glaze-material-live: var(--glaze-surface-strong);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glaze-material-clarity: solid;
+    --glaze-material-soft: var(--glaze-surface-strong);
+    --glaze-material-interaction: var(--glaze-surface-strong);
+    --glaze-material-deep: var(--glaze-surface-strong);
+    --glaze-material-live: var(--glaze-surface-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --glaze-material-clarity: solid;
+  }
+}
+
 @media (forced-colors: active) {
+  :root {
+    --glaze-material-clarity: solid;
+  }
+
   .brand-mark,
   .primary-button,
   .severity-badge,
