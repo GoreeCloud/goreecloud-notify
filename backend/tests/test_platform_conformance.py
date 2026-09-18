@@ -33,7 +33,7 @@ def test_platform_conformance_contract_is_fail_closed() -> None:
     assert glaze["required_release"] == "1.5.1"
     assert glaze["canonical_repository"] == "GoreeCloud/goreecloud-glaze-ui"
     assert glaze["canonical_revision"] == "5b59d0e36950d737dba35b58ae58058684e0831b"
-    assert glaze["source_status"] == "v1.3-source-mapped-v1.5.1-adoption-required"
+    assert glaze["source_status"] == "v1.5.1-source-adoption-candidate-acceptance-required"
 
 
 def test_root_platform_manifest_tracks_current_contract() -> None:
