@@ -2,12 +2,12 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-/// GoreeCloud Notify native source mapping for GLAZE UI V1.3 / 1.3.0.
+/// GoreeCloud Notify native consumer mapping for Glaze UI 1.5.1.
 ///
-/// This remains a consumer migration candidate, not a completed conformance
-/// claim. Shared Glaze roles map into Flutter primitives rather than copying
-/// the web implementation. Durable content remains solid; translucent material
-/// is reserved for bounded interaction chrome and emphasis.
+/// This is a repository-local source adoption candidate, not a completed
+/// conformance or production claim. Presentation resolves only from bounded
+/// Flutter/runtime/accessibility state and never manufactures authorization,
+/// permission, privacy, security, identity, or service truth.
 enum GlazeMaterialRole {
   canvas,
   surface,
@@ -18,8 +18,11 @@ enum GlazeMaterialRole {
 }
 
 abstract final class GlazeTokens {
-  static const String stableVersion = '1.3.0';
-  static const String sourceIntegrationAnchor = 'fc7cc91d2eace8da2371371c2855c24cbcb326a1';
+  static const String stableVersion = '1.5.1';
+  static const String reviewedImplementationAnchor =
+      'ee1032a0822ab8e103f8afe48e5c1859fde65cc9';
+  static const String sourceQualificationAnchor =
+      '5b59d0e36950d737dba35b58ae58058684e0831b';
 
   static const double radiusSmall = 12;
   static const double radiusMedium = 16;
@@ -28,7 +31,7 @@ abstract final class GlazeTokens {
   static const double radiusXLarge = 30;
   static const double radiusPill = 999;
 
-  // V1.3 inherits the V1.2 ergonomic target floors.
+  // V1.5.1 preserves the accepted ergonomic target floors.
   static const double targetMin = 48;
   static const double targetComfortable = 48;
   static const double targetTouchAssistance = 56;
@@ -59,6 +62,135 @@ abstract final class GlazeTokens {
     if (farView) return targetFarView;
     return targetMin;
   }
+}
+
+
+enum GlazeNativePaneMode { single, stacked, split }
+
+enum GlazeNativeControlDensity { compact, standard, comfortable }
+
+enum GlazeNativeMaterialPreference { glaze, solidAccessible }
+
+enum GlazeNativeMotionPreference { standard, reduced }
+
+enum GlazeCapabilityState {
+  available,
+  degraded,
+  temporarilyUnavailable,
+  restricted,
+  unsupported,
+  unknown,
+}
+
+@immutable
+class GlazeNativePresentationResolution {
+  const GlazeNativePresentationResolution({
+    required this.paneMode,
+    required this.controlDensity,
+    required this.materialPreference,
+    required this.motionPreference,
+    required this.largeText,
+    required this.highContrast,
+  });
+
+  final GlazeNativePaneMode paneMode;
+  final GlazeNativeControlDensity controlDensity;
+  final GlazeNativeMaterialPreference materialPreference;
+  final GlazeNativeMotionPreference motionPreference;
+  final bool largeText;
+  final bool highContrast;
+
+  static GlazeNativePresentationResolution fromContext(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final largeText = media.textScaler.scale(16) >= 20;
+    final paneMode = width < 600
+        ? GlazeNativePaneMode.single
+        : width < 980
+            ? GlazeNativePaneMode.stacked
+            : GlazeNativePaneMode.split;
+    return GlazeNativePresentationResolution(
+      paneMode: paneMode,
+      controlDensity: largeText
+          ? GlazeNativeControlDensity.comfortable
+          : paneMode == GlazeNativePaneMode.single
+              ? GlazeNativeControlDensity.compact
+              : GlazeNativeControlDensity.standard,
+      materialPreference: media.highContrast
+          ? GlazeNativeMaterialPreference.solidAccessible
+          : GlazeNativeMaterialPreference.glaze,
+      motionPreference: media.disableAnimations
+          ? GlazeNativeMotionPreference.reduced
+          : GlazeNativeMotionPreference.standard,
+      largeText: largeText,
+      highContrast: media.highContrast,
+    );
+  }
+
+  bool get authorizationInferred => false;
+  bool get permissionGrantedByGlaze => false;
+  bool get automaticNavigationAllowed => false;
+  bool get automaticPermissionRequestAllowed => false;
+  bool get automaticConsequentialExecutionAllowed => false;
+  bool get telemetryRequired => false;
+  bool get remoteAnalysisRequired => false;
+}
+
+@immutable
+class GlazeCapabilityPresentation {
+  const GlazeCapabilityPresentation({
+    required this.state,
+    required this.explanation,
+    this.userInitiatedRecovery,
+  });
+
+  final GlazeCapabilityState state;
+  final String explanation;
+  final String? userInitiatedRecovery;
+
+  static GlazeCapabilityPresentation systemAlerts(
+    GlazeCapabilityState state,
+  ) {
+    switch (state) {
+      case GlazeCapabilityState.available:
+        return const GlazeCapabilityPresentation(
+          state: GlazeCapabilityState.available,
+          explanation:
+              'Android reports persistent system alerts as enabled for this client.',
+        );
+      case GlazeCapabilityState.restricted:
+        return const GlazeCapabilityPresentation(
+          state: GlazeCapabilityState.restricted,
+          explanation:
+              'Android did not grant notification permission. Change the platform permission before retrying.',
+          userInitiatedRecovery: 'open-platform-permission-or-retry',
+        );
+      case GlazeCapabilityState.unsupported:
+        return const GlazeCapabilityPresentation(
+          state: GlazeCapabilityState.unsupported,
+          explanation:
+              'Persistent Android background alerts are not available on this platform.',
+        );
+      case GlazeCapabilityState.degraded:
+      case GlazeCapabilityState.temporarilyUnavailable:
+        return GlazeCapabilityPresentation(
+          state: state,
+          explanation:
+              'System alerts are temporarily unavailable. The authenticated Notify inbox remains available.',
+          userInitiatedRecovery: 'retry',
+        );
+      case GlazeCapabilityState.unknown:
+        return const GlazeCapabilityPresentation(
+          state: GlazeCapabilityState.unknown,
+          explanation:
+              'System-alert permission has not been established. Notify will request it only after you choose Enable.',
+          userInitiatedRecovery: 'request-permission',
+        );
+    }
+  }
+
+  bool get permissionGrantedByGlaze => false;
+  bool get automaticExecutionAllowed => false;
 }
 
 ThemeData glazeTheme(Brightness brightness) {
@@ -181,26 +313,38 @@ class GlazeChrome extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final border = Theme.of(context).colorScheme.outlineVariant;
+    final resolution = GlazeNativePresentationResolution.fromContext(context);
+    final solid =
+        resolution.materialPreference == GlazeNativeMaterialPreference.solidAccessible;
+    final surface = DecoratedBox(
+      decoration: BoxDecoration(
+        color: solid
+            ? (dark ? const Color(0xFF252731) : Colors.white)
+            : (dark ? const Color(0xFF252731) : Colors.white)
+                .withValues(alpha: dark ? .72 : .76),
+        borderRadius: BorderRadius.circular(GlazeTokens.radiusXLarge),
+        border: Border.all(color: border.withValues(alpha: solid ? 1 : .7)),
+        boxShadow: solid
+            ? const []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? .24 : .08),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(GlazeTokens.radiusXLarge),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: (dark ? const Color(0xFF252731) : Colors.white).withValues(alpha: dark ? .72 : .76),
-            borderRadius: BorderRadius.circular(GlazeTokens.radiusXLarge),
-            border: Border.all(color: border.withValues(alpha: .7)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: dark ? .24 : .08),
-                blurRadius: 28,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Padding(padding: padding, child: child),
-        ),
-      ),
+      child: solid
+          ? surface
+          : BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: surface,
+            ),
     );
   }
 }
