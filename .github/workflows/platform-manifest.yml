@@ -9,10 +9,14 @@ on:
       - docs/glaze-ui-v1.5.1-adoption.json
       - docs/glaze-ui-v1.3-adoption.json
       - frontend/src/glaze-contract.css
+      - frontend/src/glaze-v1.5.1.ts
+      - frontend/src/useGlazePresentation.ts
       - frontend/src/main.tsx
       - frontend/index.html
       - frontend/e2e/glaze-resilience.spec.ts
       - client/lib/glaze_theme.dart
+      - client/lib/main.dart
+      - client/test/glaze_theme_test.dart
       - .github/workflows/platform-manifest.yml
   push:
     branches:
@@ -24,10 +28,14 @@ on:
       - docs/glaze-ui-v1.5.1-adoption.json
       - docs/glaze-ui-v1.3-adoption.json
       - frontend/src/glaze-contract.css
+      - frontend/src/glaze-v1.5.1.ts
+      - frontend/src/useGlazePresentation.ts
       - frontend/src/main.tsx
       - frontend/index.html
       - frontend/e2e/glaze-resilience.spec.ts
       - client/lib/glaze_theme.dart
+      - client/lib/main.dart
+      - client/test/glaze_theme_test.dart
       - .github/workflows/platform-manifest.yml
 
 permissions:

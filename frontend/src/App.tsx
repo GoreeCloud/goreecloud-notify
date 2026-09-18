@@ -1,6 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import SubscriptionsPanel from './SubscriptionsPanel'
 import { readLocalPreference, writeLocalPreference } from './browserStorage'
+import useNotifyGlazePresentation from './useGlazePresentation'
 import useInboxStream, {
   type RealtimeDelivery,
   type RealtimeInboxState,
@@ -251,6 +252,11 @@ export default function App() {
     onReady: refreshAfterStreamHandshake,
     onState: handleRealtimeState,
     onDelivery: handleRealtimeDelivery,
+  })
+
+  useNotifyGlazePresentation({
+    serviceState: health ? 'available' : healthError ? 'unavailable' : 'unknown',
+    streamState,
   })
 
   useEffect(() => {
@@ -583,7 +589,7 @@ export default function App() {
               {loginBusy ? 'Signing in…' : 'Sign in to Notify'}
             </button>
             <p className="auth-footnote">
-              Controlled private acceptance is in progress. ntfy remains the production notification service until cutover is approved.
+              Controlled private acceptance is in progress. The retired ntfy service is recovery history only; GoreeCloud Notify is not production-approved yet.
             </p>
           </form>
         </section>

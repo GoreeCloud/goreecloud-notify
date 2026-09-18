@@ -16,21 +16,27 @@ def test_notify_requires_current_glaze_v1_5_1_without_claiming_adoption() -> Non
     ledger = _ledger()
     assert ledger["application"] == "goreecloud-notify"
     assert ledger["required_target_release"] == "1.5.1"
-    assert ledger["current_source_mapping_release"] == "1.3.0"
+    assert ledger["current_source_mapping_release"] == "1.5.1"
     assert ledger["canonical_repository"] == "GoreeCloud/goreecloud-glaze-ui"
     assert ledger["reviewed_implementation_anchor"] == "ee1032a0822ab8e103f8afe48e5c1859fde65cc9"
     assert ledger["source_qualification_anchor"] == "5b59d0e36950d737dba35b58ae58058684e0831b"
-    assert ledger["adoption_status"] == "adoption-required"
+    assert ledger["adoption_status"] == "source-adoption-candidate"
     assert ledger["conformance_claim"] is False
     assert ledger["production_eligible"] is False
 
 
 def test_current_glaze_ledger_preserves_required_supported_surfaces() -> None:
-    assert set(_ledger()["supported_surfaces"]) == {"web", "flutter-linux", "flutter-android"}
+    ledger = _ledger()
+    assert set(ledger["supported_surfaces"]) == {"web", "flutter-linux", "flutter-android"}
+    assert ledger["source_implementation"]["web"]["status"].startswith("source-evidence-present")
+    assert ledger["source_implementation"]["flutter_linux"]["status"].startswith("source-evidence-present")
+    assert ledger["source_implementation"]["flutter_android"]["status"].startswith("source-evidence-present")
 
 
 def test_current_glaze_ledger_is_fail_closed_on_missing_acceptance() -> None:
     ledger = _ledger()
+    assert ledger["conformance_claim"] is False
+    assert ledger["production_eligible"] is False
     assert "representative-application-performance-budget" in ledger["required_acceptance"]
     assert "governed-consumer-registry-acceptance" in ledger["required_acceptance"]
     assert "exact-revision-production-approval" in ledger["required_acceptance"]

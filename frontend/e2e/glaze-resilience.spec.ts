@@ -89,13 +89,16 @@ test('blocked browser preference storage does not prevent Notify from opening', 
   await expect(page.getByText('One calm place for operational and GoreeCloud application notifications')).toBeVisible()
 })
 
-test('Notify records and enforces its Glaze UI V1.3 source mapping', async ({ page }) => {
+test('Notify applies its Glaze UI 1.5.1 presentation-only source contract', async ({ page }) => {
   await mockSignedOut(page)
   await page.goto('/')
 
-  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui', '1.3.0')
-  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui-target', '1.3.0')
-  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui-status', 'migration-candidate')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui', '1.5.1')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui-target', '1.5.1')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui-status', 'source-adoption-candidate')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-authority', 'presentation-only')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-service', 'available')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-realtime', 'disabled')
 
   const contract = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement)
@@ -107,7 +110,12 @@ test('Notify records and enforces its Glaze UI V1.3 source mapping', async ({ pa
       materialClarity: root.getPropertyValue('--glaze-material-clarity').trim(),
       motionStandard: root.getPropertyValue('--glaze-motion-standard').trim(),
       radiusControl: root.getPropertyValue('--glaze-radius-control').trim(),
+      version: root.getPropertyValue('--glaze-ui-version').trim(),
+      paneMode: document.documentElement.dataset.glazePaneMode,
+      systemAlerts: document.documentElement.dataset.glazeSystemAlerts,
       buttonHeight: button?.getBoundingClientRect().height ?? 0,
+      reviewedAnchor: document.documentElement.dataset.glazeReviewedAnchor,
+      qualificationAnchor: document.documentElement.dataset.glazeQualificationAnchor,
     }
   })
 
@@ -117,5 +125,28 @@ test('Notify records and enforces its Glaze UI V1.3 source mapping', async ({ pa
   expect(contract.materialClarity).toBe('balanced')
   expect(['220ms', '.22s']).toContain(contract.motionStandard)
   expect(contract.radiusControl).toBe('16px')
+  expect(contract.version).toBe('"1.5.1"')
+  expect(['single', 'stacked', 'split']).toContain(contract.paneMode)
+  expect(['permission-required', 'restricted', 'unsupported', 'disabled', 'available']).toContain(contract.systemAlerts)
   expect(contract.buttonHeight).toBeGreaterThanOrEqual(48)
+  expect(contract.reviewedAnchor).toBe('ee1032a0822ab8e103f8afe48e5c1859fde65cc9')
+  expect(contract.qualificationAnchor).toBe('5b59d0e36950d737dba35b58ae58058684e0831b')
+})
+
+test('Glaze UI accessibility precedence reduces motion without granting operational authority', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await mockSignedOut(page)
+  await page.goto('/')
+
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-motion', 'reduced')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-authority', 'presentation-only')
+
+  const state = await page.evaluate(() => ({
+    motionStandard: getComputedStyle(document.documentElement).getPropertyValue('--glaze-motion-standard').trim(),
+    service: document.documentElement.dataset.glazeService,
+    realtime: document.documentElement.dataset.glazeRealtime,
+  }))
+  expect(state.motionStandard).toBe('.01ms')
+  expect(state.service).toBe('available')
+  expect(state.realtime).toBe('disabled')
 })
