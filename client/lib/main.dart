@@ -785,6 +785,8 @@ class _InboxScreenState extends State<InboxScreen>
   AppLifecycleState _lifecycle = AppLifecycleState.resumed;
   int? _selectedId;
   _WorkspaceSection _section = _WorkspaceSection.inbox;
+  GlazeCapabilityState _systemAlertsCapability =
+      Platform.isAndroid ? GlazeCapabilityState.unknown : GlazeCapabilityState.unsupported;
 
   List<Delivery> get _visibleDeliveries {
     if (_section == _WorkspaceSection.acknowledged) {
@@ -816,6 +818,7 @@ class _InboxScreenState extends State<InboxScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _refresh().then((_) => _startStream());
+    _synchronizeSystemAlertCapability();
   }
 
   @override
@@ -828,6 +831,16 @@ class _InboxScreenState extends State<InboxScreen>
     WidgetsBinding.instance.removeObserver(this);
     _stream?.cancel();
     super.dispose();
+  }
+
+  Future<void> _synchronizeSystemAlertCapability() async {
+    if (!Platform.isAndroid) return;
+    final enabled = await _persistentAlerts.isEnabled();
+    if (!mounted) return;
+    setState(() {
+      _systemAlertsCapability =
+          enabled ? GlazeCapabilityState.available : GlazeCapabilityState.unknown;
+    });
   }
 
   Future<void> _refresh() async {
@@ -939,6 +952,7 @@ class _InboxScreenState extends State<InboxScreen>
         onAddTopic: _addTopic,
         onRefresh: _refresh,
         onEnableAlerts: Platform.isAndroid ? _enableSystemAlerts : null,
+        systemAlertsCapability: _systemAlertsCapability,
       );
     }
 
@@ -1218,6 +1232,9 @@ class _InboxScreenState extends State<InboxScreen>
     final permissionGranted = await widget.alerts.requestPermission();
     if (!mounted) return;
     if (!permissionGranted) {
+      setState(() {
+        _systemAlertsCapability = GlazeCapabilityState.restricted;
+      });
       _showMessage(
         'System alerts were not enabled. You can continue using Notify in the app.',
       );
@@ -1241,6 +1258,11 @@ class _InboxScreenState extends State<InboxScreen>
       afterId: latest,
     );
     if (!mounted) return;
+    setState(() {
+      _systemAlertsCapability = enabled
+          ? GlazeCapabilityState.available
+          : GlazeCapabilityState.temporarilyUnavailable;
+    });
     _showMessage(
       enabled
           ? 'Persistent system alerts enabled. Notification content remains private.'
@@ -1444,6 +1466,7 @@ class _PreferencesWorkspace extends StatelessWidget {
     required this.platformLabel,
     required this.onAddTopic,
     required this.onRefresh,
+    required this.systemAlertsCapability,
     this.onEnableAlerts,
   });
 
@@ -1451,11 +1474,14 @@ class _PreferencesWorkspace extends StatelessWidget {
   final String platformLabel;
   final VoidCallback onAddTopic;
   final VoidCallback onRefresh;
+  final GlazeCapabilityState systemAlertsCapability;
   final VoidCallback? onEnableAlerts;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final systemAlerts =
+        GlazeCapabilityPresentation.systemAlerts(systemAlertsCapability);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1514,7 +1540,7 @@ class _PreferencesWorkspace extends StatelessWidget {
                   _PreferenceAction(
                     icon: Icons.notifications_active_outlined,
                     title: 'Persistent system alerts',
-                    subtitle: 'Enable Android background delivery while keeping alert content privacy-redacted.',
+                    subtitle: systemAlerts.explanation,
                     actionLabel: 'Enable',
                     onPressed: onEnableAlerts!,
                   ),
