@@ -45,7 +45,7 @@ def test_root_platform_manifest_tracks_current_contract() -> None:
         "lifecycle: release-candidate",
         'platform_contract: "0.4"',
         'glaze_ui_required: "1.5.1"',
-        'version: "1.3.0"',
+        'version: "1.5.1"',
         "status: nonconformant",
     ):
         assert expected in manifest
