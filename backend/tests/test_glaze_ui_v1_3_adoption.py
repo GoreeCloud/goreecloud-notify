@@ -29,12 +29,26 @@ def test_notify_preserves_v1_3_source_mapping_as_historical_evidence() -> None:
     assert ledger["stable_eligible"] is False
 
 
-def test_web_contract_implements_v1_3_target_and_resilience_foundation() -> None:
+def test_v1_3_current_source_mapping_is_superseded_by_v1_5_1() -> None:
     css = _read("frontend/src/glaze-contract.css")
     main = _read("frontend/src/main.tsx")
     index = _read("frontend/index.html")
+    dart = _read("client/lib/glaze_theme.dart")
+
+    assert '--glaze-ui-version: "1.5.1"' in css
+    assert '--glaze-ui-version: "1.3.0"' not in css
+    assert "dataset.glazeUi = '1.5.1'" in main
+    assert "dataset.glazeUiTarget = '1.5.1'" in main
+    assert "dataset.glazeUiStatus = 'source-adoption-candidate'" in main
+    assert 'data-glaze-ui="1.5.1"' in index
+    assert "stableVersion = '1.5.1'" in dart
+    assert "stableVersion = '1.3.0'" not in dart
+
+
+def test_v1_3_ergonomic_and_resilience_foundation_is_preserved_in_v1_5_1_source() -> None:
+    css = _read("frontend/src/glaze-contract.css")
+    dart = _read("client/lib/glaze_theme.dart")
     for token in (
-        '--glaze-ui-version: "1.3.0"',
         "--glaze-target-min: 48px",
         "--glaze-target-touch-assistance: 56px",
         "--glaze-target-far-view: 56px",
@@ -49,22 +63,12 @@ def test_web_contract_implements_v1_3_target_and_resilience_foundation() -> None
         "forced-colors: active",
     ):
         assert token in css
-    assert "dataset.glazeUi = '1.3.0'" in main
-    assert "dataset.glazeUiTarget = '1.3.0'" in main
-    assert "dataset.glazeUiStatus = 'migration-candidate'" in main
-    assert 'data-glaze-ui="1.3.0"' in index
 
-
-def test_flutter_mapping_uses_v1_3_anchor_and_target_floors() -> None:
-    dart = _read("client/lib/glaze_theme.dart")
-    assert "stableVersion = '1.3.0'" in dart
-    assert "sourceIntegrationAnchor = 'fc7cc91d2eace8da2371371c2855c24cbcb326a1'" in dart
     assert "targetMin = 48" in dart
     assert "targetTouchAssistance = 56" in dart
     assert "targetFarView = 56" in dart
     for role in ("softGlaze", "glaze", "deepGlaze", "liveGlaze"):
         assert role in dart
-
 
 def test_glaze_does_not_replace_platform_authorities() -> None:
     assert _ledger()["platform_authority"] == {
