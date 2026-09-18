@@ -1,4 +1,4 @@
-schema_version: "0.2"
+schema_version: "0.4"
 
 component:
   type: application
@@ -86,6 +86,19 @@ platform_systems:
       - docs/end-user-authentication-and-delivery-state.md
       - backend/app/user_security.py
     notes: Notify has its current internal human-session and producer-identity boundaries, but accepted GoreeCloud Identity integration is not established.
+  policy:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: GoreeCloud Policy v3.0 integration, policy-decision provenance, freshness, enforcement coordination, and acceptance are not established for Notify.
+  observability:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - backend/app/observability.py
+      - deploy/monitoring/monitor_client.py
+      - docs/monitoring-alert-readiness.md
+    notes: Notify has privacy-minimized application logging and health/alert readiness tooling, but accepted GoreeCloud Observability contracts, provenance, freshness, and runtime acceptance are not established.
 
 health:
   health_endpoint: /healthz
@@ -118,10 +131,10 @@ external_dependencies:
     required: true
 
 compatibility:
-  platform_contract: "0.2"
+  platform_contract: "0.4"
   glaze_ui_required: "1.5.1"
   requires:
-    - goreecloud-platform-contract==0.2
+    - goreecloud-platform-contract==0.4
     - glaze-ui==1.5.1
   provides:
     - goreecloud-notify-api-v1
@@ -150,5 +163,6 @@ conformance:
     - GoreeCloud Mesh registration, capability publication, and runtime acceptance are not established.
     - GoreeCloud Identity integration and acceptance are not established.
     - Physical-device Android background-delivery and production-signing acceptance remain incomplete.
-    - GoreeCloud Policy and GoreeCloud Observability have not yet been evaluated through the transitional machine-readable seven-system contract and remain separate v3.0 blockers.
+    - GoreeCloud Policy integration and acceptance are not established.
+    - GoreeCloud Observability integration and acceptance are not established.
     - Target backup/restore, independent monitoring/out-of-band alerting, private publication, manual browser/OS/native acceptance, active-producer migration, tested rollback/recovery, and explicit production activation approval remain incomplete.
