@@ -97,7 +97,8 @@
       "source_status": "applicable-blocked-v3-evaluation-required",
       "evidence": [
         "backend/app/observability.py",
-        "deploy/monitoring/check.py"
+        "deploy/monitoring/monitor_client.py",
+        "docs/monitoring-alert-readiness.md"
       ],
       "blocker": "Notify has application-local operational logging and monitoring checks, but accepted GoreeCloud Observability integration and evidence contracts are not established."
     }
@@ -118,5 +119,12 @@
     "target backup/restore and rollback/recovery evidence",
     "independent monitoring and out-of-band Notify-down alerting",
     "explicit production activation approval"
-  ]
+  ],
+  "platform_contract": {
+    "schema_version": "0.4",
+    "validator_repository": "GoreeCloud/GoreeCloud",
+    "validator_revision": "6cb150d512647a0401b4da9e4741d7591693dee0",
+    "nine_system_model": true,
+    "current_glaze_ui_required": "1.5.1"
+  }
 }
