@@ -21,6 +21,7 @@ on:
       - goreecloud.platform.yaml
       - docs/platform-conformance.json
       - docs/glaze-ui-conformance.md
+      - docs/glaze-ui-v1.5.1-adoption.json
       - docs/glaze-ui-v1.3-adoption.json
       - frontend/src/glaze-contract.css
       - frontend/src/main.tsx
