@@ -16,14 +16,15 @@ def _ledger() -> dict:
     return json.loads(LEDGER.read_text(encoding="utf-8"))
 
 
-def test_notify_targets_exact_glaze_v1_3_stable_as_migration_candidate() -> None:
+def test_notify_preserves_v1_3_source_mapping_as_historical_evidence() -> None:
     ledger = _ledger()
     assert ledger["application"] == "goreecloud-notify"
     assert ledger["target_release"] == "1.3.0"
     assert ledger["baseline_release"] == "1.2.0"
     assert ledger["canonical_repository"] == "GoreeCloud/goreecloud-glaze-ui"
     assert ledger["canonical_revision"] == "fc7cc91d2eace8da2371371c2855c24cbcb326a1"
-    assert ledger["adoption_status"] == "migration-candidate"
+    assert ledger["adoption_status"] == "historical-source-mapping-superseded"
+    assert ledger["superseded_by"] == "docs/glaze-ui-v1.5.1-adoption.json"
     assert ledger["conformance_claim"] is False
     assert ledger["stable_eligible"] is False
 
@@ -75,7 +76,7 @@ def test_glaze_does_not_replace_platform_authorities() -> None:
     }
 
 
-def test_v1_3_acceptance_remains_fail_closed() -> None:
+def test_v1_3_historical_evidence_remains_fail_closed() -> None:
     ledger = _ledger()
     platform = json.loads(_read("docs/platform-conformance.json"))
     assert platform["stable_eligible"] is False
