@@ -39,10 +39,11 @@ def test_platform_conformance_contract_is_fail_closed() -> None:
 def test_root_platform_manifest_tracks_current_contract() -> None:
     manifest = MANIFEST_PATH.read_text(encoding="utf-8")
     for expected in (
-        'schema_version: "0.2"',
+        'schema_version: "0.4"',
         "type: application",
         "id: goreecloud-notify",
         "lifecycle: release-candidate",
+        'platform_contract: "0.4"',
         'glaze_ui_required: "1.5.1"',
         'version: "1.3.0"',
         "status: nonconformant",
