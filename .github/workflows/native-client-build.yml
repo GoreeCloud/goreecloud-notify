@@ -38,11 +38,13 @@ jobs:
           flutter create --platforms=linux --org com.goreecloud --project-name goreecloud_notify_client "$RUNNER_TEMP/client"
           rm -rf "$RUNNER_TEMP/client/lib" "$RUNNER_TEMP/client/test"
           cp -a client/lib "$RUNNER_TEMP/client/lib"
+          cp -a client/test "$RUNNER_TEMP/client/test"
           cp client/pubspec.yaml "$RUNNER_TEMP/client/pubspec.yaml"
           cd "$RUNNER_TEMP/client"
           flutter pub get
-          dart format lib
+          dart format lib test
           flutter analyze --no-fatal-infos
+          flutter test
           flutter build linux --release --dart-define=GOREECLOUD_NOTIFY_URL=https://notify-rc.goreecloud.com
       - name: Build Debian package
         working-directory: client
@@ -102,6 +104,7 @@ jobs:
           flutter create --platforms=android --org com.goreecloud --project-name goreecloud_notify_client "$RUNNER_TEMP/client"
           rm -rf "$RUNNER_TEMP/client/lib" "$RUNNER_TEMP/client/test"
           cp -a client/lib "$RUNNER_TEMP/client/lib"
+          cp -a client/test "$RUNNER_TEMP/client/test"
           cp client/pubspec.yaml "$RUNNER_TEMP/client/pubspec.yaml"
           python3 - <<'PY'
           from pathlib import Path
@@ -136,8 +139,9 @@ jobs:
           rm -rf "$RUNNER_TEMP/client/android/app/src/main/res/mipmap-anydpi-v26"
           cd "$RUNNER_TEMP/client"
           flutter pub get
-          dart format lib
+          dart format lib test
           flutter analyze --no-fatal-infos
+          flutter test
           flutter build apk --debug --dart-define=GOREECLOUD_NOTIFY_URL=https://notify-rc.goreecloud.com
           cp build/app/outputs/flutter-apk/app-debug.apk "$RUNNER_TEMP/goreecloud-notify-android-acceptance.apk"
           flutter build apk --release --dart-define=GOREECLOUD_NOTIFY_URL=https://notify-rc.goreecloud.com
