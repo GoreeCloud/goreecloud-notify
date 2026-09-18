@@ -1,6 +1,6 @@
 :root {
-  /* GoreeCloud Notify — GLAZE UI V1.3 / 1.3.0 Adaptive Resonance migration mapping. */
-  --glaze-ui-version: "1.3.0";
+  /* GoreeCloud Notify — Glaze UI 1.5.1 Context + Capability consumer mapping. */
+  --glaze-ui-version: "1.5.1";
   --glaze-canvas: var(--bg);
   --glaze-canvas-accent: var(--bg-strong);
   --glaze-surface: var(--panel);
@@ -31,7 +31,7 @@
   --glaze-space-12: 48px;
   --glaze-space-16: 64px;
 
-  /* V1.3 inherits the V1.2 ergonomic target floors. */
+  /* V1.5.1 preserves the accepted ergonomic target floors. */
   --glaze-target-min: 48px;
   --glaze-target-comfortable: 48px;
   --glaze-target-touch-assistance: 56px;
@@ -57,6 +57,63 @@
   --glaze-density-standard-gap: 16px;
   --glaze-density-compact-gap: 12px;
   --glaze-density-far-view-gap: 28px;
+
+  /* V1.5.1 presentation resolution. These values are driven only by bounded
+     application/runtime/accessibility truth from useGlazePresentation. */
+  --glaze-context-pane-mode: split;
+  --glaze-context-control-density: standard;
+  --glaze-context-material: glaze;
+  --glaze-context-motion: standard;
+}
+
+:root[data-glaze-pane-mode="single"] {
+  --glaze-context-pane-mode: single;
+  --glaze-density-effective: compact;
+}
+
+:root[data-glaze-pane-mode="stacked"] {
+  --glaze-context-pane-mode: stacked;
+}
+
+:root[data-glaze-pane-mode="split"] {
+  --glaze-context-pane-mode: split;
+}
+
+:root[data-glaze-control-density="compact"] {
+  --glaze-context-control-density: compact;
+  --glaze-density-effective: compact;
+}
+
+:root[data-glaze-control-density="comfortable"] {
+  --glaze-context-control-density: comfortable;
+  --glaze-density-effective: comfortable;
+}
+
+:root[data-glaze-material="reduced-optical"] {
+  --glaze-context-material: reduced-optical;
+  --glaze-material-interaction: color-mix(in srgb, var(--glaze-surface-strong) 90%, transparent);
+}
+
+:root[data-glaze-material="solid-accessible"] {
+  --glaze-context-material: solid-accessible;
+  --glaze-material-clarity: solid;
+  --glaze-material-soft: var(--glaze-surface-strong);
+  --glaze-material-interaction: var(--glaze-surface-strong);
+  --glaze-material-deep: var(--glaze-surface-strong);
+  --glaze-material-live: var(--glaze-surface-strong);
+}
+
+:root[data-glaze-motion="reduced"] {
+  --glaze-context-motion: reduced;
+  --glaze-motion-instant: .01ms;
+  --glaze-motion-fast: .01ms;
+  --glaze-motion-standard: .01ms;
+  --glaze-motion-emphasized: .01ms;
+}
+
+:root[data-glaze-connectivity="offline"] .result-status,
+:root[data-glaze-connectivity="degraded"] .result-status {
+  font-weight: 700;
 }
 
 button,
