@@ -6,6 +6,7 @@ on:
       - goreecloud.platform.yaml
       - docs/platform-conformance.json
       - docs/glaze-ui-conformance.md
+      - docs/glaze-ui-v1.5.1-adoption.json
       - docs/glaze-ui-v1.3-adoption.json
       - frontend/src/glaze-contract.css
       - frontend/src/main.tsx
@@ -33,7 +34,7 @@ permissions:
 
 jobs:
   validate-platform-manifest:
-    uses: GoreeCloud/GoreeCloud/.github/workflows/reusable-platform-manifest.yml@235e519fe342d7e7075c8239fbf0f3a19dc4c6c8
+    uses: GoreeCloud/GoreeCloud/.github/workflows/reusable-platform-manifest.yml@6cb150d512647a0401b4da9e4741d7591693dee0
     with:
       manifest-path: goreecloud.platform.yaml
     permissions:
