@@ -26,7 +26,7 @@ api:
       purpose: Authenticated Server-Sent Events delivery and replay path for the user inbox.
     - name: ntfy-compatibility
       url: /{topic}
-      purpose: Deliberately bounded authenticated ntfy-compatible publishing path used during controlled migration.
+      purpose: Deliberately bounded authenticated ntfy-compatible publishing path retained for legacy producer migration after ntfy service retirement.
 
 platform_systems:
   manager:
@@ -61,6 +61,7 @@ platform_systems:
     result: applicable-migration-required
     version: "1.3.0"
     evidence:
+      - docs/glaze-ui-v1.5.1-adoption.json
       - docs/glaze-ui-v1.3-adoption.json
       - docs/glaze-ui-conformance.md
       - frontend/src/glaze-contract.css
@@ -68,7 +69,7 @@ platform_systems:
       - frontend/index.html
       - client/lib/glaze_theme.dart
       - frontend/e2e/glaze-resilience.spec.ts
-    notes: Repository-local web and Flutter source now map to current Stable GLAZE UI V1.3 / 1.3.0 at exact shared source integration anchor fc7cc91d2eace8da2371371c2855c24cbcb326a1. Representative rendered/native, accessibility, adaptive/form-factor, physical-device, performance, rollback, governed registry, and production acceptance remain required before conformance can be claimed.
+    notes: Repository-local web and Flutter source currently map to historical Glaze UI 1.3.0. Current official Stable Glaze UI 1.5.1 is now required; fresh V1.5.1 implementation, representative acceptance, rollback, governed consumer-registry evidence, and production approval remain outstanding.
   mesh:
     result: applicable-blocked
     version: null
@@ -118,10 +119,10 @@ external_dependencies:
 
 compatibility:
   platform_contract: "0.2"
-  glaze_ui_required: "1.3.0"
+  glaze_ui_required: "1.5.1"
   requires:
     - goreecloud-platform-contract==0.2
-    - glaze-ui==1.3.0
+    - glaze-ui==1.5.1
   provides:
     - goreecloud-notify-api-v1
     - goreecloud-notify-sse-v1
@@ -135,12 +136,13 @@ conformance:
   validated_at: null
   evidence:
     - docs/platform-conformance.json
+    - docs/glaze-ui-v1.5.1-adoption.json
     - docs/glaze-ui-v1.3-adoption.json
     - docs/wardveil.adoption.json
     - docs/privacy-shield.adapter.json
     - docs/everkeep.acceptance.json
   blockers:
-    - Glaze UI V1.3 source mapping is present, but representative rendered/native, accessibility, adaptive/form-factor, physical-device, performance, rollback, governed registry, and production acceptance remain incomplete.
+    - Current source mapping remains Glaze UI 1.3.0; current Stable Glaze UI 1.5.1 implementation and application-specific acceptance are required before production eligibility.
     - GoreeCloud Manager operational visibility and administrative integration acceptance are not established.
     - Privacy Shield runtime and central adapter acceptance are not established.
     - Wardveil Security target-runtime acceptance is not established.
@@ -148,4 +150,5 @@ conformance:
     - GoreeCloud Mesh registration, capability publication, and runtime acceptance are not established.
     - GoreeCloud Identity integration and acceptance are not established.
     - Physical-device Android background-delivery and production-signing acceptance remain incomplete.
-    - Target backup/restore, monitoring/out-of-band alerting, private publication, manual browser/OS acceptance, controlled producer/consumer migration, tested rollback, and explicit production cutover approval remain incomplete.
+    - GoreeCloud Policy and GoreeCloud Observability have not yet been evaluated through the transitional machine-readable seven-system contract and remain separate v3.0 blockers.
+    - Target backup/restore, independent monitoring/out-of-band alerting, private publication, manual browser/OS/native acceptance, active-producer migration, tested rollback/recovery, and explicit production activation approval remain incomplete.
