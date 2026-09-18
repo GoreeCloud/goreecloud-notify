@@ -18,17 +18,22 @@ def test_platform_conformance_contract_is_fail_closed() -> None:
     assert contract["application"] == "goreecloud-notify"
     assert contract["stable_eligible"] is False
     assert set(contract["platform_systems"]) == {
-        "glaze_ui",
-        "wardveil_security",
+        "manager",
         "privacy_shield",
+        "wardveil_security",
         "everkeep",
+        "glaze_ui",
+        "goreecloud_mesh",
+        "goreecloud_identity",
+        "goreecloud_policy",
+        "goreecloud_observability",
     }
     glaze = contract["platform_systems"]["glaze_ui"]
-    assert glaze["required_version"] == "1.3"
-    assert glaze["required_release"] == "1.3.0"
+    assert glaze["required_version"] == "1.5"
+    assert glaze["required_release"] == "1.5.1"
     assert glaze["canonical_repository"] == "GoreeCloud/goreecloud-glaze-ui"
-    assert glaze["canonical_revision"] == "fc7cc91d2eace8da2371371c2855c24cbcb326a1"
-    assert glaze["source_status"] == "v1.3-migration-candidate-web-and-native-source-mapped"
+    assert glaze["canonical_revision"] == "5b59d0e36950d737dba35b58ae58058684e0831b"
+    assert glaze["source_status"] == "v1.3-source-mapped-v1.5.1-adoption-required"
 
 
 def test_root_platform_manifest_tracks_current_contract() -> None:
@@ -38,7 +43,7 @@ def test_root_platform_manifest_tracks_current_contract() -> None:
         "type: application",
         "id: goreecloud-notify",
         "lifecycle: release-candidate",
-        'glaze_ui_required: "1.3.0"',
+        'glaze_ui_required: "1.5.1"',
         'version: "1.3.0"',
         "status: nonconformant",
     ):
@@ -51,13 +56,16 @@ def test_platform_conformance_uses_canonical_identities() -> None:
     assert systems["wardveil_security"]["identity"] == "Wardveil Security by GoreeCloud"
     assert systems["privacy_shield"]["identity"] == "GoreeCloud Privacy Shield"
     assert systems["everkeep"]["identity"] == "Everkeep"
+    assert systems["manager"]["identity"] == "GoreeCloud Manager"
+    assert systems["goreecloud_mesh"]["identity"] == "GoreeCloud Mesh"
+    assert systems["goreecloud_identity"]["identity"] == "GoreeCloud Identity"
+    assert systems["goreecloud_policy"]["identity"] == "GoreeCloud Policy"
+    assert systems["goreecloud_observability"]["identity"] == "GoreeCloud Observability"
 
 
 def test_platform_conformance_evidence_paths_exist() -> None:
     for system in _contract()["platform_systems"].values():
-        evidence = system.get("evidence", [])
-        assert evidence
-        for relative_path in evidence:
+        for relative_path in system.get("evidence", []):
             assert (REPOSITORY_ROOT / relative_path).exists(), relative_path
 
 
@@ -89,5 +97,7 @@ def test_incomplete_platform_contracts_cannot_be_represented_as_complete() -> No
     assert everkeep_acceptance["everkeep_ready"] is False
     assert everkeep_acceptance["target_runtime_acceptance_required"] is True
     assert everkeep_acceptance["exact_revision_acceptance_required"] is True
+    assert systems["goreecloud_policy"]["source_status"].startswith("applicable-blocked")
+    assert systems["goreecloud_observability"]["source_status"].startswith("applicable-blocked")
     assert contract["stable_eligible"] is False
     assert contract["production_blockers"]
