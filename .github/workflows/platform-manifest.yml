@@ -1,0 +1,42 @@
+name: Platform manifest
+
+on:
+  pull_request:
+    paths:
+      - goreecloud.platform.yaml
+      - docs/platform-conformance.json
+      - docs/glaze-ui-conformance.md
+      - docs/glaze-ui-v1.5.1-adoption.json
+      - docs/glaze-ui-v1.3-adoption.json
+      - frontend/src/glaze-contract.css
+      - frontend/src/main.tsx
+      - frontend/index.html
+      - frontend/e2e/glaze-resilience.spec.ts
+      - client/lib/glaze_theme.dart
+      - .github/workflows/platform-manifest.yml
+  push:
+    branches:
+      - main
+    paths:
+      - goreecloud.platform.yaml
+      - docs/platform-conformance.json
+      - docs/glaze-ui-conformance.md
+      - docs/glaze-ui-v1.5.1-adoption.json
+      - docs/glaze-ui-v1.3-adoption.json
+      - frontend/src/glaze-contract.css
+      - frontend/src/main.tsx
+      - frontend/index.html
+      - frontend/e2e/glaze-resilience.spec.ts
+      - client/lib/glaze_theme.dart
+      - .github/workflows/platform-manifest.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate-platform-manifest:
+    uses: GoreeCloud/GoreeCloud/.github/workflows/reusable-platform-manifest.yml@6cb150d512647a0401b4da9e4741d7591693dee0
+    with:
+      manifest-path: goreecloud.platform.yaml
+    permissions:
+      contents: read

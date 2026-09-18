@@ -89,25 +89,33 @@ test('blocked browser preference storage does not prevent Notify from opening', 
   await expect(page.getByText('One calm place for operational and GoreeCloud application notifications')).toBeVisible()
 })
 
-test('Notify records and enforces its Glaze UI 1.0 application contract', async ({ page }) => {
+test('Notify records and enforces its Glaze UI V1.3 source mapping', async ({ page }) => {
   await mockSignedOut(page)
   await page.goto('/')
 
-  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui', '1.0')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui', '1.3.0')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui-target', '1.3.0')
+  await expect(page.locator('html')).toHaveAttribute('data-glaze-ui-status', 'migration-candidate')
 
   const contract = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement)
     const button = document.querySelector<HTMLButtonElement>('button.primary-button')
     return {
       targetMin: root.getPropertyValue('--glaze-target-min').trim(),
+      targetTouchAssistance: root.getPropertyValue('--glaze-target-touch-assistance').trim(),
+      targetFarView: root.getPropertyValue('--glaze-target-far-view').trim(),
+      materialClarity: root.getPropertyValue('--glaze-material-clarity').trim(),
       motionStandard: root.getPropertyValue('--glaze-motion-standard').trim(),
       radiusControl: root.getPropertyValue('--glaze-radius-control').trim(),
       buttonHeight: button?.getBoundingClientRect().height ?? 0,
     }
   })
 
-  expect(contract.targetMin).toBe('44px')
+  expect(contract.targetMin).toBe('48px')
+  expect(contract.targetTouchAssistance).toBe('56px')
+  expect(contract.targetFarView).toBe('56px')
+  expect(contract.materialClarity).toBe('balanced')
   expect(['220ms', '.22s']).toContain(contract.motionStandard)
   expect(contract.radiusControl).toBe('16px')
-  expect(contract.buttonHeight).toBeGreaterThanOrEqual(44)
+  expect(contract.buttonHeight).toBeGreaterThanOrEqual(48)
 })

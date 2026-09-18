@@ -1,39 +1,64 @@
-# GoreeCloud Notify — Glaze UI 1.4 conformance record
+# GoreeCloud Notify — Glaze UI current-Stable adoption and conformance record
 
-## Target and status
+## Current required target
 
-GoreeCloud Notify targets the current Stable **Glaze UI 1.4.0** release from the canonical `GoreeCloud/glaze-ui` design-system repository. The application source contains the current 1.4 semantic/form-factor foundation, but this document does **not** claim completed `Glaze UI 1.4 conformant` status or production Stable acceptance. Representative manual browser, operating-system, accessibility, and supported-profile acceptance remains mandatory.
+The current official Stable GoreeCloud design-system target is **Glaze UI 1.5.1**.
 
-This record applies to GoreeCloud-controlled user-facing Notify interfaces. Infrastructure-only components do not acquire a visual Glaze requirement merely because they support the application.
+Shared Stable authority is defined by the canonical `GoreeCloud/goreecloud-glaze-ui` records including `contracts/v1.5.1/stable-scope.json`, `acceptance/v1.5.1-stable.md`, and the V1.5 family contract. The shared reviewed implementation anchor is `ee1032a0822ab8e103f8afe48e5c1859fde65cc9`; the V1.5.1 source-qualification anchor is `5b59d0e36950d737dba35b58ae58058684e0831b`.
 
-## Semantic contract
+Shared Stable status does not certify GoreeCloud Notify. Notify requires its own exact-revision implementation and acceptance for every supported user-facing surface.
 
-`frontend/src/glaze-contract.css` and the current responsive/resilience layers are the application-level bridge between Notify's established product palette and Glaze UI semantic roles. They preserve Notify's notification-focused composition while mapping semantic colors, spacing, radii, typography, surfaces, motion, target sizing, focus behavior, safe areas, adaptive ranges, and form-factor roles.
+## Current Notify source state
 
-The application uses Canvas for the atmospheric application background, Solid for high-readability fallback/protected content, Raised for important content separation, selective Functional/Clear Glass where translucency materially helps hierarchy, and Overlay for attention-priority surfaces rather than applying maximum translucency everywhere.
+The current Notify reconciliation candidate still contains repository-local web and Flutter source mappings for historical Glaze UI **1.3.0**. Those mappings are preserved as migration evidence in `docs/glaze-ui-v1.3-adoption.json` and related source/tests.
 
-## Adaptive and form-factor behavior
+They are **not current conformance evidence**. Notify is therefore Glaze UI migration-required and production-blocked until 1.5.1 is substantively implemented and accepted.
 
-Notify uses the current Glaze adaptive ranges as window signals: Compact through 599 px, Medium 600–1023 px, Expanded 1024–1439 px, and Wide at 1440 px and above. Compact and Medium layouts transform navigation and workspace composition instead of merely shrinking desktop geometry. Expanded and Wide layouts preserve pointer/keyboard-oriented workspace behavior and larger-screen information balance.
+Do not relabel the existing 1.3.0 CSS, browser metadata, or Flutter theme as 1.5.1 merely by changing version strings. Current adoption must incorporate the applicable V1.5 presentation/authority model and then produce fresh application-specific evidence.
 
-The current source also includes native-client Glaze mapping for supported packaged clients. Platform-native clients must preserve Glaze semantic roles through appropriate native primitives rather than reproducing a scaled web shell. Source-level mappings do not substitute for real-device or representative form-factor acceptance.
+## Required 1.5.1 adoption boundary
 
-## Accessibility and resilience
+Notify's supported surfaces are:
 
-The source preserves a 44-pixel minimum actionable-target contract, visible keyboard focus, semantic labels/landmarks/status regions, skip navigation, System/Light/Dark appearance modes, reduced-motion handling, reduced-transparency and no-backdrop-filter fallbacks, forced-colors behavior, safe-area-aware layout, and operation when browser-local preference storage is unavailable. Automated browser checks cover representative signed-in and signed-out flows, but automated checks do not replace manual keyboard, screen-reader, zoom/reflow, contrast/readability, browser-permission, multi-tab, or operating-system notification acceptance.
+- web;
+- Flutter Linux;
+- Flutter Android.
 
-## Privacy and dependency boundary
+Fresh adoption and acceptance must cover, as applicable:
 
-Glaze UI adds no analytics, tracking, advertising technology, remote fonts, remote icons, or third-party UI delivery. Notify uses local assets and local/system font fallbacks. Appearance and browser-alert preferences remain browser-local. Browser system alerts remain explicit opt-in and generic/redacted; private Delivery title, body, source, channel, and account details remain inside the authenticated inbox.
+- contextual and capability-aware presentation without manufacturing authorization or capability truth;
+- accessibility precedence and graceful reduced-effect fallbacks;
+- stable primary actions and task continuity;
+- responsive/adaptive layout and density;
+- semantic state and status communication;
+- material, depth, motion, focus, and interaction behavior;
+- browser/OS and native accessibility;
+- large text, reflow, contrast, Forced Colors, Reduced Motion, and Reduced Transparency;
+- representative performance against the approved Glaze UI performance budget;
+- Android device/posture behavior where applicable;
+- application-specific visual excellence;
+- known-good rollback;
+- exact-revision repository-local acceptance and production approval.
 
-## Product and platform-system boundaries
+The current requirement ledger is `docs/glaze-ui-v1.5.1-adoption.json`.
 
-Glaze UI remains the design language. Wardveil Security remains the evidence-backed security/protection identity, Privacy Shield remains the privacy-control identity/contract layer, and Everkeep remains the resilience/recovery identity. None of those systems substitutes for Glaze UI, and Glaze UI does not replace their technical authority.
+## Authority boundaries
 
-## Automated evidence
+Glaze UI is presentation and interaction authority only. It does not infer authorization, permission, consent, security state, privacy permission, identity truth, policy decisions, continuity state, Mesh registration, or operational health.
 
-`frontend/e2e/glaze-resilience.spec.ts`, `frontend/e2e/inbox.spec.ts`, browser-notification acceptance coverage, native-client validation, and `docs/glaze-ui-1.4-gates.json` provide source/automation evidence for current Glaze semantics and supported task flows. `docs/glaze-ui-1.4-gates.json` is fail-closed and keeps every acceptance-dependent gate explicit.
+Wardveil Security, Privacy Shield, Everkeep, GoreeCloud Identity, GoreeCloud Policy, GoreeCloud Observability, GoreeCloud Mesh, and GoreeCloud Manager retain their respective authority domains.
 
-## Stable-release boundary
+## Platform-system boundary
 
-A `Glaze UI 1.4 conformant` claim is permitted only after every applicable current 1.4 gate is satisfied and representative supported-profile/task-flow acceptance is complete. Source integration, passing CI, responsive overflow checks, or a design-system Stable release do not automatically certify Notify. Until that evidence is complete, production Stable eligibility remains false and no exception is implied.
+The root `goreecloud.platform.yaml` now uses Platform Contract 0.4 and declares all nine Integral Platform Systems. It remains nonconformant because multiple required integrations and acceptance gates are still blocked. The detailed v3.0 status is recorded in `docs/platform-conformance.json`.
+
+## Stable and production boundary
+
+Until the 1.5.1 ledger's applicable gates are implemented and accepted for the exact Notify revision, Notify must not claim:
+
+- current Glaze UI conformance;
+- Stable product qualification;
+- complete platform conformance;
+- production eligibility based on UI source alone.
+
+Historical 1.3.0 evidence remains useful migration provenance only.
