@@ -1,6 +1,6 @@
 # GoreeCloud Notify
 
-GoreeCloud Notify is the GoreeCloud-native centralized notification-delivery service and the planned long-term successor to ntfy.
+GoreeCloud Notify is the GoreeCloud-native centralized notification-delivery service intended to replace the ntfy service that was permanently retired from `goreecloud-vps-01` on September 18, 2026.
 
 The application combines a FastAPI backend, SQLite persistence, a React/TypeScript Glaze UI inbox, authenticated Server-Sent Events, scoped producer identities, human web sessions, subscription fanout, read/acknowledgement state, and privacy-first browser system alerts.
 
@@ -8,7 +8,7 @@ The application combines a FastAPI backend, SQLite persistence, a React/TypeScri
 
 The current source line is a **release candidate**. Source-level CI, browser/accessibility validation, production-runtime readiness, monitoring-readiness, backup/restore tooling, security hardening, and target-preflight tooling are implemented and validated.
 
-It is deployable to an approved GoreeCloud target, but production cutover is intentionally separate from source readiness. `notify.goreecloud.com` must continue to serve ntfy until target-host backup/restore, monitoring/out-of-band alerting, private Caddy/NetBird/DNS validation, and final manual browser/OS acceptance are recorded.
+It is deployable to an approved GoreeCloud target, but production activation is intentionally separate from source readiness. ntfy is no longer running on the VPS. The `notify.goreecloud.com` identity remains reserved for GoreeCloud Notify and must not be treated as production-ready until target backup/restore, independent monitoring/out-of-band alerting, private Caddy/NetBird/DNS validation, current Glaze UI 1.5.1 adoption, nine-system platform evaluation, and final manual browser/OS/native acceptance are recorded.
 
 ## Core capabilities
 
@@ -135,7 +135,7 @@ docker compose -f docker-compose.production.yml up -d app
 docker compose -f docker-compose.production.yml ps
 ```
 
-After startup, validate the target with the read-only preflight documented in `docs/target-production-acceptance.md`. Do not treat a check against the current live ntfy route as GoreeCloud Notify evidence before the controlled cutover.
+After startup, validate the target with the read-only preflight documented in `docs/target-production-acceptance.md`. Evidence must come from the actual GoreeCloud Notify candidate runtime; the retired ntfy service is historical/recovery context only.
 
 ## Production environment
 
@@ -166,7 +166,7 @@ Caddy, private DNS, and NetBird changes are target-environment operations and ar
 
 ## Health and monitoring
 
-`GET /healthz` validates application/database availability and is the intended Uptime Kuma health target through the final private HTTPS route.
+`GET /healthz` validates application/database availability. Production acceptance requires an approved independent monitoring path, with GoreeCloud Monitor as the intended GoreeCloud-native consumer once Monitor itself is accepted; the retired Uptime Kuma service is not an active dependency.
 
 Notify must not be the sole destination for alerts about Notify itself. Production approval requires a tested independent outage-alert path plus validated DOWN/RECOVERED monitoring behavior.
 
@@ -224,15 +224,20 @@ See `SECURITY.md` and `docs/security.md`.
 
 ## Stable-release boundary
 
-Source readiness is not the same as production cutover. Before ntfy retirement, GoreeCloud still requires:
+Source readiness is not the same as production activation. Before GoreeCloud Notify can become the production notification service, GoreeCloud still requires:
 
-1. manual keyboard, screen-reader, zoom/reflow, browser-permission, real OS notification, and practical multi-tab acceptance;
-2. target backup repository/schedule/retention plus a successful recorded target restore;
-3. live Uptime Kuma registration plus a tested independent Notify-down alert path;
-4. final target Caddy, private DNS, NetBird, runtime/filesystem, long-lived SSE/session, and real-network interruption/recovery evidence;
-5. controlled producer/consumer migration and a tested rollback to ntfy.
+1. current Stable Glaze UI **1.5.1** repository-local adoption and representative web/Linux/Android acceptance;
+2. explicit evaluation of all nine Integral Platform Systems, with unsupported or unaccepted systems remaining fail-closed rather than implied complete;
+3. manual keyboard, screen-reader, zoom/reflow, browser-permission, real OS notification, native-client, and practical multi-tab acceptance;
+4. target backup repository/schedule/retention plus a successful recorded target restore;
+5. approved independent health monitoring plus a tested out-of-band Notify-down alert path that does not depend entirely on Notify itself;
+6. final target Caddy, private DNS, NetBird, runtime/filesystem, long-lived SSE/session, and real-network interruption/recovery evidence;
+7. controlled migration of actually active producers away from retired ntfy configuration to scoped GoreeCloud Notify identities and tokens;
+8. a tested rollback/recovery path to the last known-good GoreeCloud Notify candidate and preserved predecessor recovery evidence where applicable;
+9. explicit production-activation approval for the exact release/runtime state.
 
-Until those target/manual gates are complete, ntfy remains the active production service and rollback path.
+ntfy retirement is verified historical state, not proof that GoreeCloud Notify has completed these gates.
+
 
 ## License
 
