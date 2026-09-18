@@ -50,9 +50,7 @@ Wardveil Security, Privacy Shield, Everkeep, GoreeCloud Identity, GoreeCloud Pol
 
 ## Platform-system boundary
 
-The transitional root `goreecloud.platform.yaml` uses the currently supported machine-readable contract and remains nonconformant. The v3.0 nine-system evaluation is recorded in `docs/platform-conformance.json`.
-
-A legacy seven-system machine declaration must not be interpreted as complete v3.0 platform conformance. GoreeCloud Policy and GoreeCloud Observability remain explicit blockers until supported and accepted.
+The root `goreecloud.platform.yaml` now uses Platform Contract 0.4 and declares all nine Integral Platform Systems. It remains nonconformant because multiple required integrations and acceptance gates are still blocked. The detailed v3.0 status is recorded in `docs/platform-conformance.json`.
 
 ## Stable and production boundary
 
