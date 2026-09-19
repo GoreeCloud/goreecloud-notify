@@ -1,90 +1,98 @@
 {
   "schema_version": 2,
-  "state": "proposed-not-provisioned",
-  "platform": "Uptime Kuma",
-  "candidate_contract": {
-    "service_url": "https://notify.goreecloud.com",
-    "release_stage": "release_candidate",
-    "production_accepted": false,
-    "acceptance_status": "pending",
-    "exact_build_revision_required": true
-  },
-  "monitor": {
-    "name": "GoreeCloud Notify",
-    "type": "http",
-    "url": "https://notify.goreecloud.com/healthz",
-    "method": "GET",
-    "interval_seconds": 60,
-    "accepted_status_codes": [
-      200
+  "status": "historical-retired-predecessor-contract",
+  "retired_on": "2026-09-18",
+  "superseded_by": "deploy/monitoring/notify_monitoring_contract.json",
+  "production_authority": false,
+  "production_rollback_target": false,
+  "original_contract": {
+    "schema_version": 2,
+    "state": "proposed-not-provisioned",
+    "platform": "Uptime Kuma",
+    "candidate_contract": {
+      "service_url": "https://notify.goreecloud.com",
+      "release_stage": "release_candidate",
+      "production_accepted": false,
+      "acceptance_status": "pending",
+      "exact_build_revision_required": true
+    },
+    "monitor": {
+      "name": "GoreeCloud Notify",
+      "type": "http",
+      "url": "https://notify.goreecloud.com/healthz",
+      "method": "GET",
+      "interval_seconds": 60,
+      "accepted_status_codes": [
+        200
+      ],
+      "tls_verification_required": true,
+      "private_caddy_path_required": true,
+      "database_aware_health_required": true
+    },
+    "source_identity": {
+      "service": "uptime-kuma",
+      "docker_network": "proxy",
+      "documented_ipv4_baseline": "172.19.0.50",
+      "live_source_confirmation_required": true,
+      "caddy_allowlist_required": true
+    },
+    "migration_notification_path": {
+      "service_identity": "uptime-kuma",
+      "permission": "write-only",
+      "internal_server_url": "http://ntfy:80",
+      "topic": "goreecloud-uptime",
+      "down_title": "GoreeCloud Notify DOWN",
+      "recovered_title": "GoreeCloud Notify RECOVERED",
+      "temporary_parallel_migration_path": true,
+      "independent_failure_domain_proven": false
+    },
+    "documented_ntfy_monitor_baseline_to_reverify_before_cutover": {
+      "name": "ntfy",
+      "type": "http",
+      "url": "http://ntfy:80/v1/health",
+      "interval_seconds": 60,
+      "max_retries": 3,
+      "retry_interval_seconds": 60,
+      "request_timeout_seconds": 48,
+      "accepted_status_codes": [
+        "200-299"
+      ],
+      "notification_assignment_documented": true
+    },
+    "target_acceptance_evidence": {
+      "validator": "deploy/monitoring/validate_target_evidence.py",
+      "evidence_schema_version": 2,
+      "evidence_kind": "goreecloud-notify-monitoring-target-acceptance",
+      "sanitized_evidence_only": true,
+      "exact_candidate_revision_required": true,
+      "concrete_retry_timeout_values_required": true,
+      "notification_assignment_required": true,
+      "observed_caddy_source_required": true,
+      "administrator_down_and_recovered_receipt_required": true,
+      "ntfy_monitor_preservation_required": true,
+      "rollback_documentation_required": true,
+      "independent_out_of_band_notify_down_test_required": true
+    },
+    "production_values_to_confirm": [
+      "exact candidate Git revision under monitoring acceptance",
+      "final Uptime Kuma source address observed at Caddy",
+      "final Caddy monitor-source allowlist value",
+      "max retries",
+      "retry interval",
+      "request timeout",
+      "notification assignment identifier",
+      "actual DOWN alert receipt by an approved administrator",
+      "actual RECOVERED alert receipt by an approved administrator",
+      "monitor rollback and removal procedure",
+      "independent out-of-band Notify-down destination and failure domain"
     ],
-    "tls_verification_required": true,
-    "private_caddy_path_required": true,
-    "database_aware_health_required": true
-  },
-  "source_identity": {
-    "service": "uptime-kuma",
-    "docker_network": "proxy",
-    "documented_ipv4_baseline": "172.19.0.50",
-    "live_source_confirmation_required": true,
-    "caddy_allowlist_required": true
-  },
-  "migration_notification_path": {
-    "service_identity": "uptime-kuma",
-    "permission": "write-only",
-    "internal_server_url": "http://ntfy:80",
-    "topic": "goreecloud-uptime",
-    "down_title": "GoreeCloud Notify DOWN",
-    "recovered_title": "GoreeCloud Notify RECOVERED",
-    "temporary_parallel_migration_path": true,
-    "independent_failure_domain_proven": false
-  },
-  "documented_ntfy_monitor_baseline_to_reverify_before_cutover": {
-    "name": "ntfy",
-    "type": "http",
-    "url": "http://ntfy:80/v1/health",
-    "interval_seconds": 60,
-    "max_retries": 3,
-    "retry_interval_seconds": 60,
-    "request_timeout_seconds": 48,
-    "accepted_status_codes": [
-      "200-299"
-    ],
-    "notification_assignment_documented": true
-  },
-  "target_acceptance_evidence": {
-    "validator": "deploy/monitoring/validate_target_evidence.py",
-    "evidence_schema_version": 2,
-    "evidence_kind": "goreecloud-notify-monitoring-target-acceptance",
-    "sanitized_evidence_only": true,
-    "exact_candidate_revision_required": true,
-    "concrete_retry_timeout_values_required": true,
-    "notification_assignment_required": true,
-    "observed_caddy_source_required": true,
-    "administrator_down_and_recovered_receipt_required": true,
-    "ntfy_monitor_preservation_required": true,
-    "rollback_documentation_required": true,
-    "independent_out_of_band_notify_down_test_required": true
-  },
-  "production_values_to_confirm": [
-    "exact candidate Git revision under monitoring acceptance",
-    "final Uptime Kuma source address observed at Caddy",
-    "final Caddy monitor-source allowlist value",
-    "max retries",
-    "retry interval",
-    "request timeout",
-    "notification assignment identifier",
-    "actual DOWN alert receipt by an approved administrator",
-    "actual RECOVERED alert receipt by an approved administrator",
-    "monitor rollback and removal procedure",
-    "independent out-of-band Notify-down destination and failure domain"
-  ],
-  "limitations": {
-    "production_monitor_registered": false,
-    "production_caddy_monitor_allowlist_changed": false,
-    "production_notification_route_changed": false,
-    "administrator_receipt_proven": false,
-    "independent_out_of_band_alerting_proven": false,
-    "ntfy_retirement_approved": false
+    "limitations": {
+      "production_monitor_registered": false,
+      "production_caddy_monitor_allowlist_changed": false,
+      "production_notification_route_changed": false,
+      "administrator_receipt_proven": false,
+      "independent_out_of_band_alerting_proven": false,
+      "ntfy_retirement_approved": false
+    }
   }
 }
