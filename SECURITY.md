@@ -1,6 +1,6 @@
 # Security Policy
 
-GoreeCloud Notify is in pre-production release-candidate development. Production acceptance and the ntfy cutover remain separate controlled operations.
+GoreeCloud Notify is in pre-production release-candidate development. ntfy was permanently retired from `goreecloud-vps-01` on September 18, 2026; production activation and acceptance of GoreeCloud Notify remain separate controlled operations.
 
 ## Wardveil Security
 
