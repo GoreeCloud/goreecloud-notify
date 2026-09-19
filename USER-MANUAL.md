@@ -4,7 +4,7 @@
 **Document External Version Number:** 1.0.0  
 **Status:** Repository user manual for the current release-candidate source  
 **As of:** September 18, 2026  
-**Central manual status:** No dedicated central `User Manual — Notify` record was found during the September 18, 2026 repository-control reconciliation.
+**Central manual:** `GoreeCloud/User Manuals/User Manual — GoreeCloud Notify.docx`
 
 ## Before using Notify
 
