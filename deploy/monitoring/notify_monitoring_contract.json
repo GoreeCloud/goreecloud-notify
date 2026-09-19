@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "state": "source-readiness-only",
+  "primary_monitor_platform": "GoreeCloud Monitor",
+  "candidate_contract": {
+    "service_url": "https://notify.goreecloud.com",
+    "release_stage": "release_candidate",
+    "production_accepted": false,
+    "acceptance_status": "pending",
+    "exact_build_revision_required": true
+  },
+  "monitor": {
+    "name": "GoreeCloud Notify",
+    "type": "http",
+    "url": "https://notify.goreecloud.com/healthz",
+    "method": "GET",
+    "interval_seconds": 60,
+    "accepted_status_codes": [
+      200
+    ],
+    "tls_verification_required": true,
+    "private_gateway_path_required": true,
+    "database_aware_health_required": true,
+    "monitor_provider_must_be_production_accepted": true
+  },
+  "source_path": {
+    "provider_service": "goreecloud-monitor",
+    "observed_gateway_source_required": true,
+    "gateway_allowlist_required": true,
+    "backend_socket_only_forbidden": true
+  },
+  "outage_alerting": {
+    "notify_down_delivery_must_not_depend_on_notify": true,
+    "must_use_separate_failure_domain": true,
+    "must_not_depend_on_same_runtime_host": true,
+    "controlled_notify_outage_test_required": true,
+    "administrator_receipt_required": true
+  },
+  "target_acceptance_evidence": {
+    "validator": "deploy/monitoring/validate_target_evidence.py",
+    "evidence_schema_version": 3,
+    "evidence_kind": "goreecloud-notify-monitoring-target-acceptance",
+    "sanitized_evidence_only": true,
+    "exact_candidate_revision_required": true,
+    "exact_monitor_revision_required": true,
+    "concrete_retry_timeout_values_required": true,
+    "final_private_https_route_required": true,
+    "administrator_down_and_recovered_receipt_required": true,
+    "rollback_documentation_required": true,
+    "independent_out_of_band_notify_down_test_required": true
+  },
+  "production_values_to_confirm": [
+    "exact Notify candidate Git revision",
+    "exact accepted GoreeCloud Monitor revision",
+    "final observed Monitor source at GoreeCloud Gateway",
+    "final Gateway monitor-source authorization",
+    "monitor interval/retry/timeout configuration",
+    "actual DOWN and RECOVERED detection",
+    "actual administrator DOWN and RECOVERED receipt",
+    "monitor rollback/removal procedure",
+    "independent Notify-down mechanism and separate failure domain"
+  ],
+  "limitations": {
+    "production_monitor_registered": false,
+    "monitor_provider_production_accepted": false,
+    "production_gateway_monitor_authorization_changed": false,
+    "administrator_receipt_proven": false,
+    "independent_out_of_band_alerting_proven": false,
+    "notify_production_accepted": false
+  },
+  "historical_predecessors": {
+    "uptime_kuma_retired_on": "2026-09-18",
+    "ntfy_retired_on": "2026-09-18",
+    "active_dependency": false,
+    "production_rollback_target": false
+  }
+}
