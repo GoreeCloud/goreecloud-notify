@@ -16,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Validate source-controlled monitoring contract
+      - name: Validate source-controlled post-retirement monitoring contract
         shell: bash
         run: |
           set -euo pipefail
@@ -25,9 +25,12 @@ jobs:
           from pathlib import Path
 
           contract = json.loads(
-              Path("deploy/monitoring/notify_uptime_kuma_monitor.json").read_text()
+              Path("deploy/monitoring/notify_monitoring_contract.json").read_text()
           )
-          assert contract["state"] == "proposed-not-provisioned"
+          assert contract["schema_version"] == 3
+          assert contract["state"] == "source-readiness-only"
+          assert contract["primary_monitor_platform"] == "GoreeCloud Monitor"
+
           monitor = contract["monitor"]
           expected = {
               "name": "GoreeCloud Notify",
@@ -37,42 +40,37 @@ jobs:
               "interval_seconds": 60,
               "accepted_status_codes": [200],
               "tls_verification_required": True,
-              "private_caddy_path_required": True,
+              "private_gateway_path_required": True,
               "database_aware_health_required": True,
+              "monitor_provider_must_be_production_accepted": True,
           }
           for key, value in expected.items():
               assert monitor[key] == value, (key, monitor[key], value)
 
-          source = contract["source_identity"]
-          assert source["service"] == "uptime-kuma"
-          assert source["docker_network"] == "proxy"
-          assert source["documented_ipv4_baseline"] == "172.19.0.50"
-          assert source["live_source_confirmation_required"] is True
-          assert source["caddy_allowlist_required"] is True
+          source = contract["source_path"]
+          assert source["provider_service"] == "goreecloud-monitor"
+          assert source["observed_gateway_source_required"] is True
+          assert source["gateway_allowlist_required"] is True
+          assert source["backend_socket_only_forbidden"] is True
 
-          notification = contract["migration_notification_path"]
-          assert notification["service_identity"] == "uptime-kuma"
-          assert notification["permission"] == "write-only"
-          assert notification["internal_server_url"] == "http://ntfy:80"
-          assert notification["topic"] == "goreecloud-uptime"
-          assert notification["down_title"] == "GoreeCloud Notify DOWN"
-          assert notification["recovered_title"] == "GoreeCloud Notify RECOVERED"
-          assert notification["temporary_parallel_migration_path"] is True
-          assert notification["independent_failure_domain_proven"] is False
+          outage = contract["outage_alerting"]
+          assert outage["notify_down_delivery_must_not_depend_on_notify"] is True
+          assert outage["must_use_separate_failure_domain"] is True
+          assert outage["must_not_depend_on_same_runtime_host"] is True
+          assert outage["controlled_notify_outage_test_required"] is True
+          assert outage["administrator_receipt_required"] is True
 
-          baseline = contract["documented_ntfy_monitor_baseline_to_reverify_before_cutover"]
-          assert baseline["name"] == "ntfy"
-          assert baseline["url"] == "http://ntfy:80/v1/health"
-          assert baseline["interval_seconds"] == 60
-          assert baseline["max_retries"] == 3
-          assert baseline["retry_interval_seconds"] == 60
-          assert baseline["request_timeout_seconds"] == 48
+          historical = contract["historical_predecessors"]
+          assert historical["active_dependency"] is False
+          assert historical["production_rollback_target"] is False
 
           limitations = contract["limitations"]
           assert limitations
           assert all(value is False for value in limitations.values())
           PY
 
+          # The disposable topology uses 172.19.0.50 only as a synthetic CI monitor
+          # source. This is not a production Uptime Kuma identity or acceptance claim.
           grep -Fq 'notify.goreecloud.com {' deploy/monitoring/Caddyfile
           grep -Fq '@approved_monitor remote_ip 100.64.0.0/10 172.19.0.50' deploy/monitoring/Caddyfile
           grep -Fq 'reverse_proxy app:8000' deploy/monitoring/Caddyfile
@@ -96,7 +94,7 @@ jobs:
           test "$label_revision" = "$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"
           test "$file_revision" = "$GOREECLOUD_NOTIFY_EXPECTED_BUILD_REVISION"
 
-      - name: Create disposable monitoring state
+      - name: Create disposable synthetic alert-sink state
         shell: bash
         run: |
           set -euo pipefail
@@ -210,7 +208,7 @@ jobs:
       - name: Initialize disposable Notify database
         run: docker compose -f deploy/monitoring/docker-compose.yml --profile maintenance run --rm migrate
 
-      - name: Start private monitoring topology
+      - name: Start private synthetic monitoring topology
         shell: bash
         run: |
           set -euo pipefail
@@ -235,7 +233,7 @@ jobs:
 
           docker compose -f deploy/monitoring/docker-compose.yml up -d monitor subscriber
 
-      - name: Verify healthy state and least-privilege alert identities
+      - name: Verify healthy state and synthetic least-privilege alert identities
         run: |
           docker compose -f deploy/monitoring/docker-compose.yml exec -T monitor python /readiness/monitor_client.py probe-up
           docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py assert-empty
@@ -244,7 +242,7 @@ jobs:
           docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py anonymous-cannot-read
           docker compose -f deploy/monitoring/docker-compose.yml exec -T subscriber python /readiness/monitor_client.py anonymous-cannot-publish
 
-      - name: Simulate Notify DOWN and RECOVERED transitions
+      - name: Simulate Notify DOWN and RECOVERED transitions through synthetic sink
         shell: bash
         run: |
           set -euo pipefail
